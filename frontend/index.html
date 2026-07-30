@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>加密市場分析 AI Agent</title>
+
+<!-- CDN：Google Fonts（字體）-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- CDN：marked.js（把模型輸出的 Markdown 報告轉成排版好的 HTML）-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+
+<style>
+:root{
+  --ink:#0f1720;        /* 底色：深墨藍 */
+  --panel:#17222e;      /* 面板 */
+  --line:#26333f;       /* 分隔線 */
+  --text:#e6ecf2;       /* 主要文字 */
+  --muted:#8496a6;      /* 次要文字 */
+  --accent:#e0a33e;     /* 強調色：琥珀金，全站只用這一個 */
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--ink); color:var(--text);
+  font-family:'Noto Sans TC',system-ui,sans-serif;
+  line-height:1.7; padding:3rem 1.5rem; min-height:100vh;
+}
+.wrap{max-width:720px;margin:0 auto}
+
+/* 標題區 */
+.eyebrow{
+  font-family:'IBM Plex Mono',monospace; font-size:12px;
+  letter-spacing:.14em; color:var(--accent); margin-bottom:.5rem;
+}
+h1{font-size:26px;font-weight:500;margin-bottom:.4rem}
+.sub{color:var(--muted);font-size:14px;margin-bottom:2.5rem}
+
+/* 輸入面板 */
+.panel{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); padding:1.75rem;
+}
+.label{font-size:13px;color:var(--muted);margin-bottom:.6rem}
+
+/* 幣種選擇：用等寬字體呈現代號，貼近交易介面的視覺語言 */
+.coins{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.75rem}
+.coin{
+  font-family:'IBM Plex Mono',monospace; font-size:14px;
+  background:transparent; color:var(--text);
+  border:1px solid var(--line); border-radius:6px;
+  padding:.45rem 1rem; cursor:pointer; transition:.15s;
+}
+.coin:hover{border-color:var(--muted)}
+.coin[aria-pressed="true"]{
+  background:var(--accent); border-color:var(--accent); color:var(--ink); font-weight:500;
+}
+
+textarea{
+  width:100%; background:var(--ink); color:var(--text);
+  border:1px solid var(--line); border-radius:6px;
+  padding:.85rem; font-family:inherit; font-size:15px;
+  resize:vertical; min-height:110px; margin-bottom:1.75rem;
+}
+textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+
+.submit{
+  width:100%; background:var(--accent); color:var(--ink);
+  border:none; border-radius:6px; padding:.8rem;
+  font-family:inherit; font-size:15px; font-weight:500; cursor:pointer;
+}
+.submit:hover{filter:brightness(1.08)}
+.submit:disabled{opacity:.45;cursor:not-allowed}
+
+/* 執行中狀態 */
+#loading{display:none;text-align:center;padding:3rem 0}
+.spinner{
+  width:26px;height:26px;margin:0 auto 1rem;
+  border:2px solid var(--line); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-msg{color:var(--muted);font-size:14px}
+.elapsed{font-family:'IBM Plex Mono',monospace;color:var(--accent);font-size:13px;margin-top:.5rem}
+
+/* 報告輸出 */
+#result{display:none;margin-top:2.5rem}
+#report h1,#report h2,#report h3{margin:1.75rem 0 .75rem;font-weight:500;line-height:1.4}
+#report h1{font-size:22px} #report h2{font-size:18px} #report h3{font-size:16px}
+#report p,#report li{margin-bottom:.7rem}
+#report ul,#report ol{padding-left:1.4rem}
+#report table{width:100%;border-collapse:collapse;font-size:14px;margin:1rem 0}
+#report th,#report td{border:1px solid var(--line);padding:.5rem .7rem;text-align:left}
+#report code{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--accent)}
+#report hr{border:none;border-top:1px solid var(--line);margin:2rem 0}
+
+.downloads{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--line)}
+.dl{
+  font-size:14px; color:var(--text); text-decoration:none;
+  border:1px solid var(--line); border-radius:6px; padding:.5rem 1rem;
+}
+.dl:hover{border-color:var(--accent);color:var(--accent)}
+
+#error{display:none;margin-top:1.5rem;padding:1rem;border:1px solid #7a3b3b;border-radius:6px;color:#e8a5a5;font-size:14px}
+
+@media (max-width:600px){body{padding:2rem 1rem}h1{font-size:22px}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">HOYA BIT ／ 智慧交易</p>
+  <h1>加密市場分析 AI Agent</h1>
+  <p class="sub">輸入幣種與分析題目，系統會蒐集價格、鏈上、新聞與情緒資料，產出附帶可回溯來源的分析報告。</p>
+
+  <div class="panel" id="input-panel">
+    <p class="label">選擇幣種（比較分析題型可選兩個）</p>
+    <div class="coins" id="coins">
+      <button class="coin" aria-pressed="false">BTC</button>
+      <button class="coin" aria-pressed="false">ETH</button>
+      <button class="coin" aria-pressed="false">SOL</button>
+      <button class="coin" aria-pressed="false">BNB</button>
+      <button class="coin" aria-pressed="false">XRP</button>
+    </div>
+
+    <p class="label">分析題目</p>
+    <textarea id="question" placeholder="例：市場上有聲音認為 SOL 短期內將維持盤整、缺乏明確方向，請蒐集支持與反對此觀點的證據，並說明你最終的判斷與理由。"></textarea>
+
+    <button class="submit" id="submit">開始分析</button>
+  </div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <p id="loading-msg">正在規劃資料蒐集範圍</p>
+    <p class="elapsed" id="elapsed">00:00</p>
+  </div>
+
+  <div id="error"></div>
+
+  <div id="result">
+    <div id="report"></div>
+    <div class="downloads">
+      <a class="dl" id="dl-evidence" href="#" download>下載證據清單</a>
+      <a class="dl" id="dl-log" href="#" download>下載執行紀錄</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// 部署後把這裡換成你的 Lambda Function URL
+const API_URL = "https://請填入你的-function-url.lambda-url.us-east-1.on.aws/";
+
+// 等待期間輪播的提示文字。前端無法得知 Lambda 內部進度，
+// 所以這裡是預先寫死的訊息輪播，目的是讓使用者知道系統還在運作。
+const LOADING_MESSAGES = [
+  "正在規劃資料蒐集範圍",
+  "正在讀取價格與技術指標",
+  "正在檢索新聞與官方公告",
+  "正在查詢鏈上活躍度",
+  "正在整理證據並產出報告"
+];
+
+let selectedCoins = [];
+
+function initCoinSelector() {
+  // 功能：綁定五個幣種按鈕的點擊事件。
+  // 行為：點擊切換選取狀態（同步更新 aria-pressed 屬性讓樣式生效），
+  //      最多允許選兩個（比較分析題型需要），超過就把最早選的移除。
+  // 同時維護 selectedCoins 陣列。
+}
+
+function handleSubmit() {
+  // 功能：使用者按下「開始分析」時執行。
+  // 步驟：
+  //   1. 驗證：至少選一個幣種、題目不可為空，否則呼叫 showError()
+  //   2. 呼叫 showLoading() 切換畫面狀態、停用送出按鈕
+  //   3. 組出 payload：{ symbols: selectedCoins, question: 題目文字 }
+  //   4. 呼叫 callAnalysisApi(payload)
+  //   5. 成功 → renderReport(data)；失敗 → showError()
+  //   6. 無論成功失敗都要恢復送出按鈕、隱藏 loading
+}
+
+async function callAnalysisApi(payload) {
+  // 功能：呼叫後端 Lambda Function URL。
+  // 實作：fetch(API_URL, { method:"POST", headers:{"Content-Type":"application/json"},
+  //                       body: JSON.stringify(payload) })
+  // 注意：分析可能執行 5-10 分鐘，這個 fetch 會等很久，這是正常的。
+  //      （這也是為什麼不用 API Gateway —— 它有 29 秒逾時上限。）
+  // 回傳：後端回傳的 JSON 物件
+  //      { report_text, evidence_download_url, log_download_url, run_id }
+}
+
+function showLoading() {
+  // 功能：切換到執行中畫面。
+  // 步驟：隱藏輸入面板與舊結果、顯示 #loading、
+  //      啟動計時器更新 #elapsed 的經過秒數、
+  //      啟動輪播計時器每隔數秒更換 #loading-msg 的文字。
+  // 記得在結束時清除這兩個計時器（clearInterval）。
+}
+
+function renderReport(data) {
+  // 功能：把後端回傳的報告顯示在畫面上。
+  // 步驟：
+  //   1. 用 marked.parse(data.report_text) 把 Markdown 轉成 HTML，
+  //      塞進 #report 的 innerHTML
+  //   2. 把 data.evidence_download_url 設為 #dl-evidence 的 href
+  //   3. 把 data.log_download_url 設為 #dl-log 的 href
+  //   4. 顯示 #result
+}
+
+function showError(message) {
+  // 功能：顯示錯誤訊息。
+  // 寫法建議：說明發生什麼事、以及可以怎麼處理，不要只寫「發生錯誤」。
+  //          例如「無法連線到分析服務，請確認 Function URL 是否正確」。
+}
+
+initCoinSelector();
+document.getElementById("submit").addEventListener("click", handleSubmit);
+</script>
+</body>
+</html>

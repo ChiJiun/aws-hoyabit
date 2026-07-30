@@ -1,0 +1,35 @@
+# ---- 機密資訊（最重要，絕對不能上傳）----
+.env
+*.pem
+*.key
+credentials
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ---- Lambda 打包產物 ----
+function.zip
+lambda/package/
+lambda/*.dist-info/
+lambda/boto3/
+lambda/botocore/
+lambda/pandas/
+lambda/numpy/
+
+# ---- 作業系統 ----
+.DS_Store
+Thumbs.db
+
+# ---- 編輯器 ----
+.vscode/
+.idea/
+
+# ---- 本機執行產生的輸出（sample_run 例外，要保留給評審看）----
+outputs/*
+!outputs/sample_run/
+!outputs/sample_run/**
