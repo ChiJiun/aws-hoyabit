@@ -288,7 +288,7 @@ def dispatch_tool_call(run_id, tool_use_block):
         elapsed_ms = int((time.time() - start_time) * 1000)
         evidence.log_execution_step(tool_name, "error", elapsed_ms, note="unknown tool")
         return {
-            "toolResultId": tool_use_id,
+            "toolUseId": tool_use_id,
             "content": [{"text": json.dumps({"error": f"Unknown tool: {tool_name}"})}],
             "status": "error",
         }
@@ -306,7 +306,7 @@ def dispatch_tool_call(run_id, tool_use_block):
                 tool_name, "error", elapsed_ms, note=result["error"]
             )
             return {
-                "toolResultId": tool_use_id,
+                "toolUseId": tool_use_id,
                 "content": [{"text": json.dumps({"error": result["error"]})}],
                 "status": "error",
             }
@@ -334,7 +334,7 @@ def dispatch_tool_call(run_id, tool_use_block):
         }
 
         return {
-            "toolResultId": tool_use_id,
+            "toolUseId": tool_use_id,
             "content": [{"text": json.dumps(tool_result_content, ensure_ascii=False)}],
             "status": "success",
         }
@@ -344,7 +344,7 @@ def dispatch_tool_call(run_id, tool_use_block):
         error_msg = f"[{tool_name}] {type(e).__name__}: {str(e)}"
         evidence.log_execution_step(tool_name, "error", elapsed_ms, note=error_msg)
         return {
-            "toolResultId": tool_use_id,
+            "toolUseId": tool_use_id,
             "content": [{"text": json.dumps({"error": error_msg})}],
             "status": "error",
         }

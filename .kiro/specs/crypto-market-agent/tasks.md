@@ -114,14 +114,14 @@
     - _需求：7.2_
 
   - [x] 4.2 實作 search_news 主函式
-    - 呼叫 CryptoPanic API（帶 currencies 參數）取得幣種新聞
+    - 呼叫 Google News RSS(關鍵字含幣種)與媒體 RSS 白名單取得幣種新聞
     - 合併 fetch_official_announcements 結果
     - 標註同一來源家族的重複報導
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：7.1、7.2、7.3、7.4、7.5、20.1、20.2、20.3_ | _Property 12、13_
 
   - [ ] 4.3 撰寫 news.py 的單元測試
-    - Mock CryptoPanic API 回應，驗證結果解析
+    - Mock RSS 回應，驗證結果解析
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 7.1、7.5**

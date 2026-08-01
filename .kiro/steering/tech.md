@@ -24,5 +24,5 @@ Agent 迴圈受 MAX_AGENT_TURNS 與 TIME_BUDGET_SECONDS 雙重約束;超時即�
 
 ## 資料來源(金鑰需求見 README)
 價格:賽方 baseline CSV(至 2026-05-31)+ Binance 補即時 + CoinGecko 備援
-新聞:CryptoPanic + 官方部落格/GitHub releases|鏈上:mempool.space / Etherscan V2 / Blockscout / Helius / XRPL
+新聞:Google News RSS + 媒體 RSS(CoinDesk/Cointelegraph/The Block)+ 官方部落格/GitHub releases(全免費)|鏈上:mempool.space / Etherscan V2 / Blockscout / Helius / XRPL
 情緒:alternative.me Fear & Greed|總經:FRED

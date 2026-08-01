@@ -4,7 +4,7 @@
 
 - [ ] 1. sentiment.py:get_sentiment(最簡單,先做熟悉契約)(R9)
 - [ ] 2. macro.py:get_macro + fetch_upcoming_events(R10)
-- [ ] 3. news.py:CryptoPanic 查詢(R7.1)
+- [ ] 3. news.py:Google News RSS + 媒體 RSS 白名單查詢(R7.1,免費來源替代 CryptoPanic)
 - [ ] 4. news.py:官方公告(五幣種來源分派)+ 同源標註(R7.2, R7.3)
 - [ ] 5. onchain.py:fetch_btc(mempool.space)+ fetch_evm(Etherscan V2/Blockscout 共用)(R8.1–8.3)
 - [ ] 6. onchain.py:fetch_sol(Helius)+ fetch_xrp(XRPL)(R8.4, R8.5)
@@ -18,3 +18,9 @@
 - [ ] 12. onchain.py:活躍度偏離 30 日均 ±30%(A9)
 - [ ] 13. macro.py:DXY/殖利率 20 日變化極端(A10)
 - [ ] 14. 測試:各 flag 觸發與不觸發案例
+
+## 衍生品與市場共識擴充(docs/data-source-catalog.md Tier 1–2)
+- [ ] 15. tools/derivatives.py:get_derivatives(symbol)— Hyperliquid 資金費率/OI(主)+ Binance Futures(備援)+ Coinglass 清算/多空比(有鑰時);flag:費率極端、OI 急變、大規模清算
+- [ ] 16. tools/prediction.py:get_prediction_markets(symbol)— Polymarket Gamma API 相關事件市場機率與 7 日變化
+- [ ] 17. DefiLlama 穩定幣供給/TVL 併入 onchain.py 或獨立小函式
+- [ ] 18. agent-orchestrator 同步:兩個新工具註冊 toolSpec + TOOL_DISPATCH(通知該模組負責人)

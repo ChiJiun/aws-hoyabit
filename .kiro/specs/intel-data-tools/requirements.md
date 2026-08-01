@@ -3,7 +3,7 @@
 範圍:lambda/tools/news.py、onchain.py、sentiment.py、macro.py。編號引用主 spec。
 
 ## 承接的主 spec 需求
-- **R7 新聞與官方公告**(全部):CryptoPanic + 官方部落格/GitHub releases;同來源家族去重標註;content_reference 含標題/時間/URL/引用片段
+- **R7 新聞與官方公告**(全部):Google News RSS + 媒體 RSS + 官方部落格/GitHub releases(取代主 spec R7.1 的 CryptoPanic,改用免費來源,語意不變);同來源家族去重標註;content_reference 含標題/時間/URL/引用片段
 - **R8 鏈上資料**(全部):BTC→mempool.space、ETH→Etherscan V2、BNB→Blockscout、SOL→Helius、XRP→XRPL;content_reference 含 endpoint/參數/時間範圍
 - **R9 市場情緒**(全部):alternative.me Fear & Greed 當前值 + 走勢
 - **R10 總體經濟**(全部):FRED(DXY、10Y 殖利率、聯邦基金利率)+ 重要總經事件
