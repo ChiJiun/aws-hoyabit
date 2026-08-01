@@ -20,6 +20,7 @@ lambda/boto3/
 lambda/botocore/
 lambda/pandas/
 lambda/numpy/
+build/
 
 # ---- 作業系統 ----
 .DS_Store

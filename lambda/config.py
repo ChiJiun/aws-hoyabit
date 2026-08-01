@@ -8,7 +8,7 @@ config.py — 環境變數與常數集中管理
 import os
 
 # ---- AWS 設定 ----
-AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
+AWS_REGION = os.environ.get("AWS_REGION", "us-west-2")
 BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
 DATA_BUCKET = os.environ.get("DATA_BUCKET")
 

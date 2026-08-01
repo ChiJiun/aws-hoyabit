@@ -91,7 +91,6 @@ def lambda_handler(event, context):
     if http_method == "OPTIONS":
         return {
             "statusCode": 200,
-            "headers": CORS_HEADERS,
             "body": "",
         }
 
@@ -105,7 +104,6 @@ def lambda_handler(event, context):
         except ValueError as e:
             return {
                 "statusCode": 400,
-                "headers": CORS_HEADERS,
                 "body": json.dumps({"error": str(e)}, ensure_ascii=False),
             }
 
@@ -162,7 +160,6 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 200,
-            "headers": CORS_HEADERS,
             "body": json.dumps(response_body, ensure_ascii=False),
         }
 
@@ -170,7 +167,6 @@ def lambda_handler(event, context):
         # 外層兜底：捕獲所有未預期錯誤，回傳 500 + CORS
         return {
             "statusCode": 500,
-            "headers": CORS_HEADERS,
             "body": json.dumps(
                 {"error": f"Internal server error: {type(e).__name__}: {str(e)}"},
                 ensure_ascii=False,
