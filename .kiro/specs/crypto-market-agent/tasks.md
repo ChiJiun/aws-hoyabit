@@ -79,96 +79,96 @@
     - **Property 12: 工具永不拋錯** — 任何輸入下 compute_quant 回傳 dict 而非拋例外
     - **驗證: 需求 11.3、11.4、20.2**
 
-- [ ] 3. 價格與 OHLCV 資料工具（tools/price.py）
+- [x] 3. 價格與 OHLCV 資料工具（tools/price.py）
 
-  - [ ] 3.1 實作 fetch_recent_from_exchange 函式
+  - [x] 3.1 實作 fetch_recent_from_exchange 函式
     - 從 Binance 公開 API 取得 BASELINE_END_DATE 之後的日線 OHLCV
     - 使用與基準資料相同的交易對（{symbol}USDT）
     - 回傳 pandas DataFrame，欄位與基準 CSV 一致
     - _需求：6.3_
 
-  - [ ] 3.2 實作 check_data_seam 函式
+  - [x] 3.2 實作 check_data_seam 函式
     - 比對基準資料與即時資料的重疊日期收盤價差異百分比
     - 回傳 (是否通過、重疊日數、最大價差百分比)
     - 結果記入 execution_log
     - _需求：6.4_
 
-  - [ ] 3.3 實作 get_price_ohlcv 主函式
+  - [x] 3.3 實作 get_price_ohlcv 主函式
     - 讀取 S3 基準 CSV → 判斷是否需補即時資料 → 拼接 → 篩選日期範圍
     - 以 CoinGecko 作為備用來源
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：6.1、6.2、6.3、6.4、6.5、6.6、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ]* 3.4 撰寫 price.py 的單元測試
+  - [ ] 3.4 撰寫 price.py 的單元測試
     - 測試基準 CSV 讀取與日期篩選
     - 測試 check_data_seam 在價差過大時的警告
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 6.1、6.6**
 
-- [ ] 4. 新聞與官方公告工具（tools/news.py）
+- [x] 4. 新聞與官方公告工具（tools/news.py）
 
-  - [ ] 4.1 實作 fetch_official_announcements 函式
+  - [x] 4.1 實作 fetch_official_announcements 函式
     - 從各專案官方部落格 RSS 與 GitHub releases API 取得一手公告
     - 依幣種分派到正確的來源（BTC→bitcoin.org、ETH→blog.ethereum.org 等）
     - _需求：7.2_
 
-  - [ ] 4.2 實作 search_news 主函式
+  - [x] 4.2 實作 search_news 主函式
     - 呼叫 CryptoPanic API（帶 currencies 參數）取得幣種新聞
     - 合併 fetch_official_announcements 結果
     - 標註同一來源家族的重複報導
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：7.1、7.2、7.3、7.4、7.5、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ]* 4.3 撰寫 news.py 的單元測試
+  - [ ] 4.3 撰寫 news.py 的單元測試
     - Mock CryptoPanic API 回應，驗證結果解析
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 7.1、7.5**
 
-- [ ] 5. 鏈上資料工具（tools/onchain.py）
+- [x] 5. 鏈上資料工具（tools/onchain.py）
 
-  - [ ] 5.1 實作 fetch_btc_onchain 函式
+  - [x] 5.1 實作 fetch_btc_onchain 函式
     - 從 mempool.space 取得 BTC 鏈上資料（免金鑰）
     - 支援 active_addresses、tx_count 等指標
     - _需求：8.1_
 
-  - [ ] 5.2 實作 fetch_evm_onchain 函式
+  - [x] 5.2 實作 fetch_evm_onchain 函式
     - ETH → Etherscan API V2（需金鑰）；BNB → Blockscout（免金鑰）
     - 兩者共用同一套解析邏輯（API 格式相容）
     - _需求：8.2、8.3_
 
-  - [ ] 5.3 實作 fetch_sol_onchain 函式
+  - [x] 5.3 實作 fetch_sol_onchain 函式
     - 從 Helius 取得 Solana 鏈上資料（需金鑰）
     - _需求：8.4_
 
-  - [ ] 5.4 實作 fetch_xrp_onchain 函式
+  - [x] 5.4 實作 fetch_xrp_onchain 函式
     - 從 XRPL 公開節點取得 XRP 帳本資料（標準 JSON-RPC，免金鑰）
     - _需求：8.5_
 
-  - [ ] 5.5 實作 get_onchain 主函式
+  - [x] 5.5 實作 get_onchain 主函式
     - 依 symbol 分派到對應的 fetch 函式（match/case）
     - content_reference 包含 API endpoint、查詢參數、資料時間範圍
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：8.1、8.2、8.3、8.4、8.5、8.6、8.7、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ]* 5.6 撰寫 onchain.py 的單元測試
+  - [ ] 5.6 撰寫 onchain.py 的單元測試
     - Mock 各鏈 API 回應，驗證幣種分派正確性
     - 測試所有 5 條鏈的 API 失敗時回傳 error dict
     - **Property 5: 工具分派正確性**
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 8.1–8.7**
 
-- [ ] 6. 市場情緒工具（tools/sentiment.py）
+- [x] 6. 市場情緒工具（tools/sentiment.py）
 
-  - [ ] 6.1 實作 get_sentiment 函式
+  - [x] 6.1 實作 get_sentiment 函式
     - 呼叫 alternative.me Fear & Greed Index API
     - 取得當前指數值與近 lookback_days 天的走勢
     - content_reference 包含 API endpoint、查詢時間範圍、指數數值與分級文字
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：9.1、9.2、9.3、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ]* 6.2 撰寫 sentiment.py 的單元測試
+  - [ ] 6.2 撰寫 sentiment.py 的單元測試
     - Mock API 回應，驗證 content_reference 包含完整資訊
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
@@ -196,40 +196,40 @@
 - [ ] 8. 檢查點 — 基礎設施與工具模組
   - 確認所有測試通過，如有疑問請詢問使用者。
 
-- [ ] 9. Agent 主迴圈（agent.py）
+- [x] 9. Agent 主迴圈（agent.py）
 
-  - [ ] 9.1 實作 build_tool_config 函式
+  - [x] 9.1 實作 build_tool_config 函式
     - 組出 Bedrock Converse API 的 toolConfig JSON
     - 每個 toolSpec 的 inputSchema 必須將 related_claim 列為 required
     - 包含六個工具的完整描述與參數定義
     - _需求：3.1、4.3_ | _Property 5_
 
-  - [ ] 9.2 實作 call_bedrock 函式
+  - [x] 9.2 實作 call_bedrock 函式
     - 呼叫 boto3 bedrock-runtime.converse()
     - 傳入 system=[{"text": SYSTEM_PROMPT}]、messages、toolConfig
     - 處理 ThrottlingException（等待 2 秒重試一次）、ModelTimeoutException、ValidationException
     - _需求：3.1_
 
-  - [ ] 9.3 實作 dispatch_tool_call 函式
+  - [x] 9.3 實作 dispatch_tool_call 函式
     - 從 tool_use_block 解析 name 與 input
     - 透過 TOOL_DISPATCH 分派至對應函式並計時
     - 呼叫 log_evidence() 與 log_execution_step()
     - 回傳 toolResult（僅含 summary + evidence_id，不含 raw）
     - _需求：3.2、3.6、4.1、4.2、5.1、5.2_ | _Property 5、6_
 
-  - [ ] 9.4 實作 run_agent_loop 函式
+  - [x] 9.4 實作 run_agent_loop 函式
     - 組裝初始 user 訊息，進入迴圈（最多 MAX_AGENT_TURNS 輪）
     - 每輪開始前檢查時間預算
     - stopReason 為 tool_use 時分派工具；為 end_turn 時跳出
     - 超時則強制跳出並標記
     - _需求：2.1、2.2、2.3、2.4、3.2、3.3_ | _Property 3_
 
-  - [ ] 9.5 實作 summarize_final_analysis 函式
+  - [x] 9.5 實作 summarize_final_analysis 函式
     - 第二次 Bedrock 呼叫（不含 toolConfig）
     - 要求模型以「市場判斷／關鍵依據／信心說明」結構輸出
     - _需求：14.1_
 
-  - [ ]* 9.6 撰寫 agent.py 的單元測試
+  - [x]* 9.6 撰寫 agent.py 的單元測試
     - Mock Bedrock API，測試 end_turn 正確退出迴圈
     - 測試 MAX_AGENT_TURNS 達到上限時強制退出
     - 測試 dispatch_tool_call 的 toolResult 不含 raw 欄位
@@ -305,31 +305,31 @@
 - [ ] 13. 檢查點 — Agent 迴圈與報告模組
   - 確認所有測試通過，如有疑問請詢問使用者。
 
-- [ ] 14. Lambda 進入點整合（handler.py）
+- [x] 14. Lambda 進入點整合（handler.py）
 
-  - [ ] 14.1 實作 parse_request 函式
+  - [x] 14.1 實作 parse_request 函式
     - 從 event body 解析 symbols（1-2 個）與 question
     - 驗證 symbols ⊂ SUPPORTED_SYMBOLS、question 非空
     - 驗證失敗回傳含明確錯誤說明的回應
     - _需求：1.2、1.3、1.4、1.5_ | _Property 1、2_
 
-  - [ ] 14.2 實作 generate_run_id 函式
+  - [x] 14.2 實作 generate_run_id 函式
     - 產生格式為 run_YYYYMMDD_HHMMSS（UTC）的唯一識別碼
     - _需求：1.2_
 
-  - [ ] 14.3 實作 lambda_handler 函式
+  - [x] 14.3 實作 lambda_handler 函式
     - 串接完整流程：reset → parse → run_id → agent_loop → summarize → validate → render → export → upload → presigned URL
     - 回傳含 CORS 標頭的 JSON（report_text、evidence_download_url、log_download_url、run_id）
     - 外層 try/except 捕獲未預期錯誤，回傳 500 + CORS
     - _需求：1.1、1.6、2.5、14.1、14.2、15.1、15.2、15.3、15.4_
 
-  - [ ] 14.4 實作 main 本機測試進入點
+  - [x] 14.4 實作 main 本機測試進入點
     - 呼叫 load_local_env() 載入環境變數
     - 使用寫死的測試輸入執行完整流程
     - 輸出至 outputs/ 資料夾
     - _需求：21.1、21.2_
 
-  - [ ]* 14.5 撰寫 handler.py 的屬性測試
+  - [x]* 14.5 撰寫 handler.py 的屬性測試
     - **Property 1: 有效請求必定被接受** — 1-2 個支援幣種 + 非空 question 必定通過
     - **Property 2: 無效幣種必定被拒絕** — 不在 SUPPORTED_SYMBOLS 中的代號被拒
     - **驗證: 需求 1.2、1.3、1.4、1.5**
@@ -375,16 +375,16 @@
 
 - [x] 16. 整合測試（tests/test_local_run.py）
 
-  - [ ] 16.1 實作 run_single_case 函式
+  - [x] 16.1 實作 run_single_case 函式
     - 呼叫 handler 內部邏輯執行測試案例
     - 檢查：無例外、report_text 非空、evidence 涵蓋 >= 3 類別、無孤兒結論、耗時合理
     - _需求：21.3_
 
-  - [ ] 16.2 實作 print_summary 函式
+  - [x] 16.2 實作 print_summary 函式
     - 印出總表：案例名稱、通過/失敗、耗時、證據筆數、涵蓋類別數
     - _需求：21.3_
 
-  - [ ] 16.3 實作 main 函式
+  - [x] 16.3 實作 main 函式
     - 依序執行三個 TEST_CASES，最後印出總表
     - _需求：21.3_
 

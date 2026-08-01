@@ -11,6 +11,6 @@
 - [x] 7. handler.py:parse_request + generate_run_id(R1.2–1.5)
 - [x] 8. handler.py:lambda_handler 全流程串接 + CORS + 外層錯誤處理(R1.1, R1.6, R2.5, R15)
 - [x] 9. handler.py:本機測試進入點(R21.1, R21.2)
-- [ ] 10. tests/test_local_run.py:5 幣種 × 3 題型組合 + 總表輸出(R21.3)
-- [ ] 11. 單元測試:P1/P2/P3/P5/P6(mock Bedrock)
+- [x] 10. tests/test_local_run.py:5 幣種 × 3 題型組合 + 總表輸出(R21.3)
+- [x] 11. 單元測試:P1/P2/P3/P5/P6(mock Bedrock)
 - [ ] 12. 檢查點:計時演練 — 完整執行需 < 12 分鐘(留 3 分鐘緩衝)
