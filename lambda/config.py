@@ -28,6 +28,20 @@ SUPPORTED_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "XRP"]
 BASELINE_END_DATE = "2026-05-31"   # 賽方基準資料截止日，用來判斷是否需要補即時資料
 
 
+def check_required_env():
+    """檢查必要環境變數是否已設定，回傳缺少的變數名清單。
+
+    啟動時呼叫一次，一次性列出所有缺漏的變數名，方便部署時快速排錯。
+    只檢查「系統運作必須」的變數，API 金鑰視為選用（缺了某支工具會 graceful fail）。
+    """
+    required = {
+        "BEDROCK_MODEL_ID": BEDROCK_MODEL_ID,
+        "DATA_BUCKET": DATA_BUCKET,
+    }
+    missing = [name for name, value in required.items() if not value]
+    return missing
+
+
 def load_local_env():
     """本機開發時，從專案根目錄的 .env 檔案載入環境變數。
 
