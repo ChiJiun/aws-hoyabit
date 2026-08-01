@@ -38,11 +38,66 @@ agent.py 產出 `analysis_text: str`(已含事實→推論→結論結構);repor
 ## C5. Handler HTTP 回應契約(frontend 唯一依賴)
 成功 200:
 ```json
-{"run_id": "...", "report_text": "<markdown>",
- "evidence_download_url": "<presigned>", "log_download_url": "<presigned>"}
+{
+  "run_id": "...",
+  "report_text": "<markdown>",
+  "report_data": {},
+  "evidence_download_url": "<presigned>",
+  "log_download_url": "<presigned>"
+}
 ```
-失敗 4xx/5xx:`{"error": "<明確錯誤說明>"}`;所有回應必含 CORS 標頭。
-請求格式:`POST {"symbols": ["BTC"] 或 ["BTC","ETH"], "question": "<非空字串>"}`
+`report_data` 遵循 C7；若 C7 組裝或驗證失敗可為 `null` 或省略，`report_text` 與下載連結仍須正常回傳。失敗 4xx/5xx：`{"error": "<明確錯誤說明>"}`；所有回應必含 CORS 標頭。
+請求格式：`POST {"symbols": ["BTC"] 或 ["BTC","ETH"], "question": "<非空字串>"}`。
+
+## C7. 結構化報告資料(report_data.json)
+
+`report.build_report_data()` 產出，Handler 將它存為 `runs/{run_id}/report_data.json` 並透過 C5 的 `report_data` 欄位下發。Frontend 視覺化只能使用 C7，不得從 Markdown 抽值或自行計算。
+
+```json
+{
+  "schema_version": "1.0",
+  "question_type": "single_integration | hypothesis | comparison",
+  "symbols": ["BTC"],
+  "verdict": {
+    "text": "...",
+    "stance": "bullish | bearish | neutral | mixed",
+    "confidence": 0.62,
+    "confidence_label": "中等",
+    "invalidation": "..."
+  },
+  "dimensions": [{
+    "name": "價格動能",
+    "state": "strong | weak | neutral | na",
+    "headline": "...",
+    "evidence_ids": ["ev_..."],
+    "per_symbol": {"BTC": {}}
+  }],
+  "signals": [{
+    "level": "red | yellow",
+    "title": "...",
+    "detail": "...",
+    "metrics": [{"label": "...", "value": 0, "percentile": 50}],
+    "evidence_ids": ["ev_..."],
+    "caveat": "..."
+  }],
+  "checked_normal": ["..."],
+  "hypothesis": null,
+  "comparison": null,
+  "series": {"price": {"BTC": [["2026-08-01", 100.0]]}},
+  "coverage": {"pct": 86, "got": ["price"], "missing": [{"capability": "macro", "reason": "timeout"}]},
+  "watchlist": [{"event": "FOMC", "date": "2026-08-18", "why": "..."}]
+}
+```
+
+規則：
+- `schema_version`、`question_type`、`symbols`、`verdict`、`dimensions`、`signals`、`checked_normal`、`series`、`coverage`、`watchlist` 為必要欄位。
+- `symbols` 必須與請求一致；single/hypothesis 恰為 1 個，comparison 恰為 2 個。
+- `hypothesis` 僅在 hypothesis 題型為物件，包含 `statement/supporting/opposing/verdict_reason`；其他題型為 `null`。
+- `comparison` 僅在 comparison 題型為物件，包含 `rows/when_prefer_a/when_prefer_b`；其他題型為 `null`。
+- `confidence` 為 0–1；`evidence_ids` 必須存在於 C2；`series` 最多提供近 90 日且日期升冪。
+- `coverage.pct` 是題目相關 Phase A 能力的資料可用率，不是固定維度覆蓋率、報告分數或信心；無適用能力時為 `null`。
+- C7 與 report.md 必須來自同一份分析並保持 verdict、信心、訊號與引用一致。
+- C7 組裝或驗證失敗不得阻斷 report.md、evidence_list.json、execution_log.jsonl 匯出；必須記錄失敗並採純 Markdown 降級。
 
 ## C6. 環境變數(config.py 統一讀取,他處不得直接 os.environ)
 AWS_REGION、BEDROCK_MODEL_ID、DATA_BUCKET、BASELINE_END_DATE、MAX_AGENT_TURNS、TIME_BUDGET_SECONDS、各資料源 API 金鑰(COINGECKO_API_KEY、ETHERSCAN_API_KEY、HELIUS_API_KEY、FRED_API_KEY)

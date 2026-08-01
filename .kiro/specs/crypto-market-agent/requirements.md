@@ -318,3 +318,16 @@
 1. THE Lambda_Function SHALL 提供本機測試進入點，使用寫死的測試輸入執行完整分析流程
 2. WHEN 本機執行時，THE Lambda_Function SHALL 將交付物輸出至本地 outputs/ 資料夾而非上傳 S3
 3. THE Lambda_Function SHALL 提供整合測試腳本，涵蓋五個幣種與三種分析題型的組合測試
+
+---
+
+## 資料管線與呈現架構補充驗收（不新增需求編號）
+
+以下條件依 `docs/pipeline-presentation-plan.md` 映射至既有需求，並以 C7 為欄位契約：
+
+1. **R2/R3—兩階段蒐集**：THE Lambda_Function SHALL 在 Agent_Loop 前依題型與幣種建立 Phase A 題目相關預抓計畫，以受限並行及約 90 秒軟期限執行；單一工具失敗不得取消其他工具。THE Agent_Loop SHALL 在 Phase B 只依 Phase A 摘要與題目補洞，且剩餘總預算低於 20% 時停止新增蒐集並收斂。Phase A 計畫不得被解讀為報告固定分母或強迫引用配額。
+2. **R15—第四項機器交付物**：WHEN C7 組裝成功，THE Lambda_Function SHALL 另產出 `report_data.json`、存入 `runs/{run_id}/` 並在 C5 成功回應附上 `report_data`；WHEN 組裝失敗，THE Lambda_Function SHALL 記錄失敗但仍交付原有三項檔案與 `report_text`。
+3. **R16—題型判別與專屬推理**：THE Lambda_Function SHALL 將題型正規化為 `single_integration | hypothesis | comparison` 並記錄判別結果。single SHALL 整合題目相關互補維度；hypothesis SHALL 區分支持／反對／中性並說明裁決理由；comparison SHALL 在相同維度並排量化且包含相關係數與相對強弱。
+4. **R17—自適應呈現**：THE Frontend SHALL 依 C7 `question_type` 切換三種版面，所有圖表只使用 C7 `series`。缺少 C7 或渲染失敗時 SHALL fallback 至既有 marked.js Markdown；缺失維度 SHALL 顯示原因而非隱藏。
+5. **R20—視覺化序列**：WHEN 工具具有時間序列，THE Data_Tool SHALL 在 `raw` 或 C1 可追溯欄位保留最多近 90 日、日期升冪的序列供 Report 組裝 C7；`summary` 仍須精簡，Frontend 不得自行重算。
+6. **Coverage 語意**：C7 `coverage.pct` SHALL 僅表示本題 Phase A 題目相關能力的資料可用率，不得作為固定類別覆蓋率、分析維度分數、報告品質分數或結論信心；低於 60% 僅觸發資料可用性警示。

@@ -18,3 +18,13 @@
 ## 異常訊號擴充(docs/anomaly-signal-plan.md 表 B、C)
 - [ ] 13. SYSTEM_PROMPT:加入跨源背離檢查清單 B1–B6,要求逐項回答 有/無/資料不足,判定必引用兩側 evidence_id
 - [ ] 14. SYSTEM_PROMPT:訊號分級規則(🔴/🟡/⚪)與「異常訊號 ≠ 交易建議」措辭紀律
+
+## 管線與呈現規劃增補(docs/pipeline-presentation-plan.md)
+- [ ] 15. 題型判別:規則優先(2 幣=comparison;含「認為/觀點/驗證」類詞=hypothesis;其餘 single),LLM 兜底,結果入 execution_log
+- [ ] 16. Phase A 保底預抓:依題型×幣種矩陣並行抓必備組(ThreadPool);約 90 秒軟期限到達時取消尚未開始的 futures、將未完成項目記為 timeout/cancelled 後立即進 Agent 迴圈,executor 不得 block 等待
+- [ ] 17. 題型專屬 prompt 模板(single 五維度/hypothesis 三欄證據/comparison 量化對比)
+
+
+- [ ] 18. Phase B 補洞控制:注入 Phase A 摘要/缺口,每輪檢查剩餘預算,<20% 拒絕新工具並記 convergence log
+- [ ] 19. 兩階段測試:三題型 plan snapshot、bounded concurrency、90 秒軟期限、單工具失敗隔離、全失敗低信心降級
+- [ ] 20. Series bridge:Phase A/B 成功結果封存 raw 後依 capability 寫入 request-scoped registry,報告前 collect_series 傳入 build_report_data,finally 清空；測試 raw 不進 LLM context

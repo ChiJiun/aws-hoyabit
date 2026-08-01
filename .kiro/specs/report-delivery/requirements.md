@@ -45,3 +45,16 @@
 16. THE Report_Delivery SHALL 維持既有 Evidence_Record 欄位、C2 Evidence API 行為及語意。
 17. THE Report_Delivery SHALL 維持既有 HTTP_Response 欄位、狀態碼及 CORS 行為。
 18. WHEN render_report 顯示證據來源，THE report SHALL 優先渲染新聞原文、FRED 圖表、交易資料頁或區塊瀏覽器等人類可讀連結，API endpoint 僅留在 evidence_list.json（R12.10）
+
+## Pipeline Presentation 補充需求
+
+1. THE Report_Delivery SHALL 提供純函式 `build_report_data(question_type, symbols, analysis_text, evidence_list, execution_log, series) -> dict | None`，成功輸出符合 C7 `schema_version=1.0`。
+2. THE C7 output SHALL 包含必要欄位 `question_type/symbols/verdict/dimensions/signals/checked_normal/series/coverage/watchlist`，並依題型只啟用對應的 hypothesis 或 comparison 物件。
+3. THE Report_Delivery SHALL 驗證 stance/state/level enum、confidence 0–1、symbols 數量、所有 evidence_id 存在，以及 series 日期升冪且不超過近 90 日。
+4. WHEN question_type 為 single_integration，THE Markdown SHALL 提供維度狀態表；WHEN 為 hypothesis，SHALL 提供支持/反對/中性與裁決理由；WHEN 為 comparison，SHALL 提供同維度並排量化表與條件式關注說明。
+5. THE report_data 與 report.md SHALL 對 verdict text、confidence label、signals、evidence citations 及題型專屬裁決保持一致；不一致 SHALL 使 C7 validation 失敗。
+6. THE `coverage.pct` SHALL 只以題目相關 Phase A capability 的 got/(got+missing) 計算；無適用能力時為 null。它不得呈現為固定五維度覆蓋率、分析分數或結論信心。
+7. WHEN coverage.pct < 60，THE Markdown 與 C7 SHALL 加入資料可用率警示，但不得自動把 stance 改為 bullish/bearish 或自行改寫結論。
+8. WHEN 某維度缺資料，THE C7 dimension SHALL 使用 `state=na` 並在 headline/caveat 說明原因；Markdown SHALL 顯示 ⚫ 無資料，不得靜默刪除。
+9. WHEN build_report_data 或 C7 validation 失敗，THE Export_Flow SHALL 記錄 execution log、將 `report_data` 設為 null/省略並繼續輸出 report.md、evidence_list.json 與 execution_log.jsonl。
+10. WHEN C7 成功，THE Export_Flow SHALL 原子寫入 `report_data.json`，Handler SHALL 將同一物件附於 C5 回應，避免檔案版與回應版漂移。

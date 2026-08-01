@@ -27,3 +27,25 @@
 
 ## 測試重點
 P5 幣種分派正確|P12 永不拋錯(五鏈 × 失敗情境)|同源標註|content_reference 完整性
+
+
+## Pipeline Presentation 設計增補
+
+### 統一 series envelope
+
+非價格工具在 raw 中可選提供：
+
+```python
+"series": {
+  "funding": {"points": [[timestamp, value]], "unit": "%/8h", "provider": "Hyperliquid"},
+  "open_interest": {"points": [[timestamp, value]], "unit": "USD"},
+  "stablecoin_supply": {"points": [[date, value]], "unit": "USD", "scope": "chain"},
+  "events": [{"date": "2026-08-18", "event": "FOMC", "source_url": "..."}],
+}
+```
+
+共用 adapter 負責 UTC 正規化、排序、去重、finite 過濾、近 90 日裁切與 metadata；provider collector 只負責抓取。Funding 不同 interval 必須先以原單位保留，不在 adapter 靜默年化。OI 不同交易所不可相加，comparison 必須保留 provider 維度。
+
+歷史 endpoint 與 snapshot endpoint 分開 try/except：歷史失敗時回 `status=success/partial`、snapshot 與 `quality.reliability.partial_failures`，讓 Agent/Report 顯示序列缺口而非遺失整筆證據。Event items 必須有 human URL 或明確 technical source，watchlist 只搬運未來或題目窗口內事件。
+
+測試以 provider fixtures 驗證 envelope、單位、排序、90 日裁切、歷史失敗/snapshot 成功、跨交易所不可比與缺 API key 降級。

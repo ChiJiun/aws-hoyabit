@@ -116,3 +116,13 @@
   ]
 }
 ```
+
+## 管線與呈現規劃增補(docs/pipeline-presentation-plan.md 4.2–4.4)
+- [ ] 12. 依 report_data.question_type 切換三版面(single/hypothesis/comparison)
+- [ ] 13. Chart.js(cdnjs)接入:價格 sparkline(標異常日)、comparison 相對強弱線、信心儀表數據化
+- [ ] 14. 證據「查證」摺疊區(source URL/fetched_at/引用片段)
+- [ ] 15. 降級樣式:維度無資料卡(⚫)、低覆蓋警示邊帶、report_data 缺失時 fallback 純 marked 渲染
+
+
+- [ ] 16. 建立三題型 C7 fixtures 與 UI smoke tests:版面分流、chart dataset、查證 details、na 維度、coverage 59/60
+- [ ] 17. 降級與可及性測試:C7 null/invalid、Chart.js 缺失/拋錯、NaN series、鍵盤操作與 reduced-motion 均回純 Markdown

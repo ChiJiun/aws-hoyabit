@@ -399,3 +399,42 @@ User Input ──► handleSubmit()
 *For any* combination of selected coins and question text, if an error occurs during the LOADING state, the transition back to INPUT state SHALL preserve the user's previous coin selections (both `selectedCoins` array and button `aria-pressed` attributes) and the question textarea value unchanged.
 
 **Validates: Requirements 10.3**
+
+## Pipeline Presentation 設計增補
+
+### 回應與狀態
+
+成功回應先保存 `report_text` 與下載連結，再執行 `validateReportData(response.report_data)`。有效 C7 進入 `StructuredReportView`；無效或任何 JS/Chart 例外進入既有 `MarkdownReportView`。Fallback 不重新 fetch，也不影響 evidence/log 下載。
+
+```javascript
+renderSuccess(response) {
+  bindDownloads(response);
+  try {
+    if (!validateReportData(response.report_data)) throw new Error("invalid C7");
+    renderStructuredReport(response.report_data, response.report_text);
+  } catch (error) {
+    renderMarkdownReport(response.report_text);
+  }
+}
+```
+
+### 元件函式
+
+- `renderVerdictCard(verdict, coverage)`：stance 色框、信心、推翻條件與低資料可用率警示。
+- `renderDimensionStrip(dimensions)`：strong/weak/neutral/na；na 永遠保留原因。
+- `renderSingleLayout(data)`、`renderHypothesisLayout(data)`、`renderComparisonLayout(data)`：只讀 C7。
+- `renderSignals(signals, checkedNormal)`：紅/黃卡與可摺疊正常清單。
+- `renderEvidenceDisclosure(evidence)`：原生 `<details>/<summary>`，鍵盤可操作。
+- `renderCharts(series)`：Chart.js instance 集中註冊與 destroy，重跑不殘留 canvas。
+
+### 安全與數值紀律
+
+所有 C7 文本用 `textContent` 或 escape helper；只有既有 report_text 交給 marked。圖表輸入先驗證日期與 finite number，最多近 90 日。Frontend 不計算百分位、相關係數、相對強弱或 coverage，只格式化 Report 已提供的值。
+
+### 視覺與降級
+
+維持單檔 `frontend/index.html`，Chart.js 由固定 cdnjs URL 載入。CSS 使用既有 amber accent，新增 red/yellow/neutral/na token；720px 仍可讀，comparison 在窄螢幕改為上下排列但維度順序一致。`prefers-reduced-motion` 下關閉圖表動畫。
+
+### 測試
+
+以三份 C7 fixture 驗證版面分流、chart dataset、查證 disclosure 與無資料卡；另測 C7 null、schema 不符、Chart.js 未載入、series 含 NaN、coverage 59/60 邊界皆安全 fallback。

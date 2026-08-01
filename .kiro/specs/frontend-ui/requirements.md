@@ -14,6 +14,8 @@ frontend-ui 模組負責 `frontend/index.html` 單檔前端，作為加密市場
 - **Error_Display**: 顯示錯誤訊息的區塊
 - **API_URL**: Lambda Function URL 常數，部署時替換
 - **Contract_C5**: Handler HTTP 回應契約，定義請求格式 `POST {"symbols": [...], "question": "..."}` 與成功/失敗回應格式
+- **Contract_C7**: Handler 成功回應中可選的 `report_data` 結構化報告契約，為視覺化唯一數據來源
+- **Structured_Report_View**: 依 Contract_C7 `question_type` 渲染 single、hypothesis 或 comparison 版面的結果區塊
 - **Elapsed_Timer**: 以 `MM:SS` 格式顯示分析已經過的秒數
 - **Status_Messages**: 預定義的輪播提示文字陣列，用於降低使用者等待焦慮
 
@@ -137,3 +139,40 @@ frontend-ui 模組負責 `frontend/index.html` 單檔前端，作為加密市場
 1. THE Frontend SHALL depend only on Contract_C5 request and response formats, with no knowledge of backend internal structure.
 2. THE Frontend SHALL define API_URL as a single top-level constant, enabling deployment-time replacement without modifying logic code.
 3. THE Frontend SHALL function as a static file servable from any HTTP server or S3 static website hosting without build steps or server-side processing.
+
+### Requirement 12: Structured Report Data
+
+**User Story:** As a user, I want a visual summary backed by the same evidence as the Markdown report.
+
+#### Acceptance Criteria
+
+1. WHEN C5 contains valid `report_data`, THE Frontend SHALL validate C7 schema_version and question_type before visual rendering.
+2. THE Frontend SHALL treat C7 as the only numeric visualization source and SHALL NOT parse values from report_text or calculate indicators.
+3. WHEN C7 is absent, null, unsupported, or invalid, THE Frontend SHALL render report_text with marked.js and keep all download links functional.
+
+### Requirement 13: Adaptive Question Layouts
+
+#### Acceptance Criteria
+
+1. WHEN question_type is single_integration, THE Frontend SHALL render verdict, dimension states, price series, expanded dimension cards, signals, checked-normal items and watchlist.
+2. WHEN question_type is hypothesis, THE Frontend SHALL render supporting and opposing evidence columns, neutral/insufficient evidence, verdict reason and an explicit indeterminate state.
+3. WHEN question_type is comparison, THE Frontend SHALL render two symbols in the same dimension rows, highlight only evidence-backed differences, show relative-strength/correlation series and render conditional attention criteria.
+4. THE shared header SHALL display stance, confidence label/value, invalidation and dimension status without presenting investment advice.
+
+### Requirement 14: C7 Visualization and Traceability
+
+#### Acceptance Criteria
+
+1. THE Frontend SHALL load Chart.js from an approved cdnjs URL and render only when required series are present and finite.
+2. THE Frontend SHALL provide price sparkline, comparison relative-strength line and confidence visualization; chart failure SHALL NOT hide textual content.
+3. EACH evidence-backed card SHALL provide a keyboard-accessible verification disclosure containing human-readable source, fetched_at and excerpt when available.
+4. THE Frontend SHALL escape untrusted C7 text before DOM insertion and SHALL NOT render API endpoints as primary verification links.
+
+### Requirement 15: Honest Degradation
+
+#### Acceptance Criteria
+
+1. WHEN a dimension state is `na`, THE Frontend SHALL show `⚫ 無資料` and its reason rather than removing the card.
+2. WHEN coverage.pct is below 60, THE Frontend SHALL show a low-data-availability border/banner and explain missing capabilities.
+3. THE Frontend SHALL label coverage as data availability for this question and SHALL NOT present it as fixed dimension coverage, quality score or confidence.
+4. THE three layouts, disclosure controls and fallback path SHALL remain keyboard accessible and respect reduced-motion preferences.

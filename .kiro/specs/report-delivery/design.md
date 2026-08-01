@@ -479,3 +479,45 @@ canonical provider 計數規則：
 - JSONL 可解析與孤兒引用測試保留，分別對應 Properties 11、9。
 
 不需要啟動 development server 或 watcher；測試只使用一次性 `pytest`/Hypothesis 執行。
+
+## Pipeline Presentation 設計增補
+
+### 單一中介模型
+
+Report 先把 analysis/evidence/execution metadata 正規化成內部 `ReportModel`，再由同一模型分別產生 Markdown 與 C7，禁止兩條渲染路徑各自解析 LLM 文字：
+
+```text
+analysis + evidence + execution + series
+              │
+       build_report_model()
+          ├── render_report_model_md()
+          └── build_report_data()
+                    │
+             validate_c7()
+```
+
+`ReportModel` 包含 question_type、symbols、verdict、dimensions、signals、checked_normal、題型專屬資料、series、prefetch outcome 與 watchlist。Evidence 先按 ID 建索引，任何孤兒引用在 C7 驗證時失敗。
+
+### C7 builders
+
+- `_build_verdict`：正規化 stance/confidence/label/invalidation；confidence 必須為可追溯的 0–1 數值，缺少可信值時 C7 validation 失敗並走 Markdown fallback，不得猜測或以固定預設值代替。
+- `_build_dimensions`：保留 `state=na` 與缺失原因；comparison 建立 per_symbol。
+- `_build_signals`：只接受有 Evidence 支撐的 red/yellow 訊號；正常檢查放 checked_normal。
+- `_build_question_block`：hypothesis 與 comparison 互斥，其他題型設 null。
+- `_normalize_series`：日期升冪、去重、有限數值、裁切近 90 日；不在 Report 重算市場指標。
+- `_build_coverage`：由題目相關 prefetch outcome 計算，分母為 got+missing；空集合回 null。
+
+### Markdown 模板
+
+共同區塊為結論、信心/推翻條件、維度狀態、異常與正常檢查；single 再展開維度與 watchlist，hypothesis 加證據天平，comparison 加並排表與條件框。所有模板維持既有三章節與禁投資建議品質門。
+
+### 降級與輸出
+
+`build_report_data` 外層捕捉 schema/normalization error，記錄 `build_report_data:error` 後回傳 None。Export 先保存既有三項交付物；C7 成功才以 storage 原子 API 保存 `report_data.json`。Handler 直接重用已保存前的同一 dict。Frontend 收到 null 時只渲染 report_text。
+
+### 測試
+
+- 每一必要欄位、enum、evidence 外鍵、日期排序與 90 日裁切。
+- 三題型 golden fixtures，以及 C7/Markdown verdict、信心與訊號一致性 property test。
+- coverage 0/59/60/100/null 邊界且不等同固定類別分數。
+- builder/validator/storage 任一失敗時原有三項交付物仍存在。

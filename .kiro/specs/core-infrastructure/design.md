@@ -24,3 +24,23 @@
 
 ## 測試重點(屬性)
 P4 reset 後兩清單為空|P7 四欄位齊備|P8 空 related_claim 不入列|P9 evidence_id 唯一|P10 執行紀錄含必要欄位
+
+
+## Pipeline Presentation 設計增補
+
+新增 `lambda/report_schema.py`（或同等無業務依賴模組）：
+
+```python
+C7_SCHEMA_VERSION = "1.0"
+QUESTION_TYPES = {"single_integration", "hypothesis", "comparison"}
+STANCE_VALUES = {"bullish", "bearish", "neutral", "mixed"}
+DIMENSION_STATES = {"strong", "weak", "neutral", "na"}
+SIGNAL_LEVELS = {"red", "yellow"}
+
+def validate_report_data(value, evidence_ids=None):
+    """Return list[dict(path, code, message)]; never mutate input."""
+```
+
+驗證採小型明確 Python 檢查，不新增 JSON Schema runtime 依賴。日期統一 ISO 8601，series point 支援 `[date, value]`，value 必須 finite；同一 series 日期不得重複且須升冪，超過 90 日回 error。comparison 必須兩 symbols 且 comparison object 非 null；其他題型的 comparison 為 null；hypothesis 同理。
+
+模組 import 副作用為零且不讀環境變數。測試使用 table-driven invalid fixtures 覆蓋每個 error path、extension field、input 不變性與 validator never-raises property。

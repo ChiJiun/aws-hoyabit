@@ -18,3 +18,16 @@
 
 ## 測試重點
 P12 任何輸入不拋例外|P14 指標必附百分位|P15 相關係數值域|接縫校驗警告觸發|資料不足 error dict
+
+
+## Pipeline Presentation 設計增補
+
+### Series adapter
+
+- `extract_price_series(price_result, max_days=90)`：從標準 C1 raw 取 UTC 日線，排序、去重、過濾 non-finite，回傳 points + metadata。
+- `calc_relative_strength_series(df_a, df_b, max_days=90)`：按 UTC date inner join，驗證 unit/quote/comparability，計算 `close_a / close_b`；不 forward-fill。
+- `compute_quant(..., features=["correlation", "relative_strength"])`：相關係數仍回 scalar + percentile metadata，相對強弱在 raw 另保留 series，summary 只放首末值與變化。
+
+Series metadata 至少包含 `as_of/timeframe/window/unit/symbols/pairs/provider/comparability_notes`。Report 只搬運已計算序列，不得重新 join 或計算比值。
+
+測試涵蓋日期錯位、時區、重複日期、NaN/Inf、零分母、少於兩點、不同 quote、fallback comparability 及 91 日裁切。property test 保證輸出日期嚴格遞增且所有值 finite。
