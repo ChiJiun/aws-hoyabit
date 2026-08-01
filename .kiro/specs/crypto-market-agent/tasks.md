@@ -6,31 +6,31 @@
 
 ## 任務清單
 
-- [ ] 1. 基礎設施模組（config.py、evidence.py）
+- [x] 1. 基礎設施模組（config.py、evidence.py）
 
-  - [ ] 1.1 實作 config.py 的 load_local_env 函式
+  - [x] 1.1 實作 config.py 的 load_local_env 函式
     - 使用 python-dotenv 的 load_dotenv() 從專案根目錄的 .env 載入環境變數
     - 確保所有環境變數（AWS_REGION、BEDROCK_MODEL_ID、DATA_BUCKET、API 金鑰等）已正確讀取
     - _需求：19.1、19.2_
 
-  - [ ] 1.2 實作 evidence.py 的 reset_stores 函式
+  - [x] 1.2 實作 evidence.py 的 reset_stores 函式
     - 清空全域 evidence_list 與 execution_log 列表
     - 確保 Lambda 容器重複使用時不會殘留前次資料
     - _需求：2.6_ | _Property 4: 容器重複使用不汙染_
 
-  - [ ] 1.3 實作 evidence.py 的 log_evidence 函式
+  - [x] 1.3 實作 evidence.py 的 log_evidence 函式
     - 驗證 related_claim 非空且長度足夠，不足則回傳錯誤不寫入
     - 自動產生 evidence_id（UUID）、source（從 fetch_result 取）、fetched_at（ISO 8601 UTC）、content_reference
     - 呼叫 storage.save_raw_payload() 封存原始回應
     - 回傳 evidence_id 字串
     - _需求：4.1、4.2、4.3、4.4、4.5、4.6_ | _Property 7、8、9_
 
-  - [ ] 1.4 實作 evidence.py 的 log_execution_step 函式
+  - [x] 1.4 實作 evidence.py 的 log_execution_step 函式
     - 記錄含 timestamp、tool_name、status、elapsed_ms、evidence_id、note 的執行紀錄
     - 成功與失敗的呼叫都必須記錄
     - _需求：5.1、5.2_ | _Property 10_
 
-  - [ ]* 1.5 撰寫 evidence.py 的屬性測試
+  - [x] 1.5 撰寫 evidence.py 的屬性測試
     - **Property 4: 容器重複使用不汙染** — reset_stores 後 evidence_list 與 execution_log 為空
     - **Property 7: 證據記錄欄位完整性** — log_evidence 產生的記錄包含正確五欄位
     - **Property 8: 空 related_claim 被拒絕** — 空白 related_claim 不增加 evidence_list 長度
@@ -38,34 +38,34 @@
     - **Property 10: 執行紀錄完整性** — log_execution_step 新增一筆包含必要欄位的記錄
     - **驗證: 需求 2.6、4.1、4.2、4.4、4.5、5.1、5.2**
 
-- [ ] 2. 技術指標計算工具（tools/quant.py）
+- [x] 2. 技術指標計算工具（tools/quant.py）
 
-  - [ ] 2.1 實作 calc_atr_pct 函式
+  - [x] 2.1 實作 calc_atr_pct 函式
     - 計算 ATR（平均真實區間）並轉為佔收盤價的百分比
     - 輸入：pandas DataFrame（含 high、low、close 欄位）、window 期間
     - _需求：11.1、11.2_ | _Property 14_
 
-  - [ ] 2.2 實作 calc_bollinger_bandwidth 函式
+  - [x] 2.2 實作 calc_bollinger_bandwidth 函式
     - 計算布林帶寬（上下軌距離佔中軌的比例）
     - 輸入：pandas DataFrame、window 期間
     - _需求：11.1、11.2_
 
-  - [ ] 2.3 實作 calc_adx 函式
+  - [x] 2.3 實作 calc_adx 函式
     - 計算 ADX（平均趨向指標），衡量趨勢強度
     - 輸入：pandas DataFrame（含 high、low、close 欄位）、window 期間
     - _需求：11.1、11.2_
 
-  - [ ] 2.4 實作 calc_percentile_rank 函式
+  - [x] 2.4 實作 calc_percentile_rank 函式
     - 計算當前數值在過去 lookback 天資料中的百分位排名（0-100）
     - 此函式為所有指標共用的「絕對值→相對位置」轉換
     - _需求：11.3_ | _Property 14_
 
-  - [ ] 2.5 實作 calc_correlation 函式
+  - [x] 2.5 實作 calc_correlation 函式
     - 計算兩個幣種日報酬率的 Pearson 相關係數
     - 結果必定在 [-1, 1] 區間內
     - _需求：11.4_ | _Property 15_
 
-  - [ ] 2.6 實作 compute_quant 主函式
+  - [x] 2.6 實作 compute_quant 主函式
     - 依 features 清單（atr_pct、bollinger_bandwidth、adx、volume_zscore、realized_vol、correlation）逐一計算
     - 每個指標同時附帶百分位排名
     - 當 compare_symbol 不為 None 時計算相關係數
@@ -73,7 +73,7 @@
     - 失敗時回傳 error dict 而非拋出例外
     - _需求：11.1、11.2、11.3、11.4、11.5、20.1、20.2、20.3_ | _Property 12、13、14_
 
-  - [ ]* 2.7 撰寫 quant.py 的屬性測試
+  - [x] 2.7 撰寫 quant.py 的屬性測試
     - **Property 14: 技術指標含百分位** — 每個指標結果包含原始數值與 0-100 百分位
     - **Property 15: 相關係數值域** — calc_correlation 結果必在 [-1, 1] 區間
     - **Property 12: 工具永不拋錯** — 任何輸入下 compute_quant 回傳 dict 而非拋例外
