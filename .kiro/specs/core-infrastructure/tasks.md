@@ -13,4 +13,11 @@
 - [x] 9. 檢查點:介面凍結,contracts.md C2/C3/C6 一致確認完成
 
 ## 異常訊號擴充
-- [ ] 10. config.py:ANOMALY_THRESHOLDS 集中管理(docs/anomaly-signal-plan.md 表 A 的門檻,賽前可調)
+- [x] 10. config.py:ANOMALY_THRESHOLDS 集中管理(docs/anomaly-signal-plan.md 表 A 的門檻,賽前可調)
+
+## 管線與呈現規劃增補
+- [ ] 11. C7 report_data schema 欄位常數與齊備性驗證函式(供 report/handler 共用)
+
+
+- [ ] 12. 新增 report_schema.py:必要欄位/enum/題型條件/evidence 外鍵/series/coverage 驗證,回傳結構化 errors 且 import 零副作用
+- [ ] 13. C7 validator 測試:invalid fixtures、未知 extension、輸入不變性、never-raises property 與 90 日日期邊界

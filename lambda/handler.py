@@ -81,6 +81,111 @@ def generate_run_id():
     return now.strftime("run_%Y%m%d_%H%M%S")
 
 
+def _normalize_execution_status(status):
+    # 功能：將 execution log 的失敗狀態正規化，供穩定去重與報告顯示。
+    normalized = str(status or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized in ("failed", "failure"):
+        return "error"
+    if normalized == "maxturns":
+        return "max_turns"
+    return normalized
+
+
+def _normalize_execution_reason(reason):
+    # 功能：移除原因文字多餘空白，避免同一失敗因格式差異重複出現。
+    return " ".join(str(reason or "未提供原因").split()) or "未提供原因"
+
+
+def build_report_metadata(analysis_text, evidence_list, execution_log):
+    # 功能：從實際引用證據與 execution log 建立報告 metadata。
+    # 步驟：解析有效引用、映射成功工具，並分離資料失敗與 Agent 執行限制。
+    # 回傳：可透過 C4 coverage 相容參數傳入 report.py 的 dict。
+    evidence_list = evidence_list if isinstance(evidence_list, list) else []
+    execution_log = execution_log if isinstance(execution_log, list) else []
+    analyzed_ids = report.extract_cited_evidence_ids(analysis_text, evidence_list)
+    existing_ids = {
+        str(record.get("evidence_id"))
+        for record in evidence_list
+        if isinstance(record, dict) and record.get("evidence_id")
+    }
+
+    evidence_capabilities = {}
+    attempted_capabilities = []
+    execution_limitations = []
+    seen_failures = set()
+    seen_limitations = set()
+    failed_dimensions = set()
+    for step in execution_log:
+        if not isinstance(step, dict):
+            continue
+        tool_name = str(step.get("tool_name") or "").strip()
+        status = _normalize_execution_status(step.get("status"))
+        reason = _normalize_execution_reason(step.get("note"))
+        evidence_id = str(step.get("evidence_id") or "").strip()
+        if status == "success" and evidence_id in existing_ids and tool_name:
+            evidence_capabilities[evidence_id] = tool_name
+            continue
+
+        dedup_key = (tool_name.lower(), status, reason)
+        if tool_name == "agent_loop" and status in {"timeout", "max_turns", "error"}:
+            if dedup_key not in seen_limitations:
+                seen_limitations.add(dedup_key)
+                execution_limitations.append({
+                    "source": "agent_loop",
+                    "status": status,
+                    "reason": reason,
+                })
+            continue
+
+        if tool_name not in report.TOOL_DIMENSIONS or status not in report.FAILED_STATUSES:
+            continue
+        if dedup_key in seen_failures:
+            continue
+        seen_failures.add(dedup_key)
+        attempted_capabilities.append({
+            "capability_id": tool_name,
+            "status": status,
+            "reason": reason,
+        })
+        failed_dimensions.add(report.TOOL_DIMENSIONS[tool_name])
+
+    relevant_omissions = []
+    omission_markers = ("省略", "未取得", "無法取得", "資料不足", "缺少")
+    for raw_line in str(analysis_text or "").splitlines():
+        line = raw_line.strip(" -*#\t")
+        if not line or not any(marker in line for marker in omission_markers):
+            continue
+        for dimension in report.ANALYSIS_DIMENSIONS:
+            if dimension in line and dimension not in failed_dimensions:
+                relevant_omissions.append({
+                    "dimension": dimension,
+                    "reason": line,
+                    "confidence_impact": "限制該維度對結論的交叉驗證能力",
+                })
+                break
+
+    metadata = {
+        "analyzed_evidence_ids": analyzed_ids,
+        "evidence_capabilities": evidence_capabilities,
+        "attempted_capabilities": attempted_capabilities,
+        "relevant_omissions": relevant_omissions,
+    }
+    if execution_limitations:
+        metadata["execution_limitations"] = execution_limitations
+    return metadata
+
+
+def build_report_quality_warnings(summary):
+    # 功能：檢查報告是否具備最低可用引用與實際多維分析，不產生固定分母顯示。
+    warnings = []
+    if summary.get("cited_evidence_count", 0) == 0:
+        warnings.append("報告未引用任何有效證據（cited_evidence_count == 0）")
+    dimension_count = len(summary.get("analyzed_dimensions", []))
+    if dimension_count < 2:
+        warnings.append(f"報告實際分析維度不足：{dimension_count} 個，至少需要 2 個")
+    return warnings
+
+
 def lambda_handler(event, context):
     """AWS Lambda 的進入點，串起整條流程。
 
@@ -123,13 +228,19 @@ def lambda_handler(event, context):
             evidence.evidence_list, analysis_text
         )
 
-        # 7. 渲染 Markdown 報告
-        coverage_pct, got_categories, missing_categories = report.calculate_coverage(
-            evidence.evidence_list
+        # 7. 由實際引用與執行紀錄建立 metadata，再渲染 Markdown 報告
+        report_metadata = build_report_metadata(
+            analysis_text, evidence.evidence_list, evidence.execution_log
         )
+        report_summary = report.build_analysis_summary(
+            evidence.evidence_list, report_metadata
+        )
+        validation_warnings = list(issues)
+        validation_warnings.extend(build_report_quality_warnings(report_summary))
+        validation_warnings = list(dict.fromkeys(validation_warnings))
         report_text = report.render_report(
             run_id, question, analysis_text,
-            evidence.evidence_list, missing_sources=missing_categories
+            evidence.evidence_list, coverage=report_metadata
         )
 
         # 8. 匯出三份交付物並上傳 S3
@@ -156,9 +267,9 @@ def lambda_handler(event, context):
             "run_id": run_id,
         }
 
-        # 若自我檢查未全數通過，附帶警告
-        if not passed:
-            response_body["validation_warnings"] = issues
+        # 若匯出或報告品質檢查未通過，沿用既有警告欄位但維持 200 與 C5 必要欄位
+        if validation_warnings:
+            response_body["validation_warnings"] = validation_warnings
 
         return {
             "statusCode": 200,
@@ -237,13 +348,16 @@ def main():
     else:
         print("[INFO] 自我檢查全數通過")
 
-    # 7. 渲染報告
-    coverage_pct, got_categories, missing_categories = report.calculate_coverage(
-        evidence.evidence_list
+    # 7. 由實際引用與執行紀錄建立 metadata，再渲染報告
+    report_metadata = build_report_metadata(
+        analysis_text, evidence.evidence_list, evidence.execution_log
+    )
+    report_summary = report.build_analysis_summary(
+        evidence.evidence_list, report_metadata
     )
     report_text = report.render_report(
         run_id, question, analysis_text,
-        evidence.evidence_list, missing_sources=missing_categories
+        evidence.evidence_list, coverage=report_metadata
     )
 
     # 8. 寫入本地檔案
@@ -264,11 +378,19 @@ def main():
     # 9. 印出摘要
     print("\n" + "=" * 60)
     print("執行摘要")
-    print(f"  證據筆數：{len(evidence.evidence_list)}")
+    print(f"  蒐集證據筆數：{len(evidence.evidence_list)}")
+    print(f"  引用證據筆數：{report_summary['cited_evidence_count']}")
     print(f"  執行步驟：{len(evidence.execution_log)}")
-    print(f"  資料覆蓋率：{coverage_pct:.0f}%（{', '.join(got_categories)}）")
-    if missing_categories:
-        print(f"  缺少類別：{', '.join(missing_categories)}")
+    dimensions = report_summary["analyzed_dimensions"]
+    print(f"  實際分析維度：{', '.join(dimensions) if dimensions else '無有效引用'}")
+    print(f"  獨立來源數：{report_summary['independent_source_count']}")
+    failures = report_summary["failed_attempts"]
+    if failures:
+        failure_text = "; ".join(
+            f"{item.get('dimension') or item.get('capability_id')} ({item.get('status')}: {item.get('reason')})"
+            for item in failures
+        )
+        print(f"  失敗嘗試：{failure_text}")
     print("=" * 60)
 
 

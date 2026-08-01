@@ -13,11 +13,16 @@ BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
 DATA_BUCKET = os.environ.get("DATA_BUCKET")
 
 # ---- 執行參數 ----
-MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 8))
+MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 15))
 TIME_BUDGET_SECONDS = int(os.environ.get("TIME_BUDGET_SECONDS", 600))
+TOOL_HTTP_TIMEOUT_SECONDS = int(os.environ.get("TOOL_HTTP_TIMEOUT_SECONDS", 15))
+TOOL_HTTP_MAX_ATTEMPTS = int(os.environ.get("TOOL_HTTP_MAX_ATTEMPTS", 2))
+TOOL_HTTP_BACKOFF_SECONDS = float(os.environ.get("TOOL_HTTP_BACKOFF_SECONDS", 0.25))
+TOOL_RETRY_AFTER_MAX_SECONDS = float(os.environ.get("TOOL_RETRY_AFTER_MAX_SECONDS", 2.0))
 
 # ---- 外部 API 金鑰 ----
 COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY")
+CRYPTOPANIC_API_KEY = os.environ.get("CRYPTOPANIC_API_KEY")
 ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY")
 HELIUS_API_KEY = os.environ.get("HELIUS_API_KEY")
 FRED_API_KEY = os.environ.get("FRED_API_KEY")
@@ -33,6 +38,44 @@ DUNE_API_KEY = os.environ.get("DUNE_API_KEY")
 # ---- 業務常數 ----
 SUPPORTED_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "XRP"]
 BASELINE_END_DATE = "2026-05-31"   # 賽方基準資料截止日，用來判斷是否需要補即時資料
+
+# 各資料類型可接受的最大資料年齡（秒）；由 tools.quality 統一判定。
+FRESHNESS_THRESHOLDS_SECONDS = {
+    "price_daily": 3 * 24 * 60 * 60,
+    "quant_daily": 3 * 24 * 60 * 60,
+    "derivatives_snapshot": 5 * 60,
+    "orderbook_snapshot": 60,
+    "market_dominance": 24 * 60 * 60,
+    "news": 14 * 24 * 60 * 60,
+    "official_announcement": 30 * 24 * 60 * 60,
+    "sentiment": 24 * 60 * 60,
+    "macro": 3 * 24 * 60 * 60,
+}
+
+# 單源異常門檻集中管理，避免散落於各工具。
+ANOMALY_THRESHOLDS = {
+    # A1-A5: quant/price（已有）
+    "volume_percentile_high": 95.0,
+    "volume_percentile_low": 5.0,
+    "bollinger_percentile_high": 90.0,
+    "bollinger_percentile_low": 10.0,
+    "atr_percentile_high": 90.0,
+    "adx_percentile_high": 85.0,
+    "adx_percentile_low": 15.0,
+    "return_zscore_abs": 2.0,
+    # A6: sentiment
+    "fg_extreme_low": 20,
+    "fg_extreme_high": 80,
+    "fg_rapid_change_7d": 30,
+    # A7: news density
+    "news_density_ratio": 3.0,
+    "news_density_recent_hours": 48,
+    # A8: official event keywords（門檻為命中即標，此處僅記錄時間窗口）
+    # A9: onchain
+    "onchain_activity_deviation_pct": 30.0,
+    # A10: macro
+    "macro_change_percentile_high": 85.0,
+}
 
 
 def check_required_env():
@@ -58,14 +101,14 @@ def load_local_env():
     from pathlib import Path
     from dotenv import load_dotenv
 
-    # .env 位於專案根目錄（lambda/ 的上一層）
     env_path = Path(__file__).resolve().parent.parent / ".env"
     load_dotenv(dotenv_path=env_path, override=True)
 
-    # 重新從 os.environ 刷新所有模組級變數
     global AWS_REGION, BEDROCK_MODEL_ID, DATA_BUCKET
     global MAX_AGENT_TURNS, TIME_BUDGET_SECONDS
-    global COINGECKO_API_KEY, ETHERSCAN_API_KEY
+    global TOOL_HTTP_TIMEOUT_SECONDS, TOOL_HTTP_MAX_ATTEMPTS
+    global TOOL_HTTP_BACKOFF_SECONDS, TOOL_RETRY_AFTER_MAX_SECONDS
+    global COINGECKO_API_KEY, CRYPTOPANIC_API_KEY, ETHERSCAN_API_KEY
     global HELIUS_API_KEY, FRED_API_KEY
     global CMC_API_KEY, COINGLASS_API_KEY
     global REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET
@@ -75,10 +118,15 @@ def load_local_env():
     BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
     DATA_BUCKET = os.environ.get("DATA_BUCKET")
 
-    MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 8))
+    MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 15))
     TIME_BUDGET_SECONDS = int(os.environ.get("TIME_BUDGET_SECONDS", 600))
+    TOOL_HTTP_TIMEOUT_SECONDS = int(os.environ.get("TOOL_HTTP_TIMEOUT_SECONDS", 15))
+    TOOL_HTTP_MAX_ATTEMPTS = int(os.environ.get("TOOL_HTTP_MAX_ATTEMPTS", 2))
+    TOOL_HTTP_BACKOFF_SECONDS = float(os.environ.get("TOOL_HTTP_BACKOFF_SECONDS", 0.25))
+    TOOL_RETRY_AFTER_MAX_SECONDS = float(os.environ.get("TOOL_RETRY_AFTER_MAX_SECONDS", 2.0))
 
     COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY")
+    CRYPTOPANIC_API_KEY = os.environ.get("CRYPTOPANIC_API_KEY")
     ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY")
     HELIUS_API_KEY = os.environ.get("HELIUS_API_KEY")
     FRED_API_KEY = os.environ.get("FRED_API_KEY")

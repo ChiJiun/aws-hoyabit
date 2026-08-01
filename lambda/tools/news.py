@@ -14,6 +14,8 @@ import requests
 from urllib.parse import urlparse, quote_plus
 
 import evidence
+import config
+from tools.quality import make_anomaly_flag
 
 # ---- 幣種搜尋詞對照表（Google News RSS 用）----
 _SYMBOL_SEARCH_TERMS = {
@@ -329,12 +331,82 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
             note=f"{symbol}: {len(news_items)} news items, {len(duplicate_warnings)} duplicate warnings",
         )
 
-        return {
+        # --- A7/A8 異常偵測 ---
+        anomaly_flags = []
+        thresholds = getattr(config, "ANOMALY_THRESHOLDS", {})
+
+        # A7: 新聞密度突增 — 近 48h 新聞數 vs 前 14 日日均
+        recent_hours = thresholds.get("news_density_recent_hours", 48)
+        density_ratio_threshold = thresholds.get("news_density_ratio", 3.0)
+        recent_cutoff = now_utc - timedelta(hours=recent_hours)
+        older_cutoff = now_utc - timedelta(days=14)
+
+        recent_count = 0
+        older_count = 0
+        for item in news_items:
+            pub_str = item.get("published_at", "")
+            if not pub_str:
+                continue
+            try:
+                pub_dt = datetime.fromisoformat(pub_str.replace("Z", "+00:00"))
+            except (ValueError, TypeError):
+                continue
+            if pub_dt >= recent_cutoff:
+                recent_count += 1
+            elif pub_dt >= older_cutoff:
+                older_count += 1
+
+        older_days = 14 - (recent_hours / 24)
+        daily_avg = older_count / max(older_days, 1)
+        recent_daily_equiv = recent_count / (recent_hours / 24)
+
+        if daily_avg > 0 and recent_daily_equiv / daily_avg >= density_ratio_threshold:
+            ratio = recent_daily_equiv / daily_avg
+            anomaly_flags.append(make_anomaly_flag(
+                signal_id="A7_news_density_surge",
+                name="新聞密度突增",
+                severity="significant" if ratio >= 5.0 else "notable",
+                direction="neutral",
+                value=round(ratio, 1),
+                unit="x daily avg",
+                threshold=f"≥ {density_ratio_threshold}x",
+                window=f"近 {recent_hours}h vs 前 14 日日均",
+                as_of=now_utc.strftime("%Y-%m-%d"),
+                message=f"{symbol} 近 {recent_hours}h 新聞數 {recent_count} 篇，為前 14 日日均的 {ratio:.1f} 倍，密度顯著上升",
+            ))
+
+        # A8: 重大官方事件關鍵字 — 命中即標
+        _EVENT_KEYWORDS = ["upgrade", "halt", "hack", "listing", "regulation",
+                           "fork", "exploit", "security", "breach", "incident"]
+        for item in news_items:
+            if item.get("channel") not in ("official_rss", "github_release"):
+                continue
+            title = (item.get("title") or "").lower()
+            matched_kw = [kw for kw in _EVENT_KEYWORDS if kw in title]
+            if matched_kw:
+                anomaly_flags.append(make_anomaly_flag(
+                    signal_id="A8_official_event",
+                    name="重大官方事件",
+                    severity="significant",
+                    direction="neutral",
+                    value=", ".join(matched_kw),
+                    unit="keywords",
+                    threshold="命中即標",
+                    window="official/github channel",
+                    as_of=item.get("published_at", "")[:10],
+                    message=f"官方公告命中關鍵字「{', '.join(matched_kw)}」：{item.get('title', '')[:80]}",
+                ))
+                break  # 只標一筆最重要的
+
+        result = {
             "raw": {"items": news_items[:20], "total_fetched": len(news_items)},
             "source": source_url,
             "content_reference": content_reference,
             "summary": summary,
         }
+        if anomaly_flags:
+            result["anomaly_flags"] = anomaly_flags
+        return result
 
     except Exception as e:
         elapsed_ms = int((time.time() - start_time) * 1000)
@@ -580,3 +652,133 @@ def fetch_official_announcements(symbol):
     )
 
     return announcements
+
+
+# ---- C1 v1.0 品質契約與新聞異常偵測 ----
+_ORIGINAL_SEARCH_NEWS = search_news
+
+
+def detect_news_anomalies(news_items, lookback_days, now_utc=None):
+    """以可驗證發布時間偵測 A7 新聞密度與 A8 重大事件關鍵字。"""
+    import config
+    from tools.quality import make_anomaly_flag
+
+    now_utc = now_utc or datetime.now(timezone.utc)
+    parsed_items = []
+    for item in news_items or []:
+        published = _parse_published_at(item.get("published_at"))
+        if published:
+            parsed_items.append((item, published))
+
+    flags = []
+    recent_hours = int(config.ANOMALY_THRESHOLDS["news_density_recent_hours"])
+    recent_cutoff = now_utc - timedelta(hours=recent_hours)
+    recent_count = sum(1 for _, published in parsed_items if published >= recent_cutoff)
+    prior_count = sum(1 for _, published in parsed_items if published < recent_cutoff)
+    recent_days = recent_hours / 24
+    prior_days = max(float(lookback_days) - recent_days, 1.0)
+    recent_daily = recent_count / max(recent_days, 1.0)
+    prior_daily = prior_count / prior_days
+    density_ratio = recent_daily / prior_daily if prior_daily > 0 else None
+    density_threshold = float(config.ANOMALY_THRESHOLDS["news_density_ratio"])
+    if density_ratio is not None and density_ratio >= density_threshold:
+        flags.append(make_anomaly_flag(
+            signal_id="A7",
+            name="新聞密度突增",
+            severity="significant",
+            direction="high",
+            value=round(density_ratio, 3),
+            unit="times",
+            percentile=None,
+            threshold=f"最近 {recent_hours}h 日均 / 先前日均 >= {density_threshold:g}",
+            window=f"{lookback_days}d",
+            as_of=now_utc.isoformat(),
+            message=f"最近 {recent_hours} 小時新聞密度為先前日均的 {density_ratio:.2f} 倍",
+        ))
+
+    major_keywords = {
+        "upgrade", "halt", "hack", "exploit", "listing", "regulation",
+        "etf", "fork", "security incident", "lawsuit", "approval",
+    }
+    for item, published in parsed_items:
+        title = str(item.get("title", ""))
+        matched = sorted(keyword for keyword in major_keywords if keyword in title.lower())
+        if not matched:
+            continue
+        flags.append(make_anomaly_flag(
+            signal_id="A8",
+            name="重大官方／市場事件",
+            severity="attention",
+            direction="event",
+            value=title,
+            unit="headline",
+            percentile=None,
+            threshold="命中重大事件關鍵字",
+            window=f"{lookback_days}d",
+            as_of=published.isoformat(),
+            message=f"標題命中 {', '.join(matched)}：{title}",
+        ))
+        if len([flag for flag in flags if flag["signal_id"] == "A8"]) >= 5:
+            break
+    return flags
+
+
+def search_news(symbol, lookback_days, related_claim, keywords=None):
+    """C1 v1.0 包裝：補齊來源品質、freshness、A7 與 A8。"""
+    import config
+    from tools.quality import standardize_tool_result
+
+    symbol_upper = str(symbol).upper().strip()
+    bounded_lookback = max(1, min(int(lookback_days), 90))
+    result = _ORIGINAL_SEARCH_NEWS(
+        symbol_upper, bounded_lookback, related_claim, keywords
+    )
+    reference = result.get("content_reference", {}) if isinstance(result, dict) else {}
+    raw = result.get("raw", {}) if isinstance(result, dict) else {}
+    items = raw.get("items", []) if isinstance(raw, dict) else []
+    channels = {item.get("channel") for item in items if item.get("channel")}
+    published_times = [
+        parsed for parsed in (_parse_published_at(item.get("published_at")) for item in items)
+        if parsed is not None
+    ]
+    as_of = max(published_times).isoformat() if published_times else None
+    fallback_used = bool(items) and "google_news" not in channels
+    partial = fallback_used or (bool(items) and len(channels) < 2)
+    notes = ["新聞文章可能為同一通稿轉載，來源獨立性需依 source_family 判斷"]
+    if fallback_used:
+        notes.append("Google News 無可用結果，本次由媒體或官方來源降級提供")
+
+    normalized = standardize_tool_result(
+        result,
+        provider="Multi-source news and official feeds",
+        endpoint=[
+            result.get("source", ""),
+            *[item.get("url") for item in items[:5] if item.get("url")],
+        ],
+        symbol=symbol_upper,
+        pair=None,
+        timeframe="event",
+        window=f"{bounded_lookback}d",
+        unit={"count": "articles", "published_at": "UTC"},
+        as_of=as_of,
+        max_age_seconds=min(
+            bounded_lookback * 24 * 60 * 60,
+            config.FRESHNESS_THRESHOLDS_SECONDS["news"],
+        ),
+        fallback_used=fallback_used,
+        primary_provider="Google News + media + official feeds",
+        partial=partial,
+        comparability_status="limited",
+        comparability_notes=notes,
+    )
+    if normalized.get("status") != "error":
+        normalized["anomaly_flags"] = detect_news_anomalies(
+            normalized.get("raw", {}).get("items", []), bounded_lookback
+        )
+    return normalized
+
+
+
+# 既有 collector 保留 requests 介面，實際 HTTP 套用共用重試政策。
+from tools.quality import RetryingRequestsFacade as _RetryingRequestsFacade
+requests = _RetryingRequestsFacade()
