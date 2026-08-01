@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 import config
+from tools.quality import make_anomaly_flag
 
 
 # ---- 指標名稱 → FRED Series ID 映射 ----
@@ -299,12 +300,66 @@ def get_macro(indicators, related_claim, lookback_days=90):
 
         source_url = f"{FRED_BASE_URL}?series_id={','.join(series_ids_queried)}&observation_start={start_date}&observation_end={end_date}"
 
-        return {
+        # --- A10 異常偵測：DXY / 10Y 殖利率 20 日變化幅度近一年百分位 ≥ 85 ---
+        anomaly_flags = []
+        thresholds = getattr(config, "ANOMALY_THRESHOLDS", {})
+        macro_pct_high = thresholds.get("macro_change_percentile_high", 85.0)
+
+        for key in ("dxy", "treasury_10y"):
+            res = results.get(key)
+            if not res or "observations" not in res:
+                continue
+            obs_values = [o["value"] for o in res.get("observations", [])]
+            if len(obs_values) < 25:
+                continue  # 需要至少 20+5 個觀測值才能計算滾動變化
+
+            # 計算所有滾動 20 期絕對變化
+            rolling_changes = []
+            for i in range(20, len(obs_values)):
+                change = abs(obs_values[i] - obs_values[i - 20])
+                rolling_changes.append(change)
+
+            if not rolling_changes:
+                continue
+
+            # 最新的 20 期變化
+            current_change = abs(obs_values[-1] - obs_values[-21]) if len(obs_values) >= 21 else None
+            if current_change is None:
+                continue
+
+            # 計算百分位
+            below_count = sum(1 for c in rolling_changes if c <= current_change)
+            percentile = (below_count / len(rolling_changes)) * 100
+
+            if percentile >= macro_pct_high:
+                short_name = res.get("short_name", key)
+                direction_val = obs_values[-1] - obs_values[-21]
+                direction = "tightening" if direction_val > 0 else "easing"
+                anomaly_flags.append(make_anomaly_flag(
+                    signal_id=f"A10_macro_regime_shift_{key}",
+                    name=f"總經環境轉向（{short_name}）",
+                    severity="significant" if percentile >= 95 else "notable",
+                    direction=direction,
+                    value=round(direction_val, 4),
+                    unit="20d absolute change",
+                    percentile=round(percentile, 1),
+                    threshold=f"百分位 ≥ {macro_pct_high}",
+                    window="20d change vs rolling history",
+                    as_of=res.get("latest_date", ""),
+                    message=f"{short_name} 20 日變化 {direction_val:+.4f}，"
+                            f"幅度為近一年第 {percentile:.0f} 百分位（門檻 {macro_pct_high}），"
+                            f"方向：{'緊縮' if direction == 'tightening' else '寬鬆'}",
+                ))
+
+        result = {
             "raw": raw_data,
             "source": source_url if series_ids_queried else FRED_BASE_URL,
             "content_reference": content_reference,
             "summary": summary,
         }
+        if anomaly_flags:
+            result["anomaly_flags"] = anomaly_flags
+        return result
 
     except Exception as e:
         return {
