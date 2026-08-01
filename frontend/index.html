@@ -191,8 +191,12 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:t
     <button class="btn-submit" id="submit">開始分析</button>
   </div>
 </section>
-<!-- LOADING -->
-<div id="loading"><div class="spinner"></div><p id="loading-msg">正在規劃資料蒐集範圍</p><p class="elapsed" id="elapsed">00:00</p></div>
+<!-- LOADING BAR (bottom fixed) -->
+<div id="loading" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);padding:.7rem 1.5rem;align-items:center;gap:.8rem;z-index:999">
+  <span class="spinner" style="width:16px;height:16px;margin:0;flex-shrink:0"></span>
+  <span id="loading-msg" style="font-size:14px;color:var(--muted)">正在規劃資料蒐集範圍</span>
+  <span id="elapsed" style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--accent)">00:00</span>
+</div>
 <div id="error"></div>
 <!-- DASHBOARD -->
 <div id="dashboard">
@@ -263,13 +267,25 @@ document.getElementById('submit').addEventListener('click',async()=>{
   try{
     let data;
     if(DEMO_MODE){await new Promise(r=>setTimeout(r,2000));data=DEMO_DATA}
-    else{const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:[...selectedCoins],question:q})});if(!res.ok){const b=await res.json().catch(()=>({}));throw new Error(b.error||`錯誤 ${res.status}`)}data=await res.json()}
+    else{const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:[...selectedCoins],question:q})});if(!res.ok){const b=await res.json().catch(()=>({}));throw new Error(b.error||`錯誤 ${res.status}`)}data=await res.json();data.evidence_list=await loadEvidenceList(data)}
     renderDashboard(data,{symbols:[...selectedCoins],question:q});
   }catch(e){showErr(e.message||'無法連線。')}
 });
 if(DEMO_MODE){const b=document.querySelector('#coins .coin');if(b){b.setAttribute('aria-pressed','true');selectedCoins=['BTC']}document.getElementById('question').value='請分析 BTC 近期是否處於高波動蓄勢階段，並從價格、鏈上、新聞多角度提供證據支持你的判斷。'}
 
-function startLoading(){document.getElementById('input-section').style.display='none';document.getElementById('dashboard').style.display='none';document.getElementById('error').style.display='none';document.getElementById('loading').style.display='block';document.getElementById('submit').disabled=true;sec=0;mi=0;document.getElementById('elapsed').textContent='00:00';document.getElementById('loading-msg').textContent=MSGS[0];timer=setInterval(()=>{sec++;document.getElementById('elapsed').textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')},1000);msgTimer=setInterval(()=>{mi=(mi+1)%MSGS.length;if(sec<600)document.getElementById('loading-msg').textContent=MSGS[mi]},9000)}
+async function loadEvidenceList(data){
+  if(Array.isArray(data.evidence_list))return data.evidence_list;
+  const downloadUrl=data.evidence_download_url;
+  if(!downloadUrl||downloadUrl==='#')return [];
+  document.getElementById('loading-msg').textContent='正在載入證據清單並建立圖表';
+  const response=await fetch(new URL(downloadUrl,window.location.href));
+  if(!response.ok)throw new Error(`分析已完成，但證據清單載入失敗 (${response.status})`);
+  const payload=await response.json();
+  if(!Array.isArray(payload))throw new Error('證據清單格式錯誤，無法建立圖表');
+  return payload;
+}
+
+function startLoading(){document.getElementById('input-section').style.display='none';document.getElementById('dashboard').style.display='none';document.getElementById('error').style.display='none';document.getElementById('loading').style.display='flex';document.getElementById('submit').disabled=true;sec=0;mi=0;document.getElementById('elapsed').textContent='00:00';document.getElementById('loading-msg').textContent=MSGS[0];timer=setInterval(()=>{sec++;document.getElementById('elapsed').textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')},1000);msgTimer=setInterval(()=>{mi=(mi+1)%MSGS.length;document.getElementById('loading-msg').textContent=MSGS[mi]},8000)}
 function showErr(m){clearInterval(timer);clearInterval(msgTimer);timer=null;msgTimer=null;document.getElementById('loading').style.display='none';document.getElementById('input-section').style.display='block';document.getElementById('submit').disabled=false;const el=document.getElementById('error');el.textContent=m;el.style.display='block'}
 
 // ====== RENDER DASHBOARD ======
@@ -361,29 +377,11 @@ function renderReportWithCards(reportText){
     // Check if this is the evidence section
     if(title.includes('關鍵依據')){
       html+=`<h2 style="margin:1.2rem 0 .8rem;font-size:19px;font-weight:700;color:#fff">${title}</h2>`;
-      // Parse numbered items
-      const items=sec.match(/\d+\.\s+\*\*(.+?)\*\*\s*\[EV-([a-f0-9]+)\][：:]\s*([\s\S]*?)(?=\n\d+\.|\n$|$)/gi);
-      if(items){items.forEach(item=>{
-        const m=item.match(/\d+\.\s+\*\*(.+?)\*\*\s*\[EV-([a-f0-9]+)\][：:]\s*([\s\S]*)/i);
-        if(!m)return;
-        const [,cat,evId,text]=m;
-        const idx=evidenceList.findIndex(e=>e.evidence_id&&e.evidence_id.startsWith(evId));
-        const ev=idx>=0?evidenceList[idx]:null;
-        const icon=getIcon(cat);
-        const signal=getSignal(text);
-        const badges=extractBadges(text);
-        const tip=ev?`${getSourceName(ev.source)} | ${ev.fetched_at||''}`:'點擊查看';
-        html+=`<div class="ev-item" data-idx="${idx>=0?idx:0}">
-          <div class="ev-icon">${icon}</div>
-          <div class="ev-body">
-            <div class="ev-text">${cleanText(text)}${badges}</div>
-            <div class="ev-footer">
-              <span class="cite-btn" data-idx="${idx>=0?idx:0}" data-tip="${tip}"><span class="cite-icon">🔍</span> EV-${evId.slice(0,6)}</span>
-            </div>
-          </div>
-          <span class="signal-arrow ${signal.cls}">${signal.icon}</span>
-        </div>`;
-      })}else{html+=`<div style="font-size:15px;line-height:1.8">${marked.parse(lines.slice(1).join('\n'))}</div>`}
+      if(evidenceList.length){
+        html+=evidenceList.map((ev,idx)=>renderEvidenceTimelineCard(ev,idx)).join('');
+      }else{
+        html+=`<div style="font-size:15px;line-height:1.8">${marked.parse(lines.slice(1).join('\n'))}</div>`;
+      }
     }else if(title.includes('信心說明')){
       html+=`<h2 style="margin:1.2rem 0 .8rem;font-size:19px;font-weight:700;color:#fff">${title}</h2>`;
       html+=`<div style="font-size:15px;line-height:1.8">${marked.parse(lines.slice(1).join('\n'))}</div>`;
@@ -397,6 +395,44 @@ function renderReportWithCards(reportText){
   document.querySelectorAll('.cite-btn').forEach(el=>{el.addEventListener('click',()=>showEvViz(parseInt(el.dataset.idx)||0))});
   document.querySelectorAll('.ev-item').forEach(el=>{el.addEventListener('click',()=>showEvViz(parseInt(el.dataset.idx)||0))});
 }
+
+function renderEvidenceTimelineCard(ev,idx){
+  const category=getEvidenceCategory(ev);
+  const claim=String(ev.related_claim||'此證據尚未提供對應判斷');
+  const signal=getSignal(claim);
+  const evidenceId=String(ev.evidence_id||`evidence-${idx+1}`);
+  const tip=`${getSourceName(ev.source)} | ${ev.fetched_at||'--'}`;
+  return `<div class="ev-item" data-idx="${idx}">
+    <div class="ev-icon">${getIcon(category)}</div>
+    <div class="ev-body">
+      <div class="ev-text"><strong>${escapeHtml(category)}</strong>｜${cleanText(escapeHtml(claim))}${extractEvidenceBadges(ev.content_reference)}</div>
+      <div class="ev-footer"><span class="cite-btn" data-idx="${idx}" data-tip="${escapeHtml(tip)}"><span class="cite-icon">🔍</span> ${escapeHtml(evidenceId.slice(0,8))}</span></div>
+    </div>
+    <span class="signal-arrow ${signal.cls}">${signal.icon}</span>
+  </div>`;
+}
+function getEvidenceCategory(ev){
+  const text=`${ev.source||''} ${ev.related_claim||''}`.toLowerCase();
+  if(/binance|coingecko|ohlcv|price|quant|technical|價格|技術/.test(text))return'價格與技術面';
+  if(/mempool|etherscan|blockscout|helius|xrpl|onchain|鏈上/.test(text))return'鏈上活躍度';
+  if(/news|rss|cryptopanic|新聞|公告/.test(text))return'新聞情緒';
+  if(/fred|macro|stlouisfed|總經|利率/.test(text))return'總經環境';
+  if(/alternative\.me|fear|greed|sentiment|社群|情緒/.test(text))return'社群熱度';
+  return'交叉驗證';
+}
+function extractEvidenceBadges(contentReference){
+  if(!contentReference||typeof contentReference!=='object')return'';
+  const badges=[];
+  Object.entries(contentReference).some(([key,value])=>{
+    if(value===null||typeof value==='object')return false;
+    const text=String(value);
+    if(text.length>24)return false;
+    badges.push(`<span class="data-badge">${escapeHtml(key.replaceAll('_',' '))} ${escapeHtml(text)}</span>`);
+    return badges.length>=3;
+  });
+  return badges.length?' '+badges.join(' '):'';
+}
+function escapeHtml(value){return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]))}
 
 function getIcon(cat){
   if(/價格|技術/.test(cat))return ICONS.price;
