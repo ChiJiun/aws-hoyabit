@@ -196,40 +196,40 @@
 - [ ] 8. 檢查點 — 基礎設施與工具模組
   - 確認所有測試通過，如有疑問請詢問使用者。
 
-- [ ] 9. Agent 主迴圈（agent.py）
+- [x] 9. Agent 主迴圈（agent.py）
 
-  - [ ] 9.1 實作 build_tool_config 函式
+  - [x] 9.1 實作 build_tool_config 函式
     - 組出 Bedrock Converse API 的 toolConfig JSON
     - 每個 toolSpec 的 inputSchema 必須將 related_claim 列為 required
     - 包含六個工具的完整描述與參數定義
     - _需求：3.1、4.3_ | _Property 5_
 
-  - [ ] 9.2 實作 call_bedrock 函式
+  - [x] 9.2 實作 call_bedrock 函式
     - 呼叫 boto3 bedrock-runtime.converse()
     - 傳入 system=[{"text": SYSTEM_PROMPT}]、messages、toolConfig
     - 處理 ThrottlingException（等待 2 秒重試一次）、ModelTimeoutException、ValidationException
     - _需求：3.1_
 
-  - [ ] 9.3 實作 dispatch_tool_call 函式
+  - [x] 9.3 實作 dispatch_tool_call 函式
     - 從 tool_use_block 解析 name 與 input
     - 透過 TOOL_DISPATCH 分派至對應函式並計時
     - 呼叫 log_evidence() 與 log_execution_step()
     - 回傳 toolResult（僅含 summary + evidence_id，不含 raw）
     - _需求：3.2、3.6、4.1、4.2、5.1、5.2_ | _Property 5、6_
 
-  - [ ] 9.4 實作 run_agent_loop 函式
+  - [x] 9.4 實作 run_agent_loop 函式
     - 組裝初始 user 訊息，進入迴圈（最多 MAX_AGENT_TURNS 輪）
     - 每輪開始前檢查時間預算
     - stopReason 為 tool_use 時分派工具；為 end_turn 時跳出
     - 超時則強制跳出並標記
     - _需求：2.1、2.2、2.3、2.4、3.2、3.3_ | _Property 3_
 
-  - [ ] 9.5 實作 summarize_final_analysis 函式
+  - [x] 9.5 實作 summarize_final_analysis 函式
     - 第二次 Bedrock 呼叫（不含 toolConfig）
     - 要求模型以「市場判斷／關鍵依據／信心說明」結構輸出
     - _需求：14.1_
 
-  - [ ]* 9.6 撰寫 agent.py 的單元測試
+  - [x]* 9.6 撰寫 agent.py 的單元測試
     - Mock Bedrock API，測試 end_turn 正確退出迴圈
     - 測試 MAX_AGENT_TURNS 達到上限時強制退出
     - 測試 dispatch_tool_call 的 toolResult 不含 raw 欄位
@@ -238,18 +238,18 @@
     - **Property 6: Context 膨脹防護**
     - **驗證: 需求 2.1、2.3、3.2、3.6**
 
-- [ ] 10. 報告渲染（report.py）
+- [x] 10. 報告渲染（report.py）
 
-  - [ ] 10.1 實作 calculate_coverage 函式
+  - [x] 10.1 實作 calculate_coverage 函式
     - 統計 evidence_list 中涵蓋的資料類別（價格、新聞、鏈上、情緒、總經）
     - 回傳 (覆蓋率百分比, 已取得的類別清單, 缺少的類別清單)
     - _需求：12.4_ | _Property 18_
 
-  - [ ] 10.2 實作 build_evidence_table 函式
+  - [x] 10.2 實作 build_evidence_table 函式
     - 將 evidence_list 轉為 Markdown 表格（evidence_id、來源、取得時間、對應判斷）
     - _需求：12.2_
 
-  - [ ] 10.3 實作 render_report 主函式
+  - [x] 10.3 實作 render_report 主函式
     - 使用 f-string 模板確保三章節存在：市場判斷、關鍵依據、信心說明
     - 附錄包含資料覆蓋率與完整證據表
     - missing_sources 寫入限制段落
@@ -260,18 +260,18 @@
     - **Property 18: 來源多樣性檢查** — calculate_coverage 正確計算類別數
     - **驗證: 需求 12.1、13.5**
 
-- [ ] 11. 交付物匯出（export.py）
+- [x] 11. 交付物匯出（export.py）
 
-  - [ ] 11.1 實作 export_evidence_list 函式
+  - [x] 11.1 實作 export_evidence_list 函式
     - 支援 JSON 與 CSV 兩種輸出格式
     - 每筆含 source、fetched_at、content_reference、related_claim
     - _需求：15.1_
 
-  - [ ] 11.2 實作 export_execution_log 函式
+  - [x] 11.2 實作 export_execution_log 函式
     - 輸出 JSONL 格式（每行一筆 JSON 物件）
     - _需求：5.3、15.1_ | _Property 11_
 
-  - [ ] 11.3 實作 validate_before_export 函式
+  - [x] 11.3 實作 validate_before_export 函式
     - 檢查：四欄位齊備、來源類別數 >= 3、付費來源非唯一、無投資建議語句
     - 回傳 (全數通過, 未通過項目清單)
     - _需求：13.1、13.4、13.5_ | _Property 17、18_
@@ -305,31 +305,31 @@
 - [ ] 13. 檢查點 — Agent 迴圈與報告模組
   - 確認所有測試通過，如有疑問請詢問使用者。
 
-- [ ] 14. Lambda 進入點整合（handler.py）
+- [x] 14. Lambda 進入點整合（handler.py）
 
-  - [ ] 14.1 實作 parse_request 函式
+  - [x] 14.1 實作 parse_request 函式
     - 從 event body 解析 symbols（1-2 個）與 question
     - 驗證 symbols ⊂ SUPPORTED_SYMBOLS、question 非空
     - 驗證失敗回傳含明確錯誤說明的回應
     - _需求：1.2、1.3、1.4、1.5_ | _Property 1、2_
 
-  - [ ] 14.2 實作 generate_run_id 函式
+  - [x] 14.2 實作 generate_run_id 函式
     - 產生格式為 run_YYYYMMDD_HHMMSS（UTC）的唯一識別碼
     - _需求：1.2_
 
-  - [ ] 14.3 實作 lambda_handler 函式
+  - [x] 14.3 實作 lambda_handler 函式
     - 串接完整流程：reset → parse → run_id → agent_loop → summarize → validate → render → export → upload → presigned URL
     - 回傳含 CORS 標頭的 JSON（report_text、evidence_download_url、log_download_url、run_id）
     - 外層 try/except 捕獲未預期錯誤，回傳 500 + CORS
     - _需求：1.1、1.6、2.5、14.1、14.2、15.1、15.2、15.3、15.4_
 
-  - [ ] 14.4 實作 main 本機測試進入點
+  - [x] 14.4 實作 main 本機測試進入點
     - 呼叫 load_local_env() 載入環境變數
     - 使用寫死的測試輸入執行完整流程
     - 輸出至 outputs/ 資料夾
     - _需求：21.1、21.2_
 
-  - [ ]* 14.5 撰寫 handler.py 的屬性測試
+  - [x]* 14.5 撰寫 handler.py 的屬性測試
     - **Property 1: 有效請求必定被接受** — 1-2 個支援幣種 + 非空 question 必定通過
     - **Property 2: 無效幣種必定被拒絕** — 不在 SUPPORTED_SYMBOLS 中的代號被拒
     - **驗證: 需求 1.2、1.3、1.4、1.5**
@@ -373,18 +373,18 @@
     - 部署後替換 placeholder 為真實的 Function URL
     - _需求：17.1_
 
-- [ ] 16. 整合測試（tests/test_local_run.py）
+- [x] 16. 整合測試（tests/test_local_run.py）
 
-  - [ ] 16.1 實作 run_single_case 函式
+  - [x] 16.1 實作 run_single_case 函式
     - 呼叫 handler 內部邏輯執行測試案例
     - 檢查：無例外、report_text 非空、evidence 涵蓋 >= 3 類別、無孤兒結論、耗時合理
     - _需求：21.3_
 
-  - [ ] 16.2 實作 print_summary 函式
+  - [x] 16.2 實作 print_summary 函式
     - 印出總表：案例名稱、通過/失敗、耗時、證據筆數、涵蓋類別數
     - _需求：21.3_
 
-  - [ ] 16.3 實作 main 函式
+  - [x] 16.3 實作 main 函式
     - 依序執行三個 TEST_CASES，最後印出總表
     - _需求：21.3_
 
