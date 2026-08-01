@@ -38,34 +38,34 @@
     - **Property 10: 執行紀錄完整性** — log_execution_step 新增一筆包含必要欄位的記錄
     - **驗證: 需求 2.6、4.1、4.2、4.4、4.5、5.1、5.2**
 
-- [ ] 2. 技術指標計算工具（tools/quant.py）
+- [x] 2. 技術指標計算工具（tools/quant.py）
 
-  - [ ] 2.1 實作 calc_atr_pct 函式
+  - [x] 2.1 實作 calc_atr_pct 函式
     - 計算 ATR（平均真實區間）並轉為佔收盤價的百分比
     - 輸入：pandas DataFrame（含 high、low、close 欄位）、window 期間
     - _需求：11.1、11.2_ | _Property 14_
 
-  - [ ] 2.2 實作 calc_bollinger_bandwidth 函式
+  - [x] 2.2 實作 calc_bollinger_bandwidth 函式
     - 計算布林帶寬（上下軌距離佔中軌的比例）
     - 輸入：pandas DataFrame、window 期間
     - _需求：11.1、11.2_
 
-  - [ ] 2.3 實作 calc_adx 函式
+  - [x] 2.3 實作 calc_adx 函式
     - 計算 ADX（平均趨向指標），衡量趨勢強度
     - 輸入：pandas DataFrame（含 high、low、close 欄位）、window 期間
     - _需求：11.1、11.2_
 
-  - [ ] 2.4 實作 calc_percentile_rank 函式
+  - [x] 2.4 實作 calc_percentile_rank 函式
     - 計算當前數值在過去 lookback 天資料中的百分位排名（0-100）
     - 此函式為所有指標共用的「絕對值→相對位置」轉換
     - _需求：11.3_ | _Property 14_
 
-  - [ ] 2.5 實作 calc_correlation 函式
+  - [x] 2.5 實作 calc_correlation 函式
     - 計算兩個幣種日報酬率的 Pearson 相關係數
     - 結果必定在 [-1, 1] 區間內
     - _需求：11.4_ | _Property 15_
 
-  - [ ] 2.6 實作 compute_quant 主函式
+  - [x] 2.6 實作 compute_quant 主函式
     - 依 features 清單（atr_pct、bollinger_bandwidth、adx、volume_zscore、realized_vol、correlation）逐一計算
     - 每個指標同時附帶百分位排名
     - 當 compare_symbol 不為 None 時計算相關係數
@@ -73,102 +73,102 @@
     - 失敗時回傳 error dict 而非拋出例外
     - _需求：11.1、11.2、11.3、11.4、11.5、20.1、20.2、20.3_ | _Property 12、13、14_
 
-  - [ ]* 2.7 撰寫 quant.py 的屬性測試
+  - [x] 2.7 撰寫 quant.py 的屬性測試
     - **Property 14: 技術指標含百分位** — 每個指標結果包含原始數值與 0-100 百分位
     - **Property 15: 相關係數值域** — calc_correlation 結果必在 [-1, 1] 區間
     - **Property 12: 工具永不拋錯** — 任何輸入下 compute_quant 回傳 dict 而非拋例外
     - **驗證: 需求 11.3、11.4、20.2**
 
-- [ ] 3. 價格與 OHLCV 資料工具（tools/price.py）
+- [x] 3. 價格與 OHLCV 資料工具（tools/price.py）
 
-  - [ ] 3.1 實作 fetch_recent_from_exchange 函式
+  - [x] 3.1 實作 fetch_recent_from_exchange 函式
     - 從 Binance 公開 API 取得 BASELINE_END_DATE 之後的日線 OHLCV
     - 使用與基準資料相同的交易對（{symbol}USDT）
     - 回傳 pandas DataFrame，欄位與基準 CSV 一致
     - _需求：6.3_
 
-  - [ ] 3.2 實作 check_data_seam 函式
+  - [x] 3.2 實作 check_data_seam 函式
     - 比對基準資料與即時資料的重疊日期收盤價差異百分比
     - 回傳 (是否通過、重疊日數、最大價差百分比)
     - 結果記入 execution_log
     - _需求：6.4_
 
-  - [ ] 3.3 實作 get_price_ohlcv 主函式
+  - [x] 3.3 實作 get_price_ohlcv 主函式
     - 讀取 S3 基準 CSV → 判斷是否需補即時資料 → 拼接 → 篩選日期範圍
     - 以 CoinGecko 作為備用來源
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：6.1、6.2、6.3、6.4、6.5、6.6、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ]* 3.4 撰寫 price.py 的單元測試
+  - [ ] 3.4 撰寫 price.py 的單元測試
     - 測試基準 CSV 讀取與日期篩選
     - 測試 check_data_seam 在價差過大時的警告
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 6.1、6.6**
 
-- [ ] 4. 新聞與官方公告工具（tools/news.py）
+- [x] 4. 新聞與官方公告工具（tools/news.py）
 
-  - [ ] 4.1 實作 fetch_official_announcements 函式
+  - [x] 4.1 實作 fetch_official_announcements 函式
     - 從各專案官方部落格 RSS 與 GitHub releases API 取得一手公告
     - 依幣種分派到正確的來源（BTC→bitcoin.org、ETH→blog.ethereum.org 等）
     - _需求：7.2_
 
-  - [ ] 4.2 實作 search_news 主函式
+  - [x] 4.2 實作 search_news 主函式
     - 呼叫 CryptoPanic API（帶 currencies 參數）取得幣種新聞
     - 合併 fetch_official_announcements 結果
     - 標註同一來源家族的重複報導
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：7.1、7.2、7.3、7.4、7.5、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ]* 4.3 撰寫 news.py 的單元測試
+  - [ ] 4.3 撰寫 news.py 的單元測試
     - Mock CryptoPanic API 回應，驗證結果解析
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 7.1、7.5**
 
-- [ ] 5. 鏈上資料工具（tools/onchain.py）
+- [x] 5. 鏈上資料工具（tools/onchain.py）
 
-  - [ ] 5.1 實作 fetch_btc_onchain 函式
+  - [x] 5.1 實作 fetch_btc_onchain 函式
     - 從 mempool.space 取得 BTC 鏈上資料（免金鑰）
     - 支援 active_addresses、tx_count 等指標
     - _需求：8.1_
 
-  - [ ] 5.2 實作 fetch_evm_onchain 函式
+  - [x] 5.2 實作 fetch_evm_onchain 函式
     - ETH → Etherscan API V2（需金鑰）；BNB → Blockscout（免金鑰）
     - 兩者共用同一套解析邏輯（API 格式相容）
     - _需求：8.2、8.3_
 
-  - [ ] 5.3 實作 fetch_sol_onchain 函式
+  - [x] 5.3 實作 fetch_sol_onchain 函式
     - 從 Helius 取得 Solana 鏈上資料（需金鑰）
     - _需求：8.4_
 
-  - [ ] 5.4 實作 fetch_xrp_onchain 函式
+  - [x] 5.4 實作 fetch_xrp_onchain 函式
     - 從 XRPL 公開節點取得 XRP 帳本資料（標準 JSON-RPC，免金鑰）
     - _需求：8.5_
 
-  - [ ] 5.5 實作 get_onchain 主函式
+  - [x] 5.5 實作 get_onchain 主函式
     - 依 symbol 分派到對應的 fetch 函式（match/case）
     - content_reference 包含 API endpoint、查詢參數、資料時間範圍
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：8.1、8.2、8.3、8.4、8.5、8.6、8.7、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ]* 5.6 撰寫 onchain.py 的單元測試
+  - [ ] 5.6 撰寫 onchain.py 的單元測試
     - Mock 各鏈 API 回應，驗證幣種分派正確性
     - 測試所有 5 條鏈的 API 失敗時回傳 error dict
     - **Property 5: 工具分派正確性**
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 8.1–8.7**
 
-- [ ] 6. 市場情緒工具（tools/sentiment.py）
+- [x] 6. 市場情緒工具（tools/sentiment.py）
 
-  - [ ] 6.1 實作 get_sentiment 函式
+  - [x] 6.1 實作 get_sentiment 函式
     - 呼叫 alternative.me Fear & Greed Index API
     - 取得當前指數值與近 lookback_days 天的走勢
     - content_reference 包含 API endpoint、查詢時間範圍、指數數值與分級文字
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：9.1、9.2、9.3、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ]* 6.2 撰寫 sentiment.py 的單元測試
+  - [ ] 6.2 撰寫 sentiment.py 的單元測試
     - Mock API 回應，驗證 content_reference 包含完整資訊
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
