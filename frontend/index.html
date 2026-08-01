@@ -152,8 +152,8 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:t
 </div>
 
 <script>
-// 部署後把這裡換成你的 Lambda Function URL
-const API_URL = "https://請填入你的-function-url.lambda-url.us-east-1.on.aws/";
+// 部署後把這裡換成你的 Lambda Function URL（執行 scripts/set_api_url.sh 自動替換）
+const API_URL = "https://YOUR_FUNCTION_URL_HERE.lambda-url.us-east-1.on.aws/";
 
 // 等待期間輪播的提示文字。前端無法得知 Lambda 內部進度，
 // 所以這裡是預先寫死的訊息輪播，目的是讓使用者知道系統還在運作。
@@ -166,23 +166,79 @@ const LOADING_MESSAGES = [
 ];
 
 let selectedCoins = [];
+let elapsedTimer = null;   // 經過秒數計時器 ID
+let msgTimer = null;       // 輪播文字計時器 ID
 
 function initCoinSelector() {
   // 功能：綁定五個幣種按鈕的點擊事件。
   // 行為：點擊切換選取狀態（同步更新 aria-pressed 屬性讓樣式生效），
-  //      最多允許選兩個（比較分析題型需要），超過就把最早選的移除。
+  //      最多允許選兩個（比較分析題型需要），超過就把最早選的移除（FIFO）。
   // 同時維護 selectedCoins 陣列。
+  const buttons = document.querySelectorAll("#coins .coin");
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const coin = btn.textContent.trim();
+      const isPressed = btn.getAttribute("aria-pressed") === "true";
+
+      if (isPressed) {
+        // 已選取 → 取消選取
+        btn.setAttribute("aria-pressed", "false");
+        selectedCoins = selectedCoins.filter(c => c !== coin);
+      } else {
+        // 未選取 → 嘗試選取
+        if (selectedCoins.length >= 2) {
+          // 超過上限：移除最早選的（FIFO）
+          const removed = selectedCoins.shift();
+          const removedBtn = [...buttons].find(b => b.textContent.trim() === removed);
+          if (removedBtn) removedBtn.setAttribute("aria-pressed", "false");
+        }
+        // 選取新按鈕
+        btn.setAttribute("aria-pressed", "true");
+        selectedCoins.push(coin);
+      }
+    });
+  });
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   // 功能：使用者按下「開始分析」時執行。
-  // 步驟：
-  //   1. 驗證：至少選一個幣種、題目不可為空，否則呼叫 showError()
-  //   2. 呼叫 showLoading() 切換畫面狀態、停用送出按鈕
-  //   3. 組出 payload：{ symbols: selectedCoins, question: 題目文字 }
-  //   4. 呼叫 callAnalysisApi(payload)
-  //   5. 成功 → renderReport(data)；失敗 → showError()
-  //   6. 無論成功失敗都要恢復送出按鈕、隱藏 loading
+
+  // 1. 驗證：至少選一個幣種、題目不可為空
+  if (selectedCoins.length === 0) {
+    showError("請至少選擇一個幣種");
+    return;
+  }
+
+  const question = document.getElementById("question").value.trim();
+  if (!question) {
+    showError("請輸入分析題目");
+    return;
+  }
+
+  // 2. 停用送出按鈕、切換到 loading 狀態
+  const submitBtn = document.getElementById("submit");
+  submitBtn.disabled = true;
+  showLoading();
+
+  // 3. 組出 payload
+  const payload = { symbols: selectedCoins, question: question };
+
+  try {
+    // 4. 呼叫後端 API
+    const data = await callAnalysisApi(payload);
+    // 5. 成功 → 渲染報告
+    renderReport(data);
+  } catch (err) {
+    // 5. 失敗 → 顯示錯誤
+    showError(err.message || "分析過程發生未知錯誤，請稍後再試");
+  } finally {
+    // 6. 無論成功失敗：恢復送出按鈕、清除計時器、隱藏 loading
+    submitBtn.disabled = false;
+    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+    if (msgTimer) { clearInterval(msgTimer); msgTimer = null; }
+    document.getElementById("loading").style.display = "none";
+  }
 }
 
 async function callAnalysisApi(payload) {
@@ -193,6 +249,31 @@ async function callAnalysisApi(payload) {
   //      （這也是為什麼不用 API Gateway —— 它有 29 秒逾時上限。）
   // 回傳：後端回傳的 JSON 物件
   //      { report_text, evidence_download_url, log_download_url, run_id }
+
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    // 嘗試從回應 body 取得更具體的錯誤訊息
+    let errorDetail = "";
+    try {
+      const errBody = await response.json();
+      errorDetail = errBody.error || errBody.message || "";
+    } catch (_) {
+      errorDetail = await response.text().catch(() => "");
+    }
+    throw new Error(
+      errorDetail
+        ? `分析請求失敗 (HTTP ${response.status})：${errorDetail}`
+        : `分析請求失敗 (HTTP ${response.status})`
+    );
+  }
+
+  const data = await response.json();
+  return data;
 }
 
 function showLoading() {
@@ -200,7 +281,34 @@ function showLoading() {
   // 步驟：隱藏輸入面板與舊結果、顯示 #loading、
   //      啟動計時器更新 #elapsed 的經過秒數、
   //      啟動輪播計時器每隔數秒更換 #loading-msg 的文字。
-  // 記得在結束時清除這兩個計時器（clearInterval）。
+
+  // 隱藏輸入面板、舊結果、錯誤訊息
+  document.getElementById("input-panel").style.display = "none";
+  document.getElementById("result").style.display = "none";
+  document.getElementById("error").style.display = "none";
+
+  // 顯示 loading 區塊
+  document.getElementById("loading").style.display = "block";
+
+  // 重設顯示文字
+  document.getElementById("elapsed").textContent = "00:00";
+  document.getElementById("loading-msg").textContent = LOADING_MESSAGES[0];
+
+  // 啟動經過秒數計時器（每秒更新一次，格式 MM:SS）
+  let seconds = 0;
+  elapsedTimer = setInterval(() => {
+    seconds++;
+    const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const ss = String(seconds % 60).padStart(2, "0");
+    document.getElementById("elapsed").textContent = mm + ":" + ss;
+  }, 1000);
+
+  // 啟動輪播計時器（每 5 秒切換下一則提示文字）
+  let msgIndex = 0;
+  msgTimer = setInterval(() => {
+    msgIndex = (msgIndex + 1) % LOADING_MESSAGES.length;
+    document.getElementById("loading-msg").textContent = LOADING_MESSAGES[msgIndex];
+  }, 5000);
 }
 
 function renderReport(data) {
@@ -211,12 +319,32 @@ function renderReport(data) {
   //   2. 把 data.evidence_download_url 設為 #dl-evidence 的 href
   //   3. 把 data.log_download_url 設為 #dl-log 的 href
   //   4. 顯示 #result
+  document.getElementById("report").innerHTML = marked.parse(data.report_text);
+  document.getElementById("dl-evidence").href = data.evidence_download_url;
+  document.getElementById("dl-log").href = data.log_download_url;
+  document.getElementById("result").style.display = "block";
 }
 
 function showError(message) {
-  // 功能：顯示錯誤訊息。
-  // 寫法建議：說明發生什麼事、以及可以怎麼處理，不要只寫「發生錯誤」。
-  //          例如「無法連線到分析服務，請確認 Function URL 是否正確」。
+  // 功能：顯示錯誤訊息，並恢復畫面到可重新操作的狀態。
+  // 步驟：
+  //   1. 清除計時器（避免 loading 階段殘留的 interval 持續跑）
+  //   2. 隱藏 loading 區塊
+  //   3. 顯示輸入面板（讓使用者可以修正後重試）
+  //   4. 將 message 原文寫入 #error 並顯示
+
+  // 清除可能還在跑的計時器
+  if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+  if (msgTimer) { clearInterval(msgTimer); msgTimer = null; }
+
+  // 隱藏 loading、顯示輸入面板
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("input-panel").style.display = "block";
+
+  // 顯示錯誤訊息（呼叫端負責提供具體、可行動的文字）
+  const errorEl = document.getElementById("error");
+  errorEl.textContent = message;
+  errorEl.style.display = "block";
 }
 
 initCoinSelector();

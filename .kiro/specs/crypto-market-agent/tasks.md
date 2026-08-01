@@ -238,18 +238,18 @@
     - **Property 6: Context 膨脹防護**
     - **驗證: 需求 2.1、2.3、3.2、3.6**
 
-- [ ] 10. 報告渲染（report.py）
+- [x] 10. 報告渲染（report.py）
 
-  - [ ] 10.1 實作 calculate_coverage 函式
+  - [x] 10.1 實作 calculate_coverage 函式
     - 統計 evidence_list 中涵蓋的資料類別（價格、新聞、鏈上、情緒、總經）
     - 回傳 (覆蓋率百分比, 已取得的類別清單, 缺少的類別清單)
     - _需求：12.4_ | _Property 18_
 
-  - [ ] 10.2 實作 build_evidence_table 函式
+  - [x] 10.2 實作 build_evidence_table 函式
     - 將 evidence_list 轉為 Markdown 表格（evidence_id、來源、取得時間、對應判斷）
     - _需求：12.2_
 
-  - [ ] 10.3 實作 render_report 主函式
+  - [x] 10.3 實作 render_report 主函式
     - 使用 f-string 模板確保三章節存在：市場判斷、關鍵依據、信心說明
     - 附錄包含資料覆蓋率與完整證據表
     - missing_sources 寫入限制段落
@@ -260,18 +260,18 @@
     - **Property 18: 來源多樣性檢查** — calculate_coverage 正確計算類別數
     - **驗證: 需求 12.1、13.5**
 
-- [ ] 11. 交付物匯出（export.py）
+- [x] 11. 交付物匯出（export.py）
 
-  - [ ] 11.1 實作 export_evidence_list 函式
+  - [x] 11.1 實作 export_evidence_list 函式
     - 支援 JSON 與 CSV 兩種輸出格式
     - 每筆含 source、fetched_at、content_reference、related_claim
     - _需求：15.1_
 
-  - [ ] 11.2 實作 export_execution_log 函式
+  - [x] 11.2 實作 export_execution_log 函式
     - 輸出 JSONL 格式（每行一筆 JSON 物件）
     - _需求：5.3、15.1_ | _Property 11_
 
-  - [ ] 11.3 實作 validate_before_export 函式
+  - [x] 11.3 實作 validate_before_export 函式
     - 檢查：四欄位齊備、來源類別數 >= 3、付費來源非唯一、無投資建議語句
     - 回傳 (全數通過, 未通過項目清單)
     - _需求：13.1、13.4、13.5_ | _Property 17、18_
@@ -334,46 +334,46 @@
     - **Property 2: 無效幣種必定被拒絕** — 不在 SUPPORTED_SYMBOLS 中的代號被拒
     - **驗證: 需求 1.2、1.3、1.4、1.5**
 
-- [ ] 15. 前端 JavaScript 函式（frontend/index.html）
+- [x] 15. 前端 JavaScript 函式（frontend/index.html）
 
-  - [ ] 15.1 實作 initCoinSelector 函式
+  - [x] 15.1 實作 initCoinSelector 函式
     - 綁定五個幣種按鈕的點擊事件
     - 點擊切換 aria-pressed 狀態，最多允許選兩個
     - 維護 selectedCoins 陣列
     - _需求：17.1_
 
-  - [ ] 15.2 實作 showLoading 函式
+  - [x] 15.2 實作 showLoading 函式
     - 隱藏輸入面板與舊結果，顯示 #loading
     - 啟動計時器更新 #elapsed 經過秒數
     - 啟動輪播計時器每數秒更換 #loading-msg 文字
     - _需求：17.4_
 
-  - [ ] 15.3 實作 showError 函式
+  - [x] 15.3 實作 showError 函式
     - 顯示明確的錯誤訊息與處理建議（非通用「發生錯誤」）
     - _需求：17.3_
 
-  - [ ] 15.4 實作 callAnalysisApi 函式
+  - [x] 15.4 實作 callAnalysisApi 函式
     - fetch(API_URL, {method:"POST", headers, body})
     - 等待後端回應（可能 5-10 分鐘）
     - _需求：17.1_
 
-  - [ ] 15.5 實作 renderReport 函式
+  - [x] 15.5 實作 renderReport 函式
     - 用 marked.parse() 將 Markdown 轉 HTML 塞入 #report
     - 設定證據清單與執行紀錄的下載連結 href
     - 顯示 #result
     - _需求：17.5、17.6_
 
-  - [ ] 15.6 實作 handleSubmit 函式
+  - [x] 15.6 實作 handleSubmit 函式
     - 驗證：至少選一個幣種、題目不可為空
     - 呼叫 showLoading → callAnalysisApi → renderReport 或 showError
     - 無論成功失敗恢復送出按鈕、隱藏 loading
     - _需求：17.2、17.3、17.4、17.5_
 
-  - [ ] 15.7 設定 API_URL 為實際 Lambda Function URL
+  - [x] 15.7 設定 API_URL 為實際 Lambda Function URL
     - 部署後替換 placeholder 為真實的 Function URL
     - _需求：17.1_
 
-- [ ] 16. 整合測試（tests/test_local_run.py）
+- [x] 16. 整合測試（tests/test_local_run.py）
 
   - [ ] 16.1 實作 run_single_case 函式
     - 呼叫 handler 內部邏輯執行測試案例
