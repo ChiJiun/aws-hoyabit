@@ -198,7 +198,7 @@ def calculate_coverage(evidence_list):
 
     # 五種預期類別及其關鍵字對應
     category_keywords = {
-        "價格": ["binance", "coingecko", "klines", "ohlcv", "price"],
+        "價格": ["binance", "coingecko", "klines", "ohlcv", "price", "baseline", "local_pandas"],
         "新聞": ["cryptopanic", "news", "rss", "github"],
         "鏈上": ["mempool", "etherscan", "blockscout", "helius", "xrpl", "onchain"],
         "情緒": ["alternative.me", "fear", "greed", "sentiment"],

@@ -46,7 +46,7 @@ def read_baseline_csv(symbol):
 
     回傳：pandas DataFrame（欄位：date, open, high, low, close, volume）
     """
-    filename = f"{symbol}USDT_daily_ohlcv.csv"
+    filename = f"{symbol}_daily_ohlcv.csv"
 
     if _is_local_mode():
         # 本機 fallback：從 data/baseline/ 讀取

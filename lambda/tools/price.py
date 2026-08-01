@@ -12,7 +12,7 @@ import requests
 
 import evidence
 import storage
-from config import BASELINE_END_DATE, COINGECKO_API_KEY
+import config
 
 # CoinGecko 幣種 ID 對照表
 _COINGECKO_IDS = {
@@ -47,11 +47,11 @@ def get_price_ohlcv(symbol, start_date, end_date, related_claim):
 
         # 2. 判斷是否需要補即時資料
         recent_df = pd.DataFrame()
-        needs_recent = end_date > BASELINE_END_DATE
+        needs_recent = end_date > config.BASELINE_END_DATE
 
         if needs_recent:
             # 從 BASELINE_END_DATE 的隔天開始補即時資料
-            from_date = BASELINE_END_DATE
+            from_date = config.BASELINE_END_DATE
             try:
                 recent_df = fetch_recent_from_exchange(symbol, from_date)
                 source_url = f"https://api.binance.com/api/v3/klines?symbol={pair}&interval=1d"
@@ -169,8 +169,8 @@ def _fetch_recent_from_coingecko(symbol: str, from_date: str, to_date: str) -> p
         "to": to_ts,
     }
     headers = {}
-    if COINGECKO_API_KEY:
-        headers["x-cg-demo-api-key"] = COINGECKO_API_KEY
+    if config.COINGECKO_API_KEY:
+        headers["x-cg-demo-api-key"] = config.COINGECKO_API_KEY
 
     resp = requests.get(url, params=params, headers=headers, timeout=30)
     resp.raise_for_status()

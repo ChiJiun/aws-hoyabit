@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-from config import FRED_API_KEY
+import config
 
 
 # ---- 指標名稱 → FRED Series ID 映射 ----
@@ -126,7 +126,7 @@ def get_macro(indicators, related_claim, lookback_days=90):
 
     try:
         # 步驟 1：檢查 API 金鑰
-        if not FRED_API_KEY:
+        if not config.FRED_API_KEY:
             return {
                 "error": "[get_macro] FRED_API_KEY 未設定，無法取得總經資料",
                 "source": FRED_BASE_URL,
@@ -157,7 +157,7 @@ def get_macro(indicators, related_claim, lookback_days=90):
             # 呼叫 FRED API
             params = {
                 "series_id": series_id,
-                "api_key": FRED_API_KEY,
+                "api_key": config.FRED_API_KEY,
                 "file_type": "json",
                 "observation_start": start_date,
                 "observation_end": end_date,

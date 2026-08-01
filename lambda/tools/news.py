@@ -12,7 +12,7 @@ import requests
 from urllib.parse import urlparse
 
 import evidence
-from config import CRYPTOPANIC_API_KEY
+import config
 
 # ---- 官方來源對照表 ----
 # 每個幣種對應其官方部落格 RSS feed 與 GitHub releases repo
@@ -114,19 +114,32 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
     start_time = time.time()
 
     try:
-        # 1. 呼叫 CryptoPanic API
-        api_url = (
-            f"https://cryptopanic.com/api/v1/posts/"
-            f"?auth_token={CRYPTOPANIC_API_KEY}&currencies={symbol}"
-        )
-        if keywords:
-            kw_str = ",".join(keywords) if isinstance(keywords, list) else keywords
-            api_url += f"&filter={kw_str}"
+        # 1. 嘗試呼叫 CryptoPanic API（可能失敗，非必要）
+        api_results = []
+        cryptopanic_error = None
 
-        resp = requests.get(api_url, timeout=30, headers={"User-Agent": "HoyabitAgent/1.0"})
-        resp.raise_for_status()
-        api_data = resp.json()
-        api_results = api_data.get("results", [])
+        if config.CRYPTOPANIC_API_KEY:
+            api_url = (
+                f"https://cryptopanic.com/api/v1/posts/"
+                f"?auth_token={config.CRYPTOPANIC_API_KEY}&currencies={symbol}"
+            )
+            if keywords:
+                kw_str = ",".join(keywords) if isinstance(keywords, list) else keywords
+                api_url += f"&filter={kw_str}"
+
+            try:
+                resp = requests.get(api_url, timeout=30, headers={"User-Agent": "HoyabitAgent/1.0"})
+                resp.raise_for_status()
+                api_data = resp.json()
+                api_results = api_data.get("results", [])
+            except Exception as cp_err:
+                cryptopanic_error = f"CryptoPanic API 失敗: {type(cp_err).__name__}: {str(cp_err)}"
+                evidence.log_execution_step(
+                    "search_news", "warning", 0,
+                    note=f"{symbol}: {cryptopanic_error}，改用官方公告"
+                )
+        else:
+            cryptopanic_error = "CRYPTOPANIC_API_KEY 未設定"
 
         # 將 CryptoPanic 結果正規化為統一格式
         news_items = []
@@ -147,7 +160,7 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
                 "origin": "cryptopanic",
             })
 
-        # 2. 取得官方公告
+        # 2. 取得官方公告（RSS + GitHub，免費且不需 API key）
         official_items = fetch_official_announcements(symbol)
         for item in official_items:
             domain = ""
@@ -159,6 +172,19 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
             item["domain"] = domain
             item["origin"] = "official"
             news_items.append(item)
+
+        # 若 CryptoPanic 和官方公告都沒有結果，回傳 error
+        if not news_items:
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            evidence.log_execution_step(
+                "search_news", "error", elapsed_ms,
+                note=f"{symbol}: 無法取得任何新聞（CryptoPanic: {cryptopanic_error}，官方公告: 0 筆）"
+            )
+            return {
+                "error": f"[search_news] 無法取得 {symbol} 新聞：{cryptopanic_error}；官方公告也無資料",
+                "source": source_url,
+                "content_reference": {},
+            }
 
         # 3. 標註同一來源家族的重複報導
         news_items = _mark_duplicate_sources(news_items)
@@ -205,6 +231,8 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
             f"{symbol} 近期新聞：共 {len(news_items)} 筆（CryptoPanic {len(api_results)} 篇 + 官方公告 {len(official_items)} 篇），"
             f"來自 {unique_source_count} 個不同來源。",
         ]
+        if cryptopanic_error:
+            summary_parts.append(f"⚠️ CryptoPanic 不可用（{cryptopanic_error}），僅使用官方來源")
         if top_headlines:
             summary_parts.append(f"主要標題：{'；'.join(top_headlines)}")
         if duplicate_warnings:
@@ -220,9 +248,17 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
             note=f"{symbol}: {len(news_items)} news items, {len(duplicate_warnings)} duplicate warnings",
         )
 
+        # 決定 source 和 raw（視 CryptoPanic 是否可用）
+        if api_results:
+            actual_source = source_url
+            raw_data = {"cryptopanic_results": api_results, "official_results": [i.get("title", "") for i in official_items]}
+        else:
+            actual_source = f"official RSS/GitHub releases for {symbol}"
+            raw_data = {"official_results": official_items, "cryptopanic_error": cryptopanic_error}
+
         return {
-            "raw": api_data,
-            "source": source_url,
+            "raw": raw_data,
+            "source": actual_source,
             "content_reference": content_reference,
             "summary": summary,
         }

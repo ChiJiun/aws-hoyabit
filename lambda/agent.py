@@ -32,7 +32,13 @@ SYSTEM_PROMPT = """你是加密市場分析助理。使用者會給你一個幣�
 （不說買進、賣出、目標價），你只做資訊的整理與判斷。
 
 工作步驟：
-1. 先想清楚：要回答這個問題，需要哪幾類資料？至少涵蓋價格、新聞、鏈上三類。
+1. 先想清楚：要回答這個問題，需要哪幾類資料？你必須至少取得 3 種以上不同類別的資料：
+   - 價格/技術指標（get_price_ohlcv + compute_quant）
+   - 新聞/公告（search_news）
+   - 鏈上資料（get_onchain）
+   - 市場情緒（get_sentiment）
+   - 總經環境（get_macro）
+   不管某個來源是否失敗，你都必須嘗試呼叫至少 4 種不同工具來確保覆蓋率。
 2. 呼叫工具取得資料。每次呼叫工具時，related_claim 欄位必填，說明「這筆資料
    要用來檢驗什麼」。這能逼你先想好再查。
 3. 拿到資料後，把你的分析拆成三個層次，且要標清楚：
@@ -45,8 +51,10 @@ SYSTEM_PROMPT = """你是加密市場分析助理。使用者會給你一個幣�
    - 什麼情況會推翻你的結論？
    資料不足時就說「無法給出高信心判斷」，不要硬湊結論。
 
-重要：所有數字運算（技術指標、百分位、相關係數）都要透過 compute_quant
-工具計算，不要自己心算。
+重要規則：
+- 所有數字運算（技術指標、百分位、相關係數）都要透過 compute_quant 工具計算，不要自己心算。
+- 你必須在結束分析前，確保已嘗試呼叫至少 4 種不同的工具。即使某些工具回傳錯誤，也算已嘗試。
+- 不要在只呼叫了 1-2 種工具後就結束對話。
 """
 
 
@@ -288,7 +296,7 @@ def dispatch_tool_call(run_id, tool_use_block):
         elapsed_ms = int((time.time() - start_time) * 1000)
         evidence.log_execution_step(tool_name, "error", elapsed_ms, note="unknown tool")
         return {
-            "toolResultId": tool_use_id,
+            "toolUseId": tool_use_id,
             "content": [{"text": json.dumps({"error": f"Unknown tool: {tool_name}"})}],
             "status": "error",
         }
@@ -306,7 +314,7 @@ def dispatch_tool_call(run_id, tool_use_block):
                 tool_name, "error", elapsed_ms, note=result["error"]
             )
             return {
-                "toolResultId": tool_use_id,
+                "toolUseId": tool_use_id,
                 "content": [{"text": json.dumps({"error": result["error"]})}],
                 "status": "error",
             }
@@ -334,7 +342,7 @@ def dispatch_tool_call(run_id, tool_use_block):
         }
 
         return {
-            "toolResultId": tool_use_id,
+            "toolUseId": tool_use_id,
             "content": [{"text": json.dumps(tool_result_content, ensure_ascii=False)}],
             "status": "success",
         }
@@ -344,7 +352,7 @@ def dispatch_tool_call(run_id, tool_use_block):
         error_msg = f"[{tool_name}] {type(e).__name__}: {str(e)}"
         evidence.log_execution_step(tool_name, "error", elapsed_ms, note=error_msg)
         return {
-            "toolResultId": tool_use_id,
+            "toolUseId": tool_use_id,
             "content": [{"text": json.dumps({"error": error_msg})}],
             "status": "error",
         }
@@ -358,9 +366,29 @@ def run_agent_loop(run_id, symbols, question):
     """
     # 組裝初始 user 訊息
     if len(symbols) == 1:
-        user_text = f"幣種：{symbols[0]}\n問題：{question}"
+        user_text = (
+            f"幣種：{symbols[0]}\n問題：{question}\n\n"
+            f"【執行要求】請依序完成以下資料蒐集（每一項都必須呼叫，即使失敗也算已嘗試）：\n"
+            f"1. get_price_ohlcv — 取得 {symbols[0]} 近期價格\n"
+            f"2. compute_quant — 計算技術指標\n"
+            f"3. search_news — 查詢新聞與官方公告\n"
+            f"4. get_onchain — 取得鏈上資料\n"
+            f"5. get_sentiment — 取得市場情緒\n"
+            f"6. get_macro — 取得總經指標\n"
+            f"全部蒐集完畢後再進行分析，不要中途結束。"
+        )
     else:
-        user_text = f"幣種：{symbols[0]} vs {symbols[1]}\n問題：{question}"
+        user_text = (
+            f"幣種：{symbols[0]} vs {symbols[1]}\n問題：{question}\n\n"
+            f"【執行要求】請依序完成以下資料蒐集（每一項都必須呼叫，即使失敗也算已嘗試）：\n"
+            f"1. get_price_ohlcv — 分別取得 {symbols[0]} 和 {symbols[1]} 近期價格\n"
+            f"2. compute_quant — 分別計算兩者技術指標（含 correlation）\n"
+            f"3. search_news — 查詢兩者新聞\n"
+            f"4. get_onchain — 取得兩者鏈上資料\n"
+            f"5. get_sentiment — 取得市場情緒\n"
+            f"6. get_macro — 取得總經指標\n"
+            f"全部蒐集完畢後再進行分析，不要中途結束。"
+        )
 
     messages = [{"role": "user", "content": [{"text": user_text}]}]
     tool_config = build_tool_config()
@@ -458,8 +486,8 @@ def summarize_final_analysis(messages):
     })
 
     try:
-        # 第二次呼叫不提供工具
-        response = call_bedrock(summarize_messages, tool_config=None)
+        # 第二次呼叫仍需帶 toolConfig（因為 messages 中含有 toolUse/toolResult block）
+        response = call_bedrock(summarize_messages, tool_config=build_tool_config())
 
         if response is None:
             return "（模型未能產生摘要回應）"
