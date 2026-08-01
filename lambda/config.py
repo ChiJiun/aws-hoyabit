@@ -82,7 +82,7 @@ def load_local_env():
     global REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET
     global SOSOVALUE_API_KEY, DUNE_API_KEY
 
-    AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
+    AWS_REGION = os.environ.get("AWS_REGION", "us-west-2")
     BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
     DATA_BUCKET = os.environ.get("DATA_BUCKET")
 

@@ -744,7 +744,7 @@ def run_sub_agent(run_id, assignment, plan, deadline):
     messages = [{"role": "user", "content": [{"text": user_text}]}]
     tool_config = build_tool_config()
 
-    max_turns = 6  # Sub-agent 每個最多 6 輪工具呼叫
+    max_turns = config.MAX_SUB_AGENT_TURNS  # Sub-agent 每個最多 6 輪工具呼叫
 
     for turn in range(max_turns):
         # 檢查全流程 deadline
