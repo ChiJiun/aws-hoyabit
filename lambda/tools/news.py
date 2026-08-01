@@ -7,7 +7,8 @@ news.py — 新聞與官方公告工具
 
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 
 import requests
 from urllib.parse import urlparse, quote_plus
@@ -114,6 +115,36 @@ _OFFICIAL_SOURCES = {
 _GITHUB_API_BASE = "https://api.github.com"
 
 
+def _parse_published_at(value):
+    # 功能：把 RSS RFC 822 或 GitHub ISO 8601 時間統一成 UTC datetime。
+    # 回傳：可解析時回傳 datetime；缺值或格式錯誤時回傳 None。
+    if not value:
+        return None
+    try:
+        parsed = parsedate_to_datetime(value)
+    except (TypeError, ValueError, OverflowError):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (TypeError, ValueError, OverflowError):
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_symbol_relevant(item, symbol):
+    # 功能：媒體綜合 RSS 只保留與指定幣種直接相關的文章，避免混入其他幣新聞。
+    terms = {
+        "BTC": ["btc", "bitcoin"],
+        "ETH": ["eth", "ethereum", "ether"],
+        "SOL": ["sol", "solana"],
+        "BNB": ["bnb", "binance chain", "bsc"],
+        "XRP": ["xrp", "ripple"],
+    }
+    text = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
+    return any(term in text for term in terms.get(symbol, [symbol.lower()]))
+
+
 def search_news(symbol, lookback_days, related_claim, keywords=None):
     """查詢指定幣種在近期的新聞、官方公告與監管消息。
 
@@ -128,11 +159,14 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
     回傳：統一格式 dict（Contract C1）
     """
     # 建構 Google News RSS URL 作為 source 標示
+    lookback_days = max(1, min(int(lookback_days), 90))
+    now_utc = datetime.now(timezone.utc)
+    cutoff_utc = now_utc - timedelta(days=lookback_days)
     search_term = _SYMBOL_SEARCH_TERMS.get(symbol, symbol.lower())
-    query = f"{search_term}+crypto"
+    query = f"{search_term} crypto when:{lookback_days}d"
     if keywords:
-        kw_str = "+".join(keywords) if isinstance(keywords, list) else keywords
-        query += f"+{kw_str}"
+        kw_str = " ".join(keywords) if isinstance(keywords, list) else keywords
+        query += f" {kw_str}"
     google_news_url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en&gl=US&ceid=US:en"
 
     source_url = google_news_url
@@ -193,14 +227,38 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
                 else:
                     item["domain"] = ""
 
-        # 4. 標註同一來源家族的重複報導
+        # 4. 僅保留指定回溯範圍內、具可驗證發布時間的資料。
+        # 媒體綜合 RSS 另做幣種相關性過濾；官方來源本身已按幣種分派。
+        fresh_items = []
+        for item in news_items:
+            published_dt = _parse_published_at(item.get("published_at", ""))
+            if not published_dt:
+                continue
+            if published_dt < cutoff_utc or published_dt > now_utc + timedelta(days=1):
+                continue
+            if item.get("channel") == "media_rss" and not _is_symbol_relevant(item, symbol):
+                continue
+            item["published_at"] = published_dt.isoformat()
+            item["_published_timestamp"] = published_dt.timestamp()
+            fresh_items.append(item)
+        news_items = fresh_items
+
+        if not news_items:
+            raise ValueError(f"最近 {lookback_days} 天內沒有可驗證發布日期的 {symbol} 新聞")
+
+        # 5. 標註同一來源家族的重複報導
         news_items = _mark_duplicate_sources(news_items)
 
-        # 5. 依發布時間排序（最新的在前）
-        news_items.sort(key=lambda x: x.get("published_at", ""), reverse=True)
+        # 6. 依正規化後的 UTC 發布時間排序（最新的在前）
+        news_items.sort(key=lambda x: x.get("_published_timestamp", 0), reverse=True)
+        for item in news_items:
+            item.pop("_published_timestamp", None)
 
-        # 6. 組裝 content_reference
+        # 7. 組裝 content_reference
         content_reference = {
+            "query": query,
+            "query_time_range": f"{cutoff_utc.date().isoformat()} ~ {now_utc.date().isoformat()}",
+            "lookback_days": lookback_days,
             "items": [
                 {
                     "title": item.get("title", ""),
@@ -210,6 +268,10 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
                     "channel": item.get("channel", ""),
                 }
                 for item in news_items[:20]  # 最多回傳 20 筆
+            ],
+            "verification_urls": [
+                {"title": item.get("title", ""), "url": item.get("url", "")}
+                for item in news_items[:5] if item.get("url")
             ],
             "total_count": len(news_items),
             "symbol": symbol,
@@ -233,7 +295,10 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
         unique_source_count = len(set(
             item.get("domain", "") for item in news_items if item.get("domain")
         ))
-        top_headlines = [item.get("title", "") for item in news_items[:3]]
+        top_headlines = [
+            f"[{item.get('published_at', '')[:10]}] {item.get('title', '')} ({item.get('url', '')})"
+            for item in news_items[:3]
+        ]
 
         # 統計各管道數量
         channel_counts = {}
@@ -246,8 +311,8 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
         )
 
         summary_parts = [
-            f"{symbol} 近期新聞：共 {len(news_items)} 筆（{channel_summary}），"
-            f"來自 {unique_source_count} 個不同來源。",
+            f"{symbol} 最近 {lookback_days} 天新聞（{cutoff_utc.date().isoformat()}~{now_utc.date().isoformat()}）："
+            f"共 {len(news_items)} 筆（{channel_summary}），來自 {unique_source_count} 個不同來源。",
         ]
         if top_headlines:
             summary_parts.append(f"主要標題：{'；'.join(top_headlines)}")

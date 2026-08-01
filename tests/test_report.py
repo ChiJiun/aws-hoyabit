@@ -178,8 +178,8 @@ def test_build_evidence_table_pipe_escape():
         },
     ]
     result = build_evidence_table(evidence)
-    # 原始 | 應被跳脫為 \|
-    assert "source\\|with\\|pipes" in result
+    # related_claim 中的 | 應被跳脫；技術 API 來源不直接顯示在報告中
+    assert "source|with|pipes" not in result
     assert "claim\\|pipe" in result
 
 

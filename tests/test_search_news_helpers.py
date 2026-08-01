@@ -1,6 +1,8 @@
 """Test search_news helper functions and main function behavior."""
 
 import sys
+from datetime import datetime, timezone
+
 sys.path.insert(0, "lambda")
 
 from unittest.mock import patch, MagicMock
@@ -50,29 +52,25 @@ def test_mark_duplicate_sources():
 
 
 def test_search_news_returns_graceful_response_on_all_feeds_failing():
-    """Property 8: RSS feed failures don't prevent partial results — when all fail,
-    still returns a valid C1 success response (empty items, no error raised)."""
+    """When all sources fail, return a readable error dict without raising."""
     with patch("tools.news.requests.get") as mock_get:
         mock_get.side_effect = Exception("Network error")
         with patch("tools.news.fetch_official_announcements") as mock_official:
             mock_official.return_value = []
             result = search_news("BTC", 7, "test claim")
             assert isinstance(result, dict)
-            # New behavior: graceful degradation returns success format with 0 items
+            assert "error" in result
             assert "source" in result
             assert "content_reference" in result
-            assert "summary" in result
-            assert "raw" in result
-            # Should not raise — that's the key property
-            assert result["content_reference"].get("total_count", 0) == 0
 
 
 def test_search_news_returns_unified_format_on_success():
     """Property 2: successful return contains raw, source, content_reference, summary."""
-    rss_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    today = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    rss_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
     <rss version="2.0"><channel><title>Test</title>
     <item><title>Bitcoin breaks 100k</title>
-    <pubDate>2026-07-01T10:00:00Z</pubDate>
+    <pubDate>{today}</pubDate>
     <link>https://example.com/btc-100k</link></item>
     </channel></rss>"""
 
@@ -97,13 +95,14 @@ def test_search_news_returns_unified_format_on_success():
 
 def test_search_news_marks_duplicates_in_summary():
     """Requirement 9.4: duplicate source family reports are annotated."""
-    rss_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    today = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    rss_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
     <rss version="2.0"><channel><title>Test</title>
     <item><title>Major Bitcoin ETF approved by SEC</title>
-    <pubDate>2026-07-01T10:00:00Z</pubDate>
+    <pubDate>{today}</pubDate>
     <link>https://coindesk.com/btc-etf</link></item>
     <item><title>Major Bitcoin ETF approved by SEC today</title>
-    <pubDate>2026-07-01T10:05:00Z</pubDate>
+    <pubDate>{today}</pubDate>
     <link>https://cointelegraph.com/btc-etf</link></item>
     </channel></rss>"""
 

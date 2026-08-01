@@ -11,3 +11,5 @@
 1. WHEN baseline 與即時資料重疊日收盤價差 > 1%,THE price 工具 SHALL 於 content_reference 標註校驗警告
 2. THE quant 工具 SHALL 只接受 DataFrame 輸入或內部呼叫 price 取數,不得自行呼叫外部 API 以外的來源
 3. WHEN 資料筆數不足以計算指定 window,THE quant 工具 SHALL 回傳 error dict 說明所需最小筆數
+4. IF 即時價格來源無法補齊至查詢結束日附近,THE price 工具 SHALL 回傳 error dict,不得以 baseline 資料冒充目前資料(R6.7)
+5. THE price 與 quant 工具 SHALL 在 content_reference 與 summary 明示實際資料區間及 as_of 日期

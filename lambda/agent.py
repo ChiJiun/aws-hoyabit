@@ -7,6 +7,8 @@ agent.py — Agent 主迴圈與工具規格
 
 import time
 import json
+from datetime import datetime, timedelta, timezone
+
 import boto3
 from botocore.exceptions import ClientError
 
@@ -62,6 +64,9 @@ SYSTEM_PROMPT = """你是加密市場分析助理。使用者會給你一個幣�
    資料不足時就說「無法給出高信心判斷」，不要硬湊結論。
 
 重要規則：
+- 每次呼叫時系統會另行提供「目前 UTC 日期」；凡題目包含目前、近期、短期、當前，所有價格與新聞查詢都必須以該日期為結束日。
+- 近期價格原則上查最近 30 天；新聞原則上查最近 14 天。不得以模型訓練資料中的日期猜測今天，也不得把超過查詢回溯期的舊資料描述為近期資料。
+- 工具摘要若標示資料截止日早於查詢日期或即時資料取得失敗，必須列為資料缺口，不得據此宣稱當前市場狀態。
 - 所有數字運算（技術指標、百分位、相關係數）都要透過 compute_quant 工具計算，不要自己心算。
 - 你必須在結束分析前，確保已嘗試呼叫至少 4 種不同的工具。即使某些工具回傳錯誤，也算已嘗試。
 - 不要在只呼叫了 1-2 種工具後就結束對話。
@@ -79,7 +84,7 @@ def build_tool_config():
         {
             "toolSpec": {
                 "name": "get_price_ohlcv",
-                "description": "取得指定幣種在指定期間的日線 OHLCV（開高低收量）資料。用於觀察價格走勢、計算技術指標的原始數據。",
+                "description": "取得指定幣種在指定期間的日線 OHLCV（開高低收量）資料。回答目前/近期市場問題時，end_date 必須使用系統提供的目前 UTC 日期，建議查最近 30 天。",
                 "inputSchema": {
                     "json": {
                         "type": "object",
@@ -109,7 +114,7 @@ def build_tool_config():
         {
             "toolSpec": {
                 "name": "search_news",
-                "description": "查詢指定幣種的近期新聞、官方公告與監管消息。用於了解基本面事件與市場敘事。",
+                "description": "查詢指定幣種近期且在 lookback_days 範圍內的新聞、官方公告與監管消息。回答目前/近期市場問題時建議 lookback_days=14；不得引用範圍外舊聞。",
                 "inputSchema": {
                     "json": {
                         "type": "object",
@@ -432,10 +437,16 @@ def call_bedrock(messages, tool_config=None):
     """
     client = boto3.client("bedrock-runtime", region_name=config.AWS_REGION)
 
+    current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    system_prompt = (
+        SYSTEM_PROMPT
+        + f"\n\n【不可忽略的時間基準】目前 UTC 日期是 {current_date}。"
+        + "所有『目前／近期／短期／當前』判斷都只能使用工具回傳且資料截止日接近此日期的資料。"
+    )
     kwargs = {
         "modelId": config.BEDROCK_MODEL_ID,
         "messages": messages,
-        "system": [{"text": SYSTEM_PROMPT}],
+        "system": [{"text": system_prompt}],
     }
     if tool_config:
         kwargs["toolConfig"] = tool_config
@@ -542,10 +553,19 @@ def run_agent_loop(run_id, symbols, question):
     受 MAX_AGENT_TURNS 與 TIME_BUDGET_SECONDS 雙重限制。
     回傳：messages 陣列（完整對話歷史）。
     """
+    current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    recent_start = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+    freshness_rules = (
+        f"【時間基準】目前 UTC 日期是 {current_date}。凡題目提到目前、近期、短期或當前，"
+        f"價格查詢必須使用 start_date={recent_start}、end_date={current_date}；"
+        f"新聞使用 lookback_days=14。不得使用模型記憶中的舊日期代替。\n\n"
+    )
+
     # 組裝初始 user 訊息
     if len(symbols) == 1:
         user_text = (
-            f"幣種：{symbols[0]}\n問題：{question}\n\n"
+            freshness_rules
+            + f"幣種：{symbols[0]}\n問題：{question}\n\n"
             f"【執行要求】請依序完成以下資料蒐集（每一項都必須呼叫，即使失敗也算已嘗試）：\n"
             f"1. get_price_ohlcv — 取得 {symbols[0]} 近期價格\n"
             f"2. compute_quant — 計算技術指標\n"
@@ -557,7 +577,8 @@ def run_agent_loop(run_id, symbols, question):
         )
     else:
         user_text = (
-            f"幣種：{symbols[0]} vs {symbols[1]}\n問題：{question}\n\n"
+            freshness_rules
+            + f"幣種：{symbols[0]} vs {symbols[1]}\n問題：{question}\n\n"
             f"【執行要求】請依序完成以下資料蒐集（每一項都必須呼叫，即使失敗也算已嘗試）：\n"
             f"1. get_price_ohlcv — 分別取得 {symbols[0]} 和 {symbols[1]} 近期價格\n"
             f"2. compute_quant — 分別計算兩者技術指標（含 correlation）\n"

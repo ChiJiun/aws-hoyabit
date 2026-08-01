@@ -81,6 +81,7 @@ def get_sentiment(related_claim, lookback_days=30):
         # 組裝 content_reference
         content_reference = {
             "api_endpoint": source_url,
+            "human_url": "https://alternative.me/crypto/fear-and-greed-index/",
             "query_time_range": f"{oldest_date} ~ {current_date} ({lookback_days} 天)",
             "current_index": current_value,
             "current_classification": current_classification,

@@ -141,8 +141,15 @@ def get_macro(indicators, related_claim, lookback_days=90):
         results = {}
         series_ids_queried = []
 
+        indicator_aliases = {
+            "us10y": "treasury_10y",
+            "dgs10": "treasury_10y",
+            "fedfunds": "fed_funds_rate",
+            "dff": "fed_funds_rate",
+        }
         for indicator in indicators:
-            indicator_key = indicator.lower().strip()
+            requested_key = indicator.lower().strip()
+            indicator_key = indicator_aliases.get(requested_key, requested_key)
 
             if indicator_key not in INDICATOR_MAP:
                 results[indicator_key] = {
@@ -226,6 +233,13 @@ def get_macro(indicators, related_claim, lookback_days=90):
         # 步驟 5：組裝 content_reference
         content_reference = {
             "fred_series_ids": series_ids_queried,
+            "human_urls": [
+                {
+                    "label": INDICATOR_MAP[key]["short_name"],
+                    "url": f"https://fred.stlouisfed.org/series/{INDICATOR_MAP[key]['series_id']}",
+                }
+                for key in results if key in INDICATOR_MAP and "error" not in results[key]
+            ],
             "query_range": f"{start_date} ~ {end_date}",
             "lookback_days": lookback_days,
             "indicators_summary": {},

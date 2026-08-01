@@ -159,7 +159,7 @@ class TestGetPriceOhlcvFallback:
         """When end_date > BASELINE_END_DATE and Binance fails, try CoinGecko."""
         baseline_df = _make_large_baseline_df()
         mock_recent_df = pd.DataFrame([{
-            "date": "2026-06-01",
+            "date": "2026-06-15",
             "open": 100.0,
             "high": 105.0,
             "low": 95.0,
@@ -175,17 +175,16 @@ class TestGetPriceOhlcvFallback:
                     # Should succeed (baseline + coingecko data)
                     assert "error" not in result
 
-    def test_both_sources_fail_returns_baseline_only(self):
-        """When both Binance and CoinGecko fail, return baseline data only."""
+    def test_both_sources_fail_returns_error(self):
+        """When both live sources fail, reject stale baseline-only data."""
         baseline_df = _make_large_baseline_df()
 
         with patch("tools.price.storage.read_baseline_csv", return_value=baseline_df):
             with patch("tools.price.fetch_recent_from_exchange", side_effect=Exception("Binance down")):
                 with patch("tools.price._fetch_recent_from_coingecko", side_effect=Exception("CG down")):
                     result = get_price_ohlcv("SOL", "2024-01-01", "2026-06-15", "test both fail")
-                    # Should still return baseline data (not an error)
-                    assert "error" not in result
-                    assert result["content_reference"]["rows"] > 0
+                    assert "error" in result
+                    assert "拒絕以基準資料冒充目前資料" in result["error"]
 
     def test_no_recent_fetch_when_end_date_within_baseline(self):
         """When end_date <= BASELINE_END_DATE, should NOT call fetch_recent."""

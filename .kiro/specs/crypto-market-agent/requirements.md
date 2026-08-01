@@ -64,6 +64,7 @@
 4. THE Agent_Loop SHALL 提供系統提示詞（System Prompt），指示模型遵循事實→推論→結論的分析層次
 5. THE Agent_Loop SHALL 在系統提示詞中明確禁止模型提供投資建議（買進、賣出、目標價）
 6. WHEN 將 Data_Tool 執行結果回傳給模型時，THE Agent_Loop SHALL 僅回傳精簡摘要與 evidence_id，避免完整原始資料導致上下文膨脹
+7. WHEN 分析題目涉及目前、近期、短期或當前市場，THE Agent_Loop SHALL 將目前 UTC 日期與明確查詢區間注入模型上下文，且不得將超出工具回溯範圍的資料描述為近期資料
 
 ---
 
@@ -106,6 +107,7 @@
 4. WHEN 基準資料與即時資料拼接時，THE Data_Tool SHALL 檢查重疊日期的收盤價差異百分比，並記錄校驗結果
 5. THE Data_Tool SHALL 使用 CoinGecko API 作為備用價格資料來源
 6. IF 外部 API 呼叫失敗，THEN THE Data_Tool SHALL 回傳包含錯誤說明的結果而非拋出未處理的例外
+7. IF 查詢範圍超過 Baseline_CSV 截止日且 Binance 與 CoinGecko 均無法提供足夠新鮮的資料，THEN THE Data_Tool SHALL 回傳 error dict 並明示資料缺口，不得以 Baseline_CSV 冒充目前價格
 
 ---
 
@@ -120,6 +122,7 @@
 3. WHEN 彙整新聞結果時，THE Data_Tool SHALL 標註來自同一來源家族的重複報導，避免模型誤判為多源共識
 4. THE Data_Tool SHALL 在 content_reference 中包含新聞標題、發布時間、原文網址、引用片段
 5. IF 外部 API 呼叫失敗，THEN THE Data_Tool SHALL 回傳包含錯誤說明的結果而非拋出未處理的例外
+6. WHEN Agent 指定 lookback_days，THE Data_Tool SHALL 將各來源發布時間正規化為 UTC、排除範圍外或無法驗證發布時間的項目，並依發布時間由新到舊排序
 
 ---
 
@@ -190,6 +193,7 @@
 4. THE Report SHALL 在附錄中包含資料覆蓋率（已取得的資料類別數 ÷ 預期的資料類別總數）
 5. THE Report SHALL 以 Markdown 格式輸出
 6. THE Report SHALL 遵循事實→推論→結論的三層分析結構
+7. WHEN Report 顯示證據來源，THE Lambda_Function SHALL 優先提供新聞原文、官方圖表、交易資料頁或區塊瀏覽器等人類可讀查證連結；實際 API endpoint 仍保留於 evidence_list.json 供技術重現
 
 ---
 
@@ -256,6 +260,7 @@
 5. WHEN 後端回傳分析結果，THE Frontend SHALL 使用 marked.js 將 Markdown 報告渲染為 HTML 顯示
 6. THE Frontend SHALL 提供證據清單與執行紀錄的下載連結
 7. THE Frontend SHALL 部署於 S3 靜態網站託管
+8. WHEN Markdown 報告或證據卡包含查證連結，THE Frontend SHALL 顯示人類可讀文章、圖表、交易資料頁或區塊瀏覽器連結，而不以 API endpoint 作為主要查證入口
 
 ---
 

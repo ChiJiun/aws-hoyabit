@@ -14,3 +14,4 @@
 1. THE agent SHALL 只透過契約 C1 的統一格式認識工具,新增工具僅需註冊 TOOL_DISPATCH + toolSpec,不改迴圈邏輯
 2. WHEN 時間預算剩餘 < 20%,THE agent SHALL 於下一輪 system 提示中要求模型停止蒐集、開始收斂
 3. WHEN Bedrock 回傳 ThrottlingException,THE agent SHALL 等待 2 秒重試一次,再失敗則以現有內容收斂
+4. WHEN 題目涉及目前/近期/短期/當前,THE agent SHALL 將目前 UTC 日期、價格查詢起訖日與新聞 lookback_days 明確注入模型上下文(R3.7)

@@ -207,7 +207,19 @@ def compute_quant(symbol, features, window, related_claim, compare_symbol=None):
 
         # 逐一計算各指標
         results = {}
-        content_ref = {"symbol": symbol, "window": window, "indicators": {}}
+        price_ref = price_result.get("content_reference", {}) if isinstance(price_result, dict) else {}
+        actual_start = str(df["date"].iloc[0])
+        actual_end = str(df["date"].iloc[-1])
+        content_ref = {
+            "symbol": symbol,
+            "window": window,
+            "input_range": f"{actual_start}~{actual_end}",
+            "as_of": actual_end,
+            "price_source": price_result.get("source", "") if isinstance(price_result, dict) else "",
+            "price_query": price_ref.get("query_endpoint", ""),
+            "human_url": price_ref.get("human_url", f"https://www.binance.com/en/trade/{symbol}_USDT?type=spot"),
+            "indicators": {},
+        }
 
         for feature in features:
             try:
@@ -324,7 +336,10 @@ def compute_quant(symbol, features, window, related_claim, compare_symbol=None):
                 summary_parts.append(f"{feat}=error({res['error']})")
             else:
                 summary_parts.append(f"{feat}=N/A")
-        summary = f"{symbol} {window}d indicators: " + ", ".join(summary_parts)
+        summary = (
+            f"{symbol} {window}d indicators（輸入資料 {actual_start}~{actual_end}，截至 {actual_end}）: "
+            + ", ".join(summary_parts)
+        )
 
         return {
             "raw": results,

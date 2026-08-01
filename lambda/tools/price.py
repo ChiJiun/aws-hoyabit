@@ -39,8 +39,18 @@ def get_price_ohlcv(symbol, start_date, end_date, related_claim):
     pair = f"{symbol}USDT"
     source_url = f"baseline/{pair}_daily_ohlcv.csv"
     start_time = time.time()
+    requested_start = start_date
+    requested_end = end_date
 
     try:
+        # 防止模型使用未來日期；目前/近期查詢由 Agent 明確以今日 UTC 為結束日。
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        datetime.strptime(start_date, "%Y-%m-%d")
+        datetime.strptime(end_date, "%Y-%m-%d")
+        if end_date > today:
+            end_date = today
+        if start_date > end_date:
+            return {"error": f"[get_price_ohlcv] 無效日期範圍: {start_date}~{end_date}"}
 
         # 1. 讀取基準 CSV
         baseline_df = storage.read_baseline_csv(symbol)
@@ -54,22 +64,34 @@ def get_price_ohlcv(symbol, start_date, end_date, related_claim):
             from_date = config.BASELINE_END_DATE
             try:
                 recent_df = fetch_recent_from_exchange(symbol, from_date)
+                if recent_df.empty:
+                    raise ValueError("Binance 回傳空資料")
                 source_url = f"https://api.binance.com/api/v3/klines?symbol={pair}&interval=1d"
-            except Exception:
+            except Exception as binance_err:
                 # Binance 失敗，使用 CoinGecko 作為備用來源
                 try:
                     recent_df = _fetch_recent_from_coingecko(symbol, from_date, end_date)
-                    source_url = f"https://api.coingecko.com/api/v3/coins/{_COINGECKO_IDS.get(symbol, symbol.lower())}/ohlc"
+                    if recent_df.empty:
+                        raise ValueError("CoinGecko 回傳空資料")
+                    source_url = f"https://api.coingecko.com/api/v3/coins/{_COINGECKO_IDS.get(symbol, symbol.lower())}/market_chart/range"
                 except Exception as cg_err:
-                    # 兩個來源都失敗，僅使用基準資料
+                    # 即時資料不可用時不得用舊基準資料冒充目前資料。
                     elapsed_ms = int((time.time() - start_time) * 1000)
+                    note = f"Binance: {binance_err}; CoinGecko: {cg_err}"
                     evidence.log_execution_step(
                         tool_name="get_price_ohlcv",
-                        status="warning",
+                        status="error",
                         elapsed_ms=elapsed_ms,
-                        note=f"即時資料取得失敗（Binance + CoinGecko），僅使用基準資料: {cg_err}",
+                        note=f"即時資料取得失敗: {note}",
                     )
-                    recent_df = pd.DataFrame()
+                    return {
+                        "error": f"[get_price_ohlcv] 即時資料取得失敗，拒絕以基準資料冒充目前資料: {note}",
+                        "source": source_url,
+                        "content_reference": {
+                            "requested_range": f"{requested_start}~{requested_end}",
+                            "baseline_end_date": config.BASELINE_END_DATE,
+                        },
+                    }
 
             # 4. 驗證接縫（只有在取得到即時資料時才需要）
             if not recent_df.empty:
@@ -99,6 +121,19 @@ def get_price_ohlcv(symbol, start_date, end_date, related_claim):
 
         actual_start = combined_df["date"].iloc[0]
         actual_end = combined_df["date"].iloc[-1]
+        requested_end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        actual_end_date = datetime.strptime(actual_end, "%Y-%m-%d").date()
+        data_age_days = (requested_end_date - actual_end_date).days
+        if needs_recent and data_age_days > 3:
+            return {
+                "error": f"[get_price_ohlcv] 最新資料僅到 {actual_end}，距查詢結束日 {end_date} 已 {data_age_days} 天",
+                "source": source_url,
+                "content_reference": {
+                    "requested_range": f"{requested_start}~{requested_end}",
+                    "actual_range": f"{actual_start}~{actual_end}",
+                    "data_age_days": data_age_days,
+                },
+            }
 
         elapsed_ms = int((time.time() - start_time) * 1000)
         evidence.log_execution_step(
@@ -113,11 +148,17 @@ def get_price_ohlcv(symbol, start_date, end_date, related_claim):
             "source": source_url,
             "content_reference": {
                 "pair": pair,
+                "requested_range": f"{requested_start}~{requested_end}",
                 "range": f"{actual_start}~{actual_end}",
+                "as_of": actual_end,
+                "data_age_days": data_age_days,
                 "rows": rows,
+                "query_endpoint": source_url,
+                "human_url": f"https://www.binance.com/en/trade/{symbol}_USDT?type=spot",
             },
             "summary": (
-                f"{pair} 日線 OHLCV：{actual_start} 至 {actual_end}，共 {rows} 筆。"
+                f"{pair} 日線 OHLCV：{actual_start} 至 {actual_end}，共 {rows} 筆；"
+                f"資料截至 {actual_end}（距查詢結束日 {data_age_days} 天）。"
                 f"最新收盤價 {combined_df['close'].iloc[-1]:.4f}"
             ),
         }
@@ -234,7 +275,7 @@ def fetch_recent_from_exchange(symbol: str, from_date: str) -> pd.DataFrame:
         date 為 YYYY-MM-DD 字串，其餘為 float。
     """
     # 將 from_date 轉換為毫秒時間戳（Binance API 需要）
-    start_dt = datetime.strptime(from_date, "%Y-%m-%d")
+    start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     start_ms = int(start_dt.timestamp() * 1000)
 
     # 呼叫 Binance 公開 API 取得日線 klines

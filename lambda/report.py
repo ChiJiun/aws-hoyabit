@@ -139,6 +139,66 @@ def _parse_analysis_sections(analysis_text):
     return (sections["市場判斷"], sections["關鍵依據"], sections["信心說明"])
 
 
+def _verification_links(record):
+    # 功能：從 content_reference 選出給人閱讀的文章、圖表或資料頁。
+    # API endpoint 仍保留在 evidence_list.json 供技術重現，但報告不把它當主要查證入口。
+    content_ref = record.get("content_reference", {})
+    source = str(record.get("source", ""))
+    links = []
+
+    if isinstance(content_ref, dict):
+        for item in content_ref.get("verification_urls", []):
+            if isinstance(item, dict) and item.get("url"):
+                links.append((item.get("title") or "原文", item["url"]))
+        for item in content_ref.get("human_urls", []):
+            if isinstance(item, dict) and item.get("url"):
+                links.append((item.get("label") or "資料頁", item["url"]))
+        if content_ref.get("human_url"):
+            links.append(("互動資料頁", content_ref["human_url"]))
+        if not links:
+            for item in content_ref.get("items", [])[:3]:
+                if isinstance(item, dict) and item.get("url"):
+                    links.append((item.get("title") or "原文", item["url"]))
+
+    source_lower = source.lower()
+    if not links and "alternative.me" in source_lower:
+        links.append(("Fear & Greed Index", "https://alternative.me/crypto/fear-and-greed-index/"))
+    elif not links and "stlouisfed.org/fred" in source_lower:
+        series_ids = content_ref.get("fred_series_ids", []) if isinstance(content_ref, dict) else []
+        links.extend((series_id, f"https://fred.stlouisfed.org/series/{series_id}") for series_id in series_ids)
+    elif not links and "mempool.space" in source_lower:
+        links.append(("mempool.space 區塊瀏覽器", "https://mempool.space/"))
+    elif not links and "etherscan" in source_lower:
+        links.append(("Etherscan 區塊瀏覽器", "https://etherscan.io/"))
+    elif not links and "blockscout" in source_lower:
+        links.append(("BNB Chain 區塊瀏覽器", "https://bscscan.com/"))
+    elif not links and "helius" in source_lower:
+        links.append(("Solscan 區塊瀏覽器", "https://solscan.io/"))
+    elif not links and ("xrpl" in source_lower or "ripple" in source_lower):
+        links.append(("XRPScan 區塊瀏覽器", "https://xrpscan.com/"))
+    elif not links and source.startswith("http") and "/api" not in source_lower and "api." not in source_lower:
+        links.append(("來源頁面", source))
+
+    unique = []
+    seen = set()
+    for label, url in links:
+        if url and url not in seen:
+            seen.add(url)
+            unique.append((str(label), str(url)))
+    return unique[:5]
+
+
+def _format_verification_links(record, limit=3):
+    links = _verification_links(record)[:limit]
+    if not links:
+        return "技術來源詳見 evidence_list.json"
+    formatted = []
+    for label, url in links:
+        safe_label = label.replace("[", "").replace("]", "").replace("|", "／")
+        formatted.append(f"[{safe_label}]({url})")
+    return "、".join(formatted)
+
+
 def _build_evidence_references(evidence_list):
     # 功能：為關鍵依據章節產生每條證據的引用列表。
     # 回傳：Markdown 列表字串，每行 `- [evidence_id] source: related_claim`
@@ -148,9 +208,9 @@ def _build_evidence_references(evidence_list):
     lines = []
     for record in evidence_list:
         eid = record.get("evidence_id", "N/A")
-        source = record.get("source", "未知來源")
         claim = record.get("related_claim", "")
-        lines.append(f"- **[{eid}]** {source}：{claim}")
+        verification = _format_verification_links(record)
+        lines.append(f"- **[{eid}]** {claim}｜查證：{verification}")
 
     return "\n".join(lines)
 
@@ -165,17 +225,17 @@ def build_evidence_table(evidence_list):
             return ""
 
         # 步驟：建立表頭
-        header = "| evidence_id | 來源 | 取得時間 | 對應判斷 |"
-        separator = "|-------------|------|----------|----------|"
+        header = "| evidence_id | 人類可讀查證來源 | 取得時間 | 對應判斷 |"
+        separator = "|-------------|------------------|----------|----------|"
         rows = [header, separator]
 
         # 步驟：逐筆證據產生表格列
         for record in evidence_list:
             eid = _escape_pipe(str(record.get("evidence_id", "")))
-            source = _escape_pipe(str(record.get("source", "")))
+            verification = _escape_pipe(_format_verification_links(record))
             fetched_at = _escape_pipe(str(record.get("fetched_at", "")))
             related_claim = _escape_pipe(str(record.get("related_claim", "")))
-            rows.append(f"| {eid} | {source} | {fetched_at} | {related_claim} |")
+            rows.append(f"| {eid} | {verification} | {fetched_at} | {related_claim} |")
 
         # 回傳：完整 Markdown 表格字串
         return "\n".join(rows)

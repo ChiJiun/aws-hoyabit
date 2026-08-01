@@ -13,3 +13,5 @@
 1. THE 四個工具 SHALL 各自可獨立測試與獨立失敗,單一工具失敗不影響其他工具(分工邊界)
 2. WHEN 新聞結果多篇來自同一媒體集團或同一原始報導,THE news 工具 SHALL 於 summary 標註「同源」,防止偽多源共識
 3. THE 每個工具 SHALL 設定單次呼叫 timeout ≤ 10 秒,含重試總耗時 ≤ 25 秒
+4. WHEN news 收到 lookback_days,THE news 工具 SHALL 正規化發布時間為 UTC 並排除回溯範圍外或無發布時間資料(R7.6)
+5. THE intel 工具 SHALL 在 content_reference 保留 API endpoint 供重現,並在可行時另提供人類可讀原文、官方圖表或區塊瀏覽器連結(R12.7)
