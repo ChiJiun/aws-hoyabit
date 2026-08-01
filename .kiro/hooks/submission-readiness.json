@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "交付就緒總檢",
+      "trigger": "UserPromptSubmit",
+      "description": "賽前/提交前手動觸發,對照命題文件逐項稽核",
+      "matcher": "submission-check",
+      "action": {
+        "type": "agent",
+        "prompt": "依 steering/competition-rules.md 做交付就緒稽核,逐項回報 ✅/❌:1) 四項交付物:report.md、evidence_list.json、execution_log.jsonl、原始碼+執行說明(README 可照做即部署?);2) 跑 tests/test_local_run.py:5 幣種 × 3 題型全通過?單次完整執行 < 12 分鐘?;3) 抽 3 筆 evidence 驗證可回溯性:source 可訪問、content_reference 足以重現查詢、related_claim 對應報告中實際判斷;4) 報告三章節齊備、無投資建議語句、來源類別 ≥ 3、矛盾與限制有說明;5) execution_log 含時間戳、工具呼叫、失敗紀錄;6) 前端部署網址可用、下載連結有效、Demo 錄影流程可完整走通;7) repo 無機密、.env.example 完整、requirements.txt 可重現環境。最後給出「可提交 / 尚缺 X 項」結論與修復優先序。"
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "證據四欄位守門員",
+      "trigger": "PostFileSave",
+      "description": "evidence/export 相關程式變更後,驗證證據 schema 與品質檢查未被破壞",
+      "matcher": "lambda[\\\\/](evidence|export)\\\\.py$",
+      "action": {
+        "type": "agent",
+        "prompt": "檢查 lambda/evidence.py 與 lambda/export.py:1) Evidence Record 仍為固定四欄位 source/fetched_at/content_reference/related_claim(加 evidence_id 系統欄位),fetched_at 為 UTC ISO 8601;2) log_evidence 仍拒絕空或過短的 related_claim;3) validate_before_export 五項檢查完整:禁投資建議語句、來源類別≥3、四欄位齊備、無孤兒 evidence_id 引用、付費來源非唯一依據;4) 驗證失敗仍匯出但插入品質警示(降級不失敗)。這些是命題方抽查與評分的硬性要求,任何弱化都要指出並修正。"
+      }
+    }
+  ]
+}
