@@ -13,9 +13,12 @@ prediction.py — 預測市場工具
 
 import json
 import time
+import warnings
 from datetime import datetime, timezone
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 import evidence
 
@@ -24,6 +27,44 @@ _GAMMA_BASE = "https://gamma-api.polymarket.com"
 _TIMEOUT = 30
 _HEADERS = {"User-Agent": "HoyabitAgent/1.0"}
 _MAX_DISPLAY_EVENTS = 5
+
+
+def _get_session():
+    """建立帶重試機制的 requests Session，處理 SSL/網路暫時問題。"""
+    session = requests.Session()
+    retry = Retry(total=2, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    session.headers.update(_HEADERS)
+    return session
+
+
+def _robust_get(url, timeout=_TIMEOUT):
+    """帶 SSL fallback 的 GET 請求。
+
+    策略：
+    1. 先用正常 SSL 驗證嘗試
+    2. SSL 失敗時 fallback 到 verify=False（某些地區 Polymarket 的 SSL 憑證有問題）
+    回傳 Response 物件，失敗則拋出原始例外。
+    """
+    session = _get_session()
+    try:
+        resp = session.get(url, timeout=timeout)
+        return resp
+    except requests.exceptions.SSLError:
+        # SSL 失敗，嘗試關閉驗證（可能是地區封鎖或自簽憑證）
+        warnings.filterwarnings("ignore", message="Unverified HTTPS request")
+        try:
+            resp = session.get(url, timeout=timeout, verify=False)
+            # 檢查是否為 ISP 封鎖頁面（回傳 404 或含有封鎖關鍵字）
+            if resp.status_code == 404 or "封鎖" in resp.text[:500] or "blocked" in resp.text[:500].lower():
+                raise requests.exceptions.ConnectionError(
+                    f"Polymarket API 不可用（可能為地區網路限制）: HTTP {resp.status_code}"
+                )
+            return resp
+        except requests.exceptions.SSLError as e2:
+            raise e2
 
 
 def get_prediction_market(keywords, related_claim):
@@ -58,7 +99,7 @@ def get_prediction_market(keywords, related_claim):
         keyword_url = f"{_GAMMA_BASE}/events?active=true&closed=false&limit=10&title_contains={keywords}"
         endpoints_called.append(keyword_url)
 
-        resp = requests.get(keyword_url, headers=_HEADERS, timeout=_TIMEOUT)
+        resp = _robust_get(keyword_url)
         resp.raise_for_status()
         events_data = resp.json()
 
@@ -68,7 +109,7 @@ def get_prediction_market(keywords, related_claim):
             endpoints_called.append(fallback_url)
             source_url = fallback_url
 
-            resp = requests.get(fallback_url, headers=_HEADERS, timeout=_TIMEOUT)
+            resp = _robust_get(fallback_url)
             resp.raise_for_status()
             events_data = resp.json()
 

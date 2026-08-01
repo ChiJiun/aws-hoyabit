@@ -38,6 +38,23 @@ _SEC_EDGAR_BASE = "https://efts.sec.gov/LATEST/search-index"
 # ---- Coin Metrics Community API 設定 ----
 _COINMETRICS_BASE = "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics"
 
+# ---- Coin Metrics 免費社區層可用指標（非所有指標皆免費） ----
+_COMMUNITY_METRICS = {
+    "AdrActCnt", "AdrBalCnt", "BlkCnt", "CapMVRVCur", "CapMrktCurUSD",
+    "CapMrktEstUSD", "FeeTotNtv", "FlowInExNtv", "FlowInExUSD",
+    "FlowOutExNtv", "FlowOutExUSD", "HashRate", "IssTotNtv", "IssTotUSD",
+    "PriceUSD", "ROI1yr", "ROI30d", "ReferenceRateUSD", "SplyCur",
+    "TxCnt", "TxTfrCnt",
+}
+
+# ---- 指標替代映射：付費指標 → 免費替代 ----
+_METRIC_FALLBACK = {
+    "NVTAdj": None,  # 無免費替代，跳過
+    "NVTAdj90": None,
+    "RealizedCap": None,  # CapRealUSD 也是付費的
+    "FeeMeanUSD": "FeeTotNtv",  # 用每日總手續費替代平均手續費
+}
+
 # ---- Coin Metrics 幣種映射 ----
 _SYMBOL_TO_ASSET = {
     "BTC": "btc",
@@ -303,14 +320,39 @@ def get_coin_metrics(symbol, metrics, related_claim):
             }
 
         asset = _SYMBOL_TO_ASSET[symbol_upper]
-        metrics_csv = ",".join(metrics)
 
-        # 組裝 API 請求
+        # 過濾付費指標，替換為免費替代或移除
+        resolved_metrics = []
+        skipped_metrics = []
+        for m in metrics:
+            if m in _COMMUNITY_METRICS:
+                resolved_metrics.append(m)
+            elif m in _METRIC_FALLBACK:
+                fallback = _METRIC_FALLBACK[m]
+                if fallback and fallback not in resolved_metrics:
+                    resolved_metrics.append(fallback)
+                    skipped_metrics.append(f"{m}→{fallback}")
+                else:
+                    skipped_metrics.append(f"{m}(付費,已跳過)")
+            else:
+                # 嘗試請求（可能新加入社區層）
+                resolved_metrics.append(m)
+
+        if not resolved_metrics:
+            return {
+                "error": f"[get_coin_metrics] 所有請求的指標 {metrics} 皆為付費限定，"
+                         f"社區免費可用: {sorted(_COMMUNITY_METRICS)}"
+            }
+
+        metrics_csv = ",".join(resolved_metrics)
+
+        # 組裝 API 請求（使用 page_size 而非 limit）
         params = {
             "assets": asset,
             "metrics": metrics_csv,
             "frequency": "1d",
-            "limit": 30,
+            "page_size": 30,
+            "sort": "time",
         }
 
         resp = requests.get(
@@ -332,9 +374,9 @@ def get_coin_metrics(symbol, metrics, related_claim):
         latest = series[-1]
         latest_time = latest.get("time", "unknown")
 
-        # 解析各指標的最新值與趨勢
+        # 解析各指標的最新值與趨勢（使用實際請求的 resolved_metrics）
         metric_values = {}
-        for m in metrics:
+        for m in resolved_metrics:
             values = [float(row[m]) for row in series if row.get(m) is not None]
             if values:
                 metric_values[m] = {
@@ -365,8 +407,13 @@ def get_coin_metrics(symbol, metrics, related_claim):
                 summary_parts.append(f"NVT {latest_val:.1f}")
             elif m == "FeeMeanUSD":
                 summary_parts.append(f"Avg Fee ${latest_val:.2f}")
+            elif m == "FeeTotNtv":
+                summary_parts.append(f"Total Fee (native) {latest_val:.4g}")
             else:
                 summary_parts.append(f"{m} {latest_val:.4g}")
+
+        if skipped_metrics:
+            summary_parts.append(f"[跳過付費指標: {', '.join(skipped_metrics)}]")
 
         summary = " ".join(summary_parts)
 
@@ -378,6 +425,7 @@ def get_coin_metrics(symbol, metrics, related_claim):
             "elapsed_ms": elapsed_ms,
             "latest_time": latest_time,
             "metric_values": metric_values,
+            "skipped_metrics": skipped_metrics,
         }
 
         # 組裝 raw
@@ -386,6 +434,8 @@ def get_coin_metrics(symbol, metrics, related_claim):
             "metric_values": metric_values,
             "asset": asset,
             "metrics_requested": metrics,
+            "metrics_resolved": resolved_metrics,
+            "metrics_skipped": skipped_metrics,
             "data_points": len(series),
         }
 
