@@ -322,3 +322,141 @@ def check_data_seam(baseline_df, recent_df):
     )
 
     return (passed, overlap_count, max_diff_pct)
+
+
+def get_orderbook_depth(symbol, related_claim):
+    """取得 Binance Spot 盤口深度快照，計算 ±2% 範圍內的累積掛單量。
+
+    Args:
+        symbol: 幣種代碼（BTC, ETH, SOL, BNB, XRP）
+        related_claim: Agent 說明取數目的
+
+    Returns:
+        Contract C1 dict or error dict
+    """
+    symbol_upper = symbol.upper()
+    pair = f"{symbol_upper}USDT"
+    source_url = f"https://api.binance.com/api/v3/depth?symbol={pair}&limit=1000"
+    start_time = time.time()
+
+    try:
+        resp = requests.get(
+            "https://api.binance.com/api/v3/depth",
+            params={"symbol": pair, "limit": 1000},
+            headers={"User-Agent": "HoyabitAgent/1.0"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        bids = data["bids"]  # [[price, qty], ...]
+        asks = data["asks"]  # [[price, qty], ...]
+
+        # 計算 ±2% 深度
+        best_bid = float(bids[0][0])
+        best_ask = float(asks[0][0])
+        bid_threshold = best_bid * 0.98
+        ask_threshold = best_ask * 1.02
+
+        bid_depth_2pct = sum(
+            float(qty) for price, qty in bids if float(price) >= bid_threshold
+        )
+        ask_depth_2pct = sum(
+            float(qty) for price, qty in asks if float(price) <= ask_threshold
+        )
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        fetched_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        evidence.log_execution_step(
+            tool_name="get_orderbook_depth",
+            status="success",
+            elapsed_ms=elapsed_ms,
+            note=f"{pair} bid_depth={bid_depth_2pct:.2f} ask_depth={ask_depth_2pct:.2f}",
+        )
+
+        summary = (
+            f"買方 ±2% 深度 {bid_depth_2pct:.2f} {symbol_upper} / "
+            f"賣方 ±2% 深度 {ask_depth_2pct:.2f} {symbol_upper}"
+        )
+
+        return {
+            "raw": data,
+            "source": source_url,
+            "content_reference": {
+                "endpoint": "https://api.binance.com/api/v3/depth",
+                "symbol": symbol_upper,
+                "best_bid": best_bid,
+                "best_ask": best_ask,
+                "bid_depth_2pct": bid_depth_2pct,
+                "ask_depth_2pct": ask_depth_2pct,
+                "depth_limit": 1000,
+                "fetched_at": fetched_at,
+                "elapsed_ms": elapsed_ms,
+            },
+            "summary": summary,
+        }
+
+    except Exception as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        evidence.log_execution_step(
+            tool_name="get_orderbook_depth",
+            status="error",
+            elapsed_ms=elapsed_ms,
+            note=f"{type(e).__name__}: {str(e)}",
+        )
+        return {
+            "error": f"[get_orderbook_depth] {type(e).__name__}: {str(e)}",
+            "source": source_url,
+            "content_reference": {},
+        }
+
+
+def get_market_dominance(related_claim):
+    """取得各主要幣種的市值佔比（dominance）。"""
+    from config import COINGECKO_API_KEY
+
+    source_url = "https://api.coingecko.com/api/v3/global"
+    start_time = time.time()
+
+    try:
+        headers = {"User-Agent": "HoyabitAgent/1.0"}
+        if COINGECKO_API_KEY:
+            headers["x-cg-demo-api-key"] = COINGECKO_API_KEY
+
+        resp = requests.get(source_url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        market_cap_pct = data.get("data", {}).get("market_cap_percentage", {})
+        total_market_cap = data.get("data", {}).get("total_market_cap", {}).get("usd", 0)
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        fetched_at = datetime.now(timezone.utc).isoformat()
+
+        # Summary
+        btc_dom = market_cap_pct.get("btc", 0)
+        eth_dom = market_cap_pct.get("eth", 0)
+        summary = f"BTC dominance {btc_dom:.1f}%, ETH dominance {eth_dom:.1f}%, 總市值 ${total_market_cap/1e12:.2f}T"
+
+        content_reference = {
+            "endpoint": source_url,
+            "dominance": market_cap_pct,
+            "total_market_cap_usd": total_market_cap,
+            "fetched_at": fetched_at,
+            "elapsed_ms": elapsed_ms,
+        }
+
+        evidence.log_execution_step("get_market_dominance", "success", elapsed_ms, note=summary[:100])
+
+        return {
+            "raw": data,
+            "source": source_url,
+            "content_reference": content_reference,
+            "summary": summary,
+        }
+
+    except Exception as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        evidence.log_execution_step("get_market_dominance", "error", elapsed_ms, note=str(e))
+        return {"error": f"[get_market_dominance] {type(e).__name__}: {str(e)}", "source": source_url, "content_reference": {}}

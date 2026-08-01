@@ -13,6 +13,7 @@ from botocore.exceptions import ClientError
 import config
 import evidence
 from tools import price, news, onchain, quant, sentiment, macro
+from tools import derivatives, prediction, defi
 
 # 工具名稱與實際函式的對應表。
 # 這裡的 key 必須跟 build_tool_config() 裡宣告的 toolSpec name 完全一致，
@@ -24,6 +25,12 @@ TOOL_DISPATCH = {
     "compute_quant": quant.compute_quant,
     "get_sentiment": sentiment.get_sentiment,
     "get_macro": macro.get_macro,
+    "get_derivatives": derivatives.get_derivatives,
+    "get_prediction_market": prediction.get_prediction_market,
+    "get_defi_data": defi.get_defi_data,
+    "get_dev_activity": defi.get_dev_activity,
+    "get_orderbook_depth": price.get_orderbook_depth,
+    "get_market_dominance": price.get_market_dominance,
 }
 
 
@@ -229,6 +236,119 @@ def build_tool_config():
                             }
                         },
                         "required": ["indicators", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_derivatives",
+                "description": "取得衍生品市場資料：資金費率、未平倉量(OI)、清算、隱含波動率(DVOL)、大戶多空比。"
+                               "可用來源：hyperliquid（主力，免鑰）、binance_futures（備援+散戶指標）、deribit（僅BTC/ETH，期權波動率）。"
+                               "訊號價值：資金費率極端=擁擠方向、OI急增+價格滯漲=槓桿堆積、DVOL vs 已實現波動率價差=市場買保險程度。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string", "description": "幣種代號（BTC/ETH/SOL/BNB/XRP）"},
+                            "source": {"type": "string", "description": "資料來源：hyperliquid | binance_futures | deribit"},
+                            "metrics": {
+                                "type": "array", "items": {"type": "string"},
+                                "description": "要取得的指標。hyperliquid: funding_rate/open_interest/mark_price/liquidations; "
+                                               "binance_futures: funding_rate/open_interest/long_short_ratio/taker_buy_sell_ratio; "
+                                               "deribit: dvol/options_oi/put_call_ratio"
+                            },
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["symbol", "source", "metrics", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_prediction_market",
+                "description": "查詢 Polymarket 預測市場上加密相關事件的市場定價（機率）與成交量。"
+                               "訊號價值：預測市場用真金白銀定價的共識機率，與現貨走勢比對可發現「價格未反映的預期」。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "keywords": {"type": "string", "description": "搜尋關鍵字（如 bitcoin, ETH ETF, crypto regulation）"},
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["keywords", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_defi_data",
+                "description": "取得 DeFi TVL 與穩定幣供給量資料（DefiLlama 免鑰）。"
+                               "訊號價值：穩定幣增發=場外資金彈藥進場、TVL 與幣價背離=DeFi 使用量脫鉤價格。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "metrics": {
+                                "type": "array", "items": {"type": "string"},
+                                "description": "要取得的指標：tvl / stablecoin_supply"
+                            },
+                            "chain": {"type": "string", "description": "指定鏈（Ethereum/Solana/BSC）或 all 代表全市場"},
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["metrics", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_dev_activity",
+                "description": "取得幣種專案的 GitHub 開發活躍度（近4週 commit 數、最新 release）。"
+                               "訊號價值：開發活躍度與價格背離=基本面健康但市場未反映，或反之。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string", "description": "幣種代號（BTC/ETH/SOL/BNB/XRP）"},
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["symbol", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_orderbook_depth",
+                "description": "取得 Binance Spot 盤口深度快照，計算目前價格 ±2% 範圍內的累積掛單量。"
+                               "訊號價值：深度薄=大單容易造成滑價、買賣深度不對稱=潛在方向性壓力。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string", "description": "幣種代號（BTC/ETH/SOL/BNB/XRP）"},
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["symbol", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_market_dominance",
+                "description": "取得 BTC 及各幣種的市值佔比（dominance）。"
+                               "訊號價值：BTC dominance 上升=資金從山寨回流比特幣（避險）、下降=資金輪動到山寨（risk-on）。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["related_claim"]
                     }
                 }
             }
