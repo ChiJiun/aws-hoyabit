@@ -177,6 +177,195 @@
         "chatSessionId": "sess_6263db88-f538-4e84-b071-dba184d70265",
         "timestamp": 1785547943982
       }
+    ],
+    "11.1 實作 export_evidence_list 函式": [
+      {
+        "executionId": "9509e999-8cdc-43c9-a052-a8e02970769e",
+        "chatSessionId": "sess_0d79aa9d-6ced-4efe-9d27-38ac09bb2995",
+        "timestamp": 1785554201811
+      },
+      {
+        "executionId": "b0cf183f-b7a6-4357-9fcf-962d24065257",
+        "chatSessionId": "sess_0d79aa9d-6ced-4efe-9d27-38ac09bb2995",
+        "timestamp": 1785554598529
+      }
+    ],
+    "11.2 實作 export_execution_log 函式": [
+      {
+        "executionId": "bfc038dd-a159-4390-a94e-063fb1fde14e",
+        "chatSessionId": "sess_8a5aa1a4-2f57-4790-aa9e-931aa4767ac4",
+        "timestamp": 1785554710640
+      },
+      {
+        "executionId": "bfc038dd-a159-4390-a94e-063fb1fde14e",
+        "chatSessionId": "sess_8a5aa1a4-2f57-4790-aa9e-931aa4767ac4",
+        "timestamp": 1785554842379
+      }
+    ],
+    "11.3 實作 validate_before_export 函式": [
+      {
+        "executionId": "16e3b25a-6ebd-4300-a644-0f2f8b3a5055",
+        "chatSessionId": "sess_528efa36-7479-44f4-ba79-67dc58824f3d",
+        "timestamp": 1785554943436
+      },
+      {
+        "executionId": "16e3b25a-6ebd-4300-a644-0f2f8b3a5055",
+        "chatSessionId": "sess_528efa36-7479-44f4-ba79-67dc58824f3d",
+        "timestamp": 1785555098949
+      }
+    ],
+    "11. 交付物匯出（export.py）": [
+      {
+        "executionId": "16e3b25a-6ebd-4300-a644-0f2f8b3a5055",
+        "chatSessionId": "sess_528efa36-7479-44f4-ba79-67dc58824f3d",
+        "timestamp": 1785555098990
+      }
+    ],
+    "10.1 實作 calculate_coverage 函式": [
+      {
+        "executionId": "cba8f71d-f521-4d5f-a544-1ba6f60cbfc7",
+        "chatSessionId": "sess_dd15c435-151e-4f5c-852f-b3f72789dc70",
+        "timestamp": 1785555167751
+      },
+      {
+        "executionId": "cba8f71d-f521-4d5f-a544-1ba6f60cbfc7",
+        "chatSessionId": "sess_dd15c435-151e-4f5c-852f-b3f72789dc70",
+        "timestamp": 1785555343920
+      }
+    ],
+    "10.2 實作 build_evidence_table 函式": [
+      {
+        "executionId": "a982b525-ccdb-46a8-ac03-e83c02b41277",
+        "chatSessionId": "sess_a84d34c5-bd08-4eb7-b630-fec9a57c3a71",
+        "timestamp": 1785555808885
+      },
+      {
+        "executionId": "a982b525-ccdb-46a8-ac03-e83c02b41277",
+        "chatSessionId": "sess_a84d34c5-bd08-4eb7-b630-fec9a57c3a71",
+        "timestamp": 1785555969253
+      }
+    ],
+    "10.3 實作 render_report 主函式": [
+      {
+        "executionId": "d52a3238-7da7-467f-a080-6f3da220ba88",
+        "chatSessionId": "sess_b025811e-b7d8-497e-8afb-d7f8dde2d598",
+        "timestamp": 1785555983464
+      },
+      {
+        "executionId": "d52a3238-7da7-467f-a080-6f3da220ba88",
+        "chatSessionId": "sess_b025811e-b7d8-497e-8afb-d7f8dde2d598",
+        "timestamp": 1785556161378
+      }
+    ],
+    "10. 報告渲染（report.py）": [
+      {
+        "executionId": "d52a3238-7da7-467f-a080-6f3da220ba88",
+        "chatSessionId": "sess_b025811e-b7d8-497e-8afb-d7f8dde2d598",
+        "timestamp": 1785556161442
+      }
+    ],
+    "15.1 實作 initCoinSelector 函式": [
+      {
+        "executionId": "2ac5eb4b-23f7-4a58-9785-9ef3cc3c4896",
+        "chatSessionId": "sess_c2fd7c2f-6b56-4a11-86b5-d9988b27817c",
+        "timestamp": 1785556199932
+      },
+      {
+        "executionId": "2ac5eb4b-23f7-4a58-9785-9ef3cc3c4896",
+        "chatSessionId": "sess_c2fd7c2f-6b56-4a11-86b5-d9988b27817c",
+        "timestamp": 1785556265757
+      }
+    ],
+    "15.2 實作 showLoading 函式": [
+      {
+        "executionId": "c1762b25-d11b-4033-8183-5468ea67fc46",
+        "chatSessionId": "sess_ca751008-5cf5-4ea4-ad07-a1c68447f289",
+        "timestamp": 1785556296368
+      },
+      {
+        "executionId": "c1762b25-d11b-4033-8183-5468ea67fc46",
+        "chatSessionId": "sess_ca751008-5cf5-4ea4-ad07-a1c68447f289",
+        "timestamp": 1785556425047
+      }
+    ],
+    "15.3 實作 showError 函式": [
+      {
+        "executionId": "c283bac5-1c61-427f-b907-92f57c59cac4",
+        "chatSessionId": "sess_b1f32d49-d72b-4fe3-bb7e-7530021dbfc1",
+        "timestamp": 1785556471753
+      },
+      {
+        "executionId": "c283bac5-1c61-427f-b907-92f57c59cac4",
+        "chatSessionId": "sess_b1f32d49-d72b-4fe3-bb7e-7530021dbfc1",
+        "timestamp": 1785556566916
+      }
+    ],
+    "15.4 實作 callAnalysisApi 函式": [
+      {
+        "executionId": "c62e6d32-5d38-4b44-a2dd-f3cd5256e460",
+        "chatSessionId": "sess_048ee445-e182-42ce-b75d-cd91adf25b8f",
+        "timestamp": 1785556598602
+      },
+      {
+        "executionId": "c62e6d32-5d38-4b44-a2dd-f3cd5256e460",
+        "chatSessionId": "sess_048ee445-e182-42ce-b75d-cd91adf25b8f",
+        "timestamp": 1785556803074
+      }
+    ],
+    "15.5 實作 renderReport 函式": [
+      {
+        "executionId": "5295b362-2876-407c-bca5-428656b3478d",
+        "chatSessionId": "sess_967b389b-8cfc-43ba-a5b7-bed4132b7b9b",
+        "timestamp": 1785556822790
+      },
+      {
+        "executionId": "5295b362-2876-407c-bca5-428656b3478d",
+        "chatSessionId": "sess_967b389b-8cfc-43ba-a5b7-bed4132b7b9b",
+        "timestamp": 1785556900952
+      }
+    ],
+    "15.6 實作 handleSubmit 函式": [
+      {
+        "executionId": "df2d569d-d818-49e6-b824-d7a0862eecec",
+        "chatSessionId": "sess_553ed09e-bb40-45b8-89dd-22dd91d66c59",
+        "timestamp": 1785556946890
+      },
+      {
+        "executionId": "df2d569d-d818-49e6-b824-d7a0862eecec",
+        "chatSessionId": "sess_553ed09e-bb40-45b8-89dd-22dd91d66c59",
+        "timestamp": 1785557047779
+      }
+    ],
+    "15.7 設定 API_URL 為實際 Lambda Function URL": [
+      {
+        "executionId": "364a9cee-c802-46e2-a2b5-35d3e1bc26f4",
+        "chatSessionId": "sess_172cec44-e79c-4633-84f6-0e4c7e78ff39",
+        "timestamp": 1785557063048
+      },
+      {
+        "executionId": "364a9cee-c802-46e2-a2b5-35d3e1bc26f4",
+        "chatSessionId": "sess_172cec44-e79c-4633-84f6-0e4c7e78ff39",
+        "timestamp": 1785557180657
+      }
+    ],
+    "15. 前端 JavaScript 函式（frontend/index.html）": [
+      {
+        "executionId": "364a9cee-c802-46e2-a2b5-35d3e1bc26f4",
+        "chatSessionId": "sess_172cec44-e79c-4633-84f6-0e4c7e78ff39",
+        "timestamp": 1785557180699
+      }
+    ],
+    "16. 整合測試（tests/test_local_run.py）": [
+      {
+        "executionId": "92477e18-7539-444c-a540-fa002ac1ae27",
+        "chatSessionId": "sess_3fc0faeb-6218-4b95-ad25-72ab946d35c4",
+        "timestamp": 1785557231630
+      },
+      {
+        "executionId": "92477e18-7539-444c-a540-fa002ac1ae27",
+        "chatSessionId": "sess_3fc0faeb-6218-4b95-ad25-72ab946d35c4",
+        "timestamp": 1785557388719
+      }
     ]
   }
 }
