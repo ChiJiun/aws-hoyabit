@@ -6,26 +6,26 @@
 
 ## 任務清單
 
-- [ ] 1. 基礎設施模組（config.py、evidence.py）
+- [x] 1. 基礎設施模組（config.py、evidence.py）
 
-  - [ ] 1.1 實作 config.py 的 load_local_env 函式
+  - [x] 1.1 實作 config.py 的 load_local_env 函式
     - 使用 python-dotenv 的 load_dotenv() 從專案根目錄的 .env 載入環境變數
     - 確保所有環境變數（AWS_REGION、BEDROCK_MODEL_ID、DATA_BUCKET、API 金鑰等）已正確讀取
     - _需求：19.1、19.2_
 
-  - [ ] 1.2 實作 evidence.py 的 reset_stores 函式
+  - [x] 1.2 實作 evidence.py 的 reset_stores 函式
     - 清空全域 evidence_list 與 execution_log 列表
     - 確保 Lambda 容器重複使用時不會殘留前次資料
     - _需求：2.6_ | _Property 4: 容器重複使用不汙染_
 
-  - [ ] 1.3 實作 evidence.py 的 log_evidence 函式
+  - [x] 1.3 實作 evidence.py 的 log_evidence 函式
     - 驗證 related_claim 非空且長度足夠，不足則回傳錯誤不寫入
     - 自動產生 evidence_id（UUID）、source（從 fetch_result 取）、fetched_at（ISO 8601 UTC）、content_reference
     - 呼叫 storage.save_raw_payload() 封存原始回應
     - 回傳 evidence_id 字串
     - _需求：4.1、4.2、4.3、4.4、4.5、4.6_ | _Property 7、8、9_
 
-  - [ ] 1.4 實作 evidence.py 的 log_execution_step 函式
+  - [x] 1.4 實作 evidence.py 的 log_execution_step 函式
     - 記錄含 timestamp、tool_name、status、elapsed_ms、evidence_id、note 的執行紀錄
     - 成功與失敗的呼叫都必須記錄
     - _需求：5.1、5.2_ | _Property 10_
@@ -282,23 +282,23 @@
     - **Property 18: 來源多樣性檢查** — 類別數 < 3 時報告未通過
     - **驗證: 需求 5.3、13.1、13.4、13.5**
 
-- [ ] 12. S3 讀寫模組（storage.py）
+- [x] 12. S3 讀寫模組（storage.py）
 
-  - [ ] 12.1 實作 read_baseline_csv 函式
+  - [x] 12.1 實作 read_baseline_csv 函式
     - 從 S3 路徑 baseline/{symbol}USDT_daily_ohlcv.csv 讀取並回傳 DataFrame
     - 本機測試時從本地 data/baseline/ 讀取
     - _需求：18.1_
 
-  - [ ] 12.2 實作 save_raw_payload 函式
+  - [x] 12.2 實作 save_raw_payload 函式
     - 上傳原始 API 回應至 S3 路徑 runs/{run_id}/raw/{evidence_id}.json
     - 本機測試時寫入 outputs/ 資料夾
     - _需求：4.6、18.2_
 
-  - [ ] 12.3 實作 save_output_file 函式
+  - [x] 12.3 實作 save_output_file 函式
     - 上傳交付物至 S3 路徑 runs/{run_id}/{filename}
     - _需求：15.2、18.2_
 
-  - [ ] 12.4 實作 generate_download_link 函式
+  - [x] 12.4 實作 generate_download_link 函式
     - 產生 S3 presigned URL，預設 1 小時有效
     - _需求：15.3、18.3、18.4_
 

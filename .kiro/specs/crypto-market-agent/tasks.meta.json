@@ -1,0 +1,115 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 實作 config.py 的 load_local_env 函式": [
+      {
+        "executionId": "5b3a68ee-65ca-4e2e-bd2e-fd016bbfe608",
+        "chatSessionId": "sess_61b8b140-1a30-4d7d-90f2-0d6b60e29e33",
+        "timestamp": 1785550172693
+      },
+      {
+        "executionId": "5b3a68ee-65ca-4e2e-bd2e-fd016bbfe608",
+        "chatSessionId": "sess_61b8b140-1a30-4d7d-90f2-0d6b60e29e33",
+        "timestamp": 1785550358808
+      }
+    ],
+    "1.2 實作 evidence.py 的 reset_stores 函式": [
+      {
+        "executionId": "8165f61d-2035-408a-aa42-ee39060c5cb2",
+        "chatSessionId": "sess_0fd81c5c-c259-4142-a250-212f0b58b15d",
+        "timestamp": 1785550548974
+      },
+      {
+        "executionId": "8165f61d-2035-408a-aa42-ee39060c5cb2",
+        "chatSessionId": "sess_0fd81c5c-c259-4142-a250-212f0b58b15d",
+        "timestamp": 1785551043764
+      }
+    ],
+    "1.3 實作 evidence.py 的 log_evidence 函式": [
+      {
+        "executionId": "533d5e22-a2c2-4b4c-99bb-59c3bd236267",
+        "chatSessionId": "sess_068b10c3-4baa-40e8-a94a-546fd0c9d50f",
+        "timestamp": 1785551105349
+      },
+      {
+        "executionId": "533d5e22-a2c2-4b4c-99bb-59c3bd236267",
+        "chatSessionId": "sess_068b10c3-4baa-40e8-a94a-546fd0c9d50f",
+        "timestamp": 1785551607033
+      }
+    ],
+    "1.4 實作 evidence.py 的 log_execution_step 函式": [
+      {
+        "executionId": "5e383839-6804-46b9-9629-977fe5c33a80",
+        "chatSessionId": "sess_4ae1db21-3faa-4a4b-86c5-5882de6e2668",
+        "timestamp": 1785551702097
+      },
+      {
+        "executionId": "5e383839-6804-46b9-9629-977fe5c33a80",
+        "chatSessionId": "sess_4ae1db21-3faa-4a4b-86c5-5882de6e2668",
+        "timestamp": 1785552045383
+      }
+    ],
+    "1. 基礎設施模組（config.py、evidence.py）": [
+      {
+        "executionId": "5e383839-6804-46b9-9629-977fe5c33a80",
+        "chatSessionId": "sess_4ae1db21-3faa-4a4b-86c5-5882de6e2668",
+        "timestamp": 1785552045644
+      }
+    ],
+    "12.1 實作 read_baseline_csv 函式": [
+      {
+        "executionId": "b4c950f4-4eb9-4b2c-b371-cc62e2850d1f",
+        "chatSessionId": "sess_88b826ef-839f-4918-8e7f-224e9929faba",
+        "timestamp": 1785552104977
+      },
+      {
+        "executionId": "b4c950f4-4eb9-4b2c-b371-cc62e2850d1f",
+        "chatSessionId": "sess_88b826ef-839f-4918-8e7f-224e9929faba",
+        "timestamp": 1785552953190
+      }
+    ],
+    "12.2 實作 save_raw_payload 函式": [
+      {
+        "executionId": "a60106de-80e4-4e46-b235-ad3583885b51",
+        "chatSessionId": "sess_7b920b4e-74b6-41f5-a106-0b8d80283d85",
+        "timestamp": 1785553125864
+      },
+      {
+        "executionId": "a60106de-80e4-4e46-b235-ad3583885b51",
+        "chatSessionId": "sess_7b920b4e-74b6-41f5-a106-0b8d80283d85",
+        "timestamp": 1785553432962
+      }
+    ],
+    "12.3 實作 save_output_file 函式": [
+      {
+        "executionId": "9961dc3d-d79e-41b5-a721-e30ecd618ba3",
+        "chatSessionId": "sess_fccd6b49-d1d0-4f02-b3c9-a327a3e7a9d1",
+        "timestamp": 1785553467036
+      },
+      {
+        "executionId": "9961dc3d-d79e-41b5-a721-e30ecd618ba3",
+        "chatSessionId": "sess_fccd6b49-d1d0-4f02-b3c9-a327a3e7a9d1",
+        "timestamp": 1785553583478
+      }
+    ],
+    "12.4 實作 generate_download_link 函式": [
+      {
+        "executionId": "062a13b3-49cf-4d02-b749-984451ae289c",
+        "chatSessionId": "sess_3c570c37-882b-4282-b61e-d07f604c4501",
+        "timestamp": 1785553625439
+      },
+      {
+        "executionId": "062a13b3-49cf-4d02-b749-984451ae289c",
+        "chatSessionId": "sess_3c570c37-882b-4282-b61e-d07f604c4501",
+        "timestamp": 1785553777602
+      }
+    ],
+    "12. S3 讀寫模組（storage.py）": [
+      {
+        "executionId": "062a13b3-49cf-4d02-b749-984451ae289c",
+        "chatSessionId": "sess_3c570c37-882b-4282-b61e-d07f604c4501",
+        "timestamp": 1785553777658
+      }
+    ]
+  }
+}
