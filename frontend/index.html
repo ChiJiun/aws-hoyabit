@@ -89,10 +89,14 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:t
 .warn-pill{display:flex;align-items:flex-start;gap:.5rem;background:var(--card);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:.6rem .8rem;margin-bottom:.5rem;font-size:14px;line-height:1.6;color:var(--text)}
 .warn-pill .wi{color:var(--accent);flex-shrink:0;font-size:15px}
 /* Contradiction panel */
-.contradiction-panel{background:var(--card);border:1px solid var(--red);border-radius:var(--radius-sm);padding:.8rem 1rem;margin-top:.6rem}
-.contradiction-panel .cp-title{font-size:13px;font-weight:600;color:var(--red);margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem}
-.contradiction-panel .cp-item{font-size:14px;color:var(--text);margin-bottom:.3rem;padding-left:1.2rem;position:relative}
-.contradiction-panel .cp-item::before{content:'⚡';position:absolute;left:0;color:var(--accent)}
+.contradiction-panel{background:var(--card);border:1px solid var(--red);border-radius:var(--radius-sm);padding:.9rem 1rem;margin-top:.6rem;position:relative}
+.contradiction-panel .cp-title{font-size:13px;font-weight:600;color:var(--red);margin-bottom:.55rem;display:flex;align-items:center;gap:.4rem}
+.contradiction-panel .cp-item{font-size:14px;color:var(--text);margin-bottom:.45rem;padding:.55rem .7rem .55rem 1.9rem;position:relative;border:1px solid var(--line);border-radius:6px;background:var(--surface);cursor:pointer;transition:border-color .2s,transform .2s}
+.contradiction-panel .cp-item:hover,.contradiction-panel .cp-item:focus{border-color:var(--accent);transform:translateX(3px);outline:none}
+.contradiction-panel .cp-item::before{content:'⚡';position:absolute;left:.65rem;color:var(--accent)}
+.contradiction-panel .cp-link{display:block;color:var(--muted);font-size:10px;margin-top:.2rem;font-family:'IBM Plex Mono',monospace}
+.ev-item.dim-highlight{border-color:var(--accent);box-shadow:0 0 18px var(--accent-dim);animation:cardIn .25s ease}
+.ev-item.dim-muted{opacity:.42}
 
 /* Evidence split */
 .evidence-row{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem}
@@ -119,7 +123,12 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:t
 .cite-btn::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#222;color:var(--text);font-size:11px;line-height:1.4;padding:.4rem .6rem;border-radius:6px;white-space:normal;min-width:200px;max-width:280px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:100;border:1px solid var(--accent);text-align:left;font-weight:400}
 .cite-btn:hover::after{opacity:1}
 /* Data badge */
-.data-badge{display:inline-flex;align-items:center;gap:.2rem;background:var(--ink);border:1px solid var(--line);border-radius:4px;padding:.1rem .5rem;font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:500}
+.data-badge{display:inline-flex;align-items:center;gap:.25rem;background:var(--ink);border:1px solid var(--line);border-radius:999px;padding:.12rem .55rem;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:500;white-space:nowrap;vertical-align:middle;margin:.12rem .08rem}
+.data-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.data-badge.state-positive{color:var(--green);border-color:rgba(34,197,94,.38);background:rgba(34,197,94,.07)}
+.data-badge.state-negative{color:var(--red);border-color:rgba(239,68,68,.38);background:rgba(239,68,68,.07)}
+.data-badge.state-warning{color:#f59e0b;border-color:rgba(245,158,11,.38);background:rgba(245,158,11,.07)}
+.data-badge .badge-state{color:var(--muted);font-family:'Noto Sans TC',sans-serif;font-size:10px}
 /* Signal arrow */
 .signal-arrow{font-size:16px;font-weight:700;margin-left:auto;flex-shrink:0}
 .signal-arrow.bullish{color:var(--green)}
@@ -154,6 +163,29 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:t
 .gauge-bar .gauge-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .6s ease}
 .gauge-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:.2rem}
 .gauge-value{font-size:16px;font-weight:700;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-bottom:.3rem}
+/* Generic evidence visualizations */
+.viz-section{margin:.7rem 0;padding:.75rem;background:var(--ink);border:1px solid var(--line);border-radius:var(--radius-sm)}
+.viz-title{display:flex;align-items:center;justify-content:space-between;gap:.5rem;color:#fff;font-size:13px;font-weight:600;margin-bottom:.6rem}
+.viz-sub{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem}
+.metric-tile{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:.55rem;min-width:0}
+.metric-tile .mt-label{display:block;color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.metric-tile .mt-value{display:block;color:var(--accent);font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;overflow-wrap:anywhere}
+.metric-tile .mt-state{display:block;color:var(--muted);font-size:10px;margin-top:.1rem}
+.compare-row{display:grid;grid-template-columns:minmax(75px,.8fr) 2fr minmax(58px,.6fr);gap:.5rem;align-items:center;margin:.45rem 0;font-size:11px}
+.compare-row .cr-label{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compare-track{height:8px;background:var(--line);border-radius:999px;overflow:hidden;display:flex}
+.compare-fill{height:100%;background:var(--accent);border-radius:999px;min-width:2px}
+.compare-fill.alt{background:var(--muted)}
+.compare-value{text-align:right;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:10px}
+.range-viz{margin:.65rem 0}
+.range-head{display:flex;justify-content:space-between;gap:.5rem;font-size:11px;margin-bottom:.25rem}.range-head span:first-child{color:var(--text)}.range-head span:last-child{color:var(--accent);font-family:'IBM Plex Mono',monospace}
+.range-track{height:7px;background:var(--line);border-radius:999px;position:relative}.range-marker{position:absolute;top:50%;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--ink);transform:translate(-50%,-50%)}.range-average{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--muted)}
+.range-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:9px;margin-top:.2rem;font-family:'IBM Plex Mono',monospace}
+.evidence-list{list-style:none}.evidence-list li{padding:.55rem 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.45}.evidence-list li:last-child{border-bottom:none}.evidence-list a{color:var(--text)}.evidence-list a:hover{color:var(--accent)}.list-meta{display:flex;gap:.45rem;flex-wrap:wrap;color:var(--muted);font-size:9px;margin-top:.2rem;font-family:'IBM Plex Mono',monospace}
+.availability-note{border-left:3px solid var(--accent);background:var(--accent-dim);padding:.65rem .75rem;border-radius:0 6px 6px 0;font-size:12px;color:var(--text);line-height:1.55;margin:.6rem 0}.availability-note strong{display:block;color:var(--accent);font-size:11px}.availability-note .trace-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}.trace-tag{border:1px solid var(--line);border-radius:4px;padding:.08rem .35rem;color:var(--muted);font-size:9px;font-family:'IBM Plex Mono',monospace}
+.series-canvas{width:100%;height:120px;display:block}.source-count{display:inline-flex;align-items:center;gap:.3rem;color:var(--muted);font-size:10px}.source-count b{color:var(--accent)}
+.conf-tier{display:block;color:var(--text);font-size:14px;font-weight:600}.conf-basis{display:block;color:var(--muted);font-size:10px;margin-top:.08rem}
 
 /* Download */
 .dl-footer{display:flex;gap:.75rem;flex-wrap:wrap;padding:.5rem 1rem 2rem;max-width:1400px;margin:0 auto}
@@ -244,8 +276,66 @@ const API_URL=(window.location.hostname==='localhost'||window.location.hostname=
 const MSGS=["正在規劃資料蒐集範圍","正在讀取價格與技術指標","正在檢索新聞與官方公告","正在查詢鏈上活躍度","正在整理證據並產出報告"];
 const DEMO_MODE=(window.location.protocol==='file:');
 let selectedCoins=[],timer=null,msgTimer=null,sec=0,mi=0,evidenceList=[];
-const ICONS={price:'📈',chain:'⛓️',news:'📰',macro:'🏛️',sentiment:'🌡️',default:'🔍'};
+const ICONS={price:'📈',chain:'⛓️',news:'📰',macro:'🏛️',sentiment:'🌡️',institution:'🏦',derivatives:'📊',defi:'💧',prediction:'🎯',default:'🔍'};
+const METRIC_META={
+  rsi_14:{label:'RSI 14',format:'number'},atr_pct:{label:'ATR',format:'percent'},bollinger_bandwidth:{label:'布林帶寬',format:'percent'},adx:{label:'ADX',format:'number'},volume_zscore:{label:'成交量 Z-score',format:'number'},realized_vol:{label:'實現波動率',format:'percent'},range_ratio:{label:'價格區間',format:'percent'},correlation:{label:'相關係數',format:'number'},
+  funding_rate:{label:'資金費率',format:'ratioPercent'},open_interest_usd:{label:'未平倉量',format:'usd'},open_interest_qty:{label:'未平倉數量',format:'compact'},mark_price:{label:'標記價格',format:'usd'},index_price:{label:'指數價格',format:'usd'},long_short_ratio:{label:'多空帳戶比',format:'ratio'},long_account:{label:'多頭帳戶',format:'ratioPercent'},short_account:{label:'空頭帳戶',format:'ratioPercent'},taker_buy_sell_ratio:{label:'主動買賣比',format:'ratio'},dvol:{label:'DVOL',format:'number'},options_oi:{label:'選擇權 OI',format:'compact'},put_oi:{label:'Put OI',format:'compact'},call_oi:{label:'Call OI',format:'compact'},put_call_ratio:{label:'Put / Call',format:'ratio'},
+  current_index:{label:'恐懼貪婪指數',format:'integer'},current_value:{label:'恐懼貪婪指數',format:'integer'},value_change:{label:'情緒變化',format:'signed'},oldest_index:{label:'期初情緒',format:'integer'},
+  total_tvl_usd:{label:'DeFi TVL',format:'usd'},stablecoin_total_supply_usd:{label:'穩定幣供給',format:'usd'},stablecoin_7d_change_pct:{label:'穩定幣 7日變化',format:'signedPercent'},commit_count_4w:{label:'4週提交',format:'integer'},
+  noncommercial_long:{label:'投機多單',format:'compact'},noncommercial_short:{label:'投機空單',format:'compact'},commercial_long:{label:'商業多單',format:'compact'},commercial_short:{label:'商業空單',format:'compact'},net_speculative:{label:'投機淨部位',format:'signedCompact'},net_commercial:{label:'商業淨部位',format:'signedCompact'},
+  total_market_cap_usd:{label:'市場總市值',format:'usd'},bid_depth_2pct:{label:'買方 ±2% 深度',format:'compact'},ask_depth_2pct:{label:'賣方 ±2% 深度',format:'compact'},best_bid:{label:'最佳買價',format:'usd'},best_ask:{label:'最佳賣價',format:'usd'},
+  rows:{label:'OHLCV 筆數',format:'integer'},total_count:{label:'新聞筆數',format:'integer'},total_events_found:{label:'預測事件',format:'integer'},total_filings:{label:'監管文件',format:'integer'}
+};
+const TRACE_KEYS=new Set(['endpoint','api_endpoint','endpoints_called','query_params','query_range','query_time_range','range','lookback_days','fetched_at','elapsed_ms','source_name','symbol','pair','repo','report_date','fred_series_ids','metrics_retrieved','depth_limit','next_funding_time']);
 
+function toNumber(value){if(typeof value==='number')return Number.isFinite(value)?value:null;if(typeof value!=='string')return null;const n=Number(value.replace(/[$,%\s,]/g,''));return Number.isFinite(n)?n:null}
+function compactNumber(value){const n=toNumber(value);if(n===null)return String(value??'--');return new Intl.NumberFormat('zh-TW',{notation:Math.abs(n)>=1000?'compact':'standard',maximumFractionDigits:2}).format(n)}
+function metricLabel(key){if(METRIC_META[key])return METRIC_META[key].label;return String(key).replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}
+function formatMetricValue(key,value){
+  if(value===null||value===undefined||value==='')return'--';
+  const raw=String(value),n=toNumber(value),format=METRIC_META[key]?.format||'auto';
+  if(n===null)return raw.length>30?raw.slice(0,27)+'…':raw;
+  if(raw.includes('%')&&['auto','number'].includes(format))return raw;
+  if(format==='usd')return'$'+compactNumber(n);
+  if(format==='compact')return compactNumber(n);
+  if(format==='signedCompact')return(n>0?'+':'')+compactNumber(n);
+  if(format==='integer')return Math.round(n).toLocaleString('zh-TW');
+  if(format==='percent')return n.toFixed(Math.abs(n)<10?2:1).replace(/\.0+$/,'')+'%';
+  if(format==='signedPercent')return(n>0?'+':'')+n.toFixed(2).replace(/\.00$/,'')+'%';
+  if(format==='ratioPercent'){const p=Math.abs(n)<=1?n*100:n;return(n>0?'+':'')+p.toFixed(4).replace(/0+$/,'').replace(/\.$/,'')+'%'}
+  if(format==='ratio')return n.toFixed(3).replace(/0+$/,'').replace(/\.$/,'');
+  if(format==='signed')return(n>0?'+':'')+n.toFixed(1).replace(/\.0$/,'');
+  return n.toLocaleString('zh-TW',{maximumFractionDigits:4});
+}
+function metricState(key,value,extra={}){
+  const n=toNumber(value);if(n===null)return{label:'',cls:''};
+  if(key==='rsi_14')return n>=70?{label:'超買區',cls:'warning'}:n<=30?{label:'超賣區',cls:'warning'}:{label:'中性',cls:''};
+  if(key==='adx')return n>=25?{label:'趨勢明顯',cls:'positive'}:{label:'趨勢偏弱',cls:''};
+  if(key==='funding_rate')return n>0?{label:'多頭付費',cls:'warning'}:n<0?{label:'空頭付費',cls:'positive'}:{label:'資金平衡',cls:''};
+  if(['long_short_ratio','taker_buy_sell_ratio'].includes(key))return n>1.05?{label:'偏多',cls:'positive'}:n<.95?{label:'偏空',cls:'negative'}:{label:'平衡',cls:''};
+  if(key==='put_call_ratio')return n>1?{label:'防禦偏高',cls:'warning'}:n<.7?{label:'偏多預期',cls:'positive'}:{label:'中性',cls:''};
+  if(['current_index','current_value'].includes(key))return n>=75?{label:'極度貪婪',cls:'warning'}:n>=55?{label:'貪婪',cls:'warning'}:n<=25?{label:'極度恐慌',cls:'negative'}:n<=45?{label:'恐慌',cls:'negative'}:{label:'中性',cls:''};
+  if(['value_change','stablecoin_7d_change_pct','net_speculative'].includes(key))return n>0?{label:'上升',cls:'positive'}:n<0?{label:'下降',cls:'negative'}:{label:'持平',cls:''};
+  if(extra.percentile!==undefined&&extra.percentile!==null){const p=toNumber(extra.percentile);return p>=80?{label:`歷史 P${Math.round(p)} 高位`,cls:'warning'}:p<=20?{label:`歷史 P${Math.round(p)} 低位`,cls:'warning'}:{label:`歷史 P${Math.round(p)}`,cls:''}}
+  return{label:'',cls:''};
+}
+function collectMetricEntries(cr){
+  if(!cr||typeof cr!=='object'||Array.isArray(cr))return[];
+  const result=[],seen=new Set();
+  const push=(key,value,extra={})=>{if(value===null||value===undefined||typeof value==='object'||seen.has(key))return;if(!METRIC_META[key]&&!extra.force)return;seen.add(key);result.push({key,label:extra.label||metricLabel(key),value,formatted:formatMetricValue(key,value),percentile:extra.percentile,range:extra.range,state:metricState(key,value,extra)})};
+  Object.entries(cr).forEach(([key,value])=>push(key,value));
+  Object.entries(cr.indicators||{}).forEach(([key,item])=>{if(item&&typeof item==='object')push(key,item.value,{percentile:item.percentile,force:true})});
+  Object.entries(cr.indicators_summary||{}).forEach(([key,item])=>{if(item&&typeof item==='object'){push(key,item.latest_value,{label:metricLabel(key),force:true});push(`${key}_change_pct`,item.change_pct,{label:`${metricLabel(key)} 期間變化`,force:true})}});
+  Object.entries(cr.metric_values||{}).forEach(([key,item])=>{if(item&&typeof item==='object')push(key,item.latest,{label:metricLabel(key),range:{min:item.min_30d,max:item.max_30d,avg:item.avg_30d},force:true})});
+  Object.entries(cr.dominance||{}).sort((a,b)=>(toNumber(b[1])||0)-(toNumber(a[1])||0)).slice(0,4).forEach(([key,value])=>push(`${key}_dominance`,value,{label:`${key.toUpperCase()} 市佔`,force:true}));
+  return result;
+}
+function normalizeEvidenceReference(cr,ev={}){
+  const ref=cr&&typeof cr==='object'&&!Array.isArray(cr)?cr:{};
+  let kind='trace';
+  if(Array.isArray(ref.items))kind='news';else if(ref.current_index!==undefined||ref.current_value!==undefined&&ref.classification)kind='sentiment';else if(ref.indicators)kind='quant';else if(ref.indicators_summary)kind='macro';else if(ref.metric_values)kind='coinmetrics';else if(Array.isArray(ref.events))kind='prediction';else if(Array.isArray(ref.top_filings))kind='sec';else if(ref.chain_tvl_breakdown||ref.total_tvl_usd!==undefined)kind='defi';else if(ref.repo||ref.commit_count_4w!==undefined)kind='github';else if(ref.net_speculative!==undefined||ref.noncommercial_long!==undefined)kind='cftc';else if(ref.funding_rate!==undefined||ref.put_call_ratio!==undefined||ref.dvol!==undefined)kind='derivatives';else if(ref.bid_depth_2pct!==undefined)kind='orderbook';else if(ref.dominance)kind='dominance';else if(ref.positive_pct!==undefined)kind='sentimentDistribution';else if(ref.bollinger_bandwidth!==undefined||ref.rsi_14!==undefined)kind='technical';else if(Array.isArray(ref.series)||Array.isArray(ref.observations))kind='series';
+  return{kind,ref,metrics:collectMetricEntries(ref),trace:Object.entries(ref).filter(([key,value])=>TRACE_KEYS.has(key)&&value!==null&&value!==undefined)};
+}
 const DEMO_DATA={run_id:"demo_run_20260801",report_text:`# BTC 當前市場狀況與判斷\n\n## 市場判斷\n\n市場判斷：高波動蓄勢，短期傾向向上突破。根據近30日實現波動率（annualized 68%）與布林帶收窄至近兩個月最低值，價格正處於壓縮釋放週期的蓄力階段。\n\n## 關鍵依據\n\n1. **價格與技術面** [EV-a1b2c3d4e5f6]：30日實現波動率年化68%，布林帶寬度收窄至3.2%，RSI 處於55中性偏多區間。當前價格 $104,250。\n\n2. **鏈上活躍度** [EV-b2c3d4e5f6a7]：根據近期鏈上大戶異動，巨鯨地址（>1000 BTC）過去7日淨流入 12,340 BTC，交易所餘額持續下降，顯示囤幣意願增強。\n\n3. **新聞情緒** [EV-c3d4e5f6a7b8]：CryptoPanic 近7日新聞情緒偏多（正面62%、中性28%、負面10%），主要驅動為 ETF 資金持續淨流入及機構配置消息。\n\n4. **總經環境** [EV-d4e5f6a7b8c9]：FRED 數據表明美國10年期公債殖利率持續回落至4.12%，DXY走弱至101.3，流動性環境對風險資產有利。\n\n5. **社群熱度** [EV-e5f6a7b8c9d0]：Fear & Greed Index 當前為72（貪婪），較上週65上升。社群討論熱度提升但尚未進入極度貪婪區間。\n\n## 信心說明\n\n整體信心：72%\n\n本次分析覆蓋價格充分、鏈上數據完整、新聞豐富，總經資料有限，社群熱度指標來源單一。\n\n**已知限制：**\n- 總經數據不足：缺乏就業數據與CPI最新公布值\n- 社群指標缺乏粒度：無法區分散戶vs機構情緒\n\n**矛盾信號：**\n- 鏈上囤幣意願強 vs. Fear & Greed已偏高，後者暗示短期回調風險\n`,evidence_list:[
 {evidence_id:"a1b2c3d4e5f6",source:"https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=30",fetched_at:"2026-08-01T11:45:22Z",content_reference:{symbol:"BTCUSDT",interval:"1d",close_latest:"104250.00",volatility_30d:"68%",bollinger_bandwidth:"3.2%",rsi_14:"55"},related_claim:"BTC 30日波動率偏高且布林帶收窄，處於蓄力階段"},
 {evidence_id:"b2c3d4e5f6a7",source:"https://mempool.space/api/v1/mining/pools/1w",fetched_at:"2026-08-01T11:46:05Z",content_reference:{whale_net_inflow_7d:"12340 BTC",exchange_balance_change:"-8200 BTC",active_addresses_7d_avg:"925000"},related_claim:"鏈上大戶異動顯示囤幣意願增強"},
@@ -294,27 +384,21 @@ function renderDashboard(data,req){
   document.getElementById('loading').style.display='none';
   document.getElementById('submit').disabled=false;
   const report=data.report_text||'';
-  evidenceList=data.evidence_list||[];
-  // Header
+  evidenceList=Array.isArray(data.evidence_list)?data.evidence_list:[];
   document.getElementById('dash-header').style.display='flex';
   document.getElementById('hdr-run-id').textContent='Run: '+(data.run_id||'--');
   document.getElementById('hdr-time').textContent=new Date().toISOString().slice(0,19).replace('T',' ')+' UTC';
-  // Hero
   document.getElementById('hero-topic').textContent=req.symbols.join(' / ')+' 分析報告';
   document.getElementById('hero-title').textContent=req.question.length>55?req.question.slice(0,52)+'…':req.question;
   const cm=report.match(/(?:市場判斷|結論)[：:]\s*(.+)/i);
   document.getElementById('hero-conclusion').textContent=cm?cm[1].slice(0,80):'分析完成 — 詳見下方報告';
-  // Metrics
   fillMetrics(report);
-  // Confidence gauge
-  renderConfGauge(report);
-  // Radar
-  const scores=calcConfidence(report);
+  const scores=calcConfidence();
+  renderConfGauge(report,scores);
   drawRadar(scores);
   fillWarnings(scores,report);
-  // Evidence
   renderReportWithCards(report);
-  // Downloads
+  bindContradictionInteractions();
   if(data.evidence_download_url)document.getElementById('dl-evidence').href=data.evidence_download_url;
   if(data.log_download_url)document.getElementById('dl-log').href=data.log_download_url;
   document.getElementById('dashboard').style.display='block';
@@ -329,19 +413,59 @@ function fillMetrics(t){
   else{chEl.textContent='--';chEl.className='dc-value'}
 }
 
-function renderConfGauge(t){
-  const cfm=t.match(/信心[^\d]{0,6}(\d+)/)||t.match(/confidence[：:]\s*(\d+)/i);
-  const pct=cfm?parseInt(cfm[1]):50;
-  const circ=175.9;
-  const offset=circ-(circ*pct/100);
-  document.getElementById('conf-ring-fg').style.strokeDashoffset=offset;
+function confidenceTier(pct){if(pct>=80)return{label:'高信心',color:'var(--green)'};if(pct>=65)return{label:'中高信心',color:'var(--accent)'};if(pct>=45)return{label:'中等信心',color:'#f59e0b'};return{label:'低信心',color:'var(--red)'}}
+function renderConfGauge(report,scores){
+  const reported=report.match(/信心[^\d]{0,8}(\d+)/)||report.match(/confidence[：:]\s*(\d+)/i);
+  const evidencePct=evidenceList.length?Math.round(scores.reduce((sum,value)=>sum+value,0)/scores.length):null;
+  const pct=Math.max(0,Math.min(100,evidencePct??(reported?parseInt(reported[1]):0)));
+  const tier=confidenceTier(pct),circ=175.9;
+  document.getElementById('conf-ring-fg').style.strokeDashoffset=circ-(circ*pct/100);
+  document.getElementById('conf-ring-fg').style.stroke=tier.color;
   document.getElementById('conf-pct').textContent=pct+'%';
+  document.getElementById('conf-pct').style.color=tier.color;
+  document.querySelector('#conf-gauge .conf-label').innerHTML=`<span class="conf-tier">${tier.label}</span><span class="conf-basis">${evidenceList.length?'依證據覆蓋、完整度與新鮮度':'依報告標示；尚無證據品質分數'}</span>`;
 }
 
 // ====== RADAR ======
-function calcConfidence(t){
-  const dims=['價格','鏈上','新聞','總經','社群'];const s=[65,50,55,40,50];
-  dims.forEach((d,i)=>{if(new RegExp(d+'[^。]{0,20}(充[分足]|豐富|大量|完整|強烈|明確)').test(t))s[i]=Math.min(95,s[i]+28);if(new RegExp(d+'[^。]{0,20}(不足|缺乏|有限|無法|缺少)').test(t))s[i]=Math.max(10,s[i]-28)});return s;
+function evidenceDimension(ev){
+  const normalized=normalizeEvidenceReference(ev?.content_reference,ev),kind=normalized.kind;
+  if(['quant','derivatives','orderbook','dominance','technical','series'].includes(kind))return'price';
+  if(['coinmetrics','defi','github'].includes(kind))return'chain';
+  if(kind==='news')return'news';
+  if(['macro','cftc','sec'].includes(kind))return'macro';
+  if(['sentiment','sentimentDistribution','prediction'].includes(kind))return'sentiment';
+  const text=`${ev?.source||''} ${ev?.related_claim||''}`.toLowerCase();
+  if(/binance|coingecko|ohlcv|price|quant|technical|deribit|hyperliquid|價格|技術|衍生品/.test(text))return'price';
+  if(/mempool|etherscan|blockscout|helius|xrpl|onchain|defi|chain|鏈上/.test(text))return'chain';
+  if(/news|rss|cryptopanic|coindesk|新聞|公告/.test(text))return'news';
+  if(/fred|macro|stlouisfed|cftc|sec|總經|利率|監管|機構/.test(text))return'macro';
+  if(/alternative\.me|fear|greed|sentiment|polymarket|社群|情緒|預測/.test(text))return'sentiment';
+  return'other';
+}
+function referenceCompleteness(cr){
+  if(!cr||typeof cr!=='object'||Array.isArray(cr)||!Object.keys(cr).length)return 0;
+  const normalized=normalizeEvidenceReference(cr),keys=Object.keys(cr);
+  const trace=normalized.trace.length?Math.min(1,normalized.trace.length/2):0;
+  const metrics=normalized.metrics.length?Math.min(1,normalized.metrics.length/3):0;
+  const lists=['items','events','top_filings'].some(key=>Array.isArray(cr[key])&&cr[key].length)||Object.keys(cr.metric_values||{}).length||Object.keys(cr.chain_tvl_breakdown||{}).length?1:0;
+  const scalar=Math.min(1,keys.filter(key=>cr[key]!==null&&typeof cr[key]!=='object').length/4);
+  return Math.min(1,trace*.3+metrics*.35+lists*.2+scalar*.15);
+}
+function evidenceFreshness(value){
+  const ts=Date.parse(value||'');if(!Number.isFinite(ts))return .3;
+  const age=Math.max(0,(Date.now()-ts)/86400000);
+  if(age<=1)return 1;if(age<=7)return .85;if(age<=30)return .65;if(age<=90)return .45;return .25;
+}
+function calcConfidence(){
+  const dimensions=['price','chain','news','macro','sentiment'];
+  return dimensions.map(dimension=>{
+    const records=evidenceList.filter(ev=>evidenceDimension(ev)===dimension);
+    if(!records.length)return 10;
+    const quality=records.reduce((sum,ev)=>sum+referenceCompleteness(ev.content_reference),0)/records.length;
+    const freshness=records.reduce((sum,ev)=>sum+evidenceFreshness(ev.fetched_at),0)/records.length;
+    const sources=new Set(records.map(ev=>getSourceName(ev.source))).size;
+    return Math.round(Math.min(95,12+Math.min(25,records.length*8)+quality*38+freshness*15+Math.min(10,sources*3)));
+  });
 }
 function drawRadar(scores){
   const cv=document.getElementById('radar-canvas'),ctx=cv.getContext('2d');
@@ -352,18 +476,42 @@ function drawRadar(scores){
   ctx.beginPath();for(let i=0;i<=n;i++){const idx=i%n;const a=Math.PI*2*idx/n-Math.PI/2;const v=scores[idx]/100;const x=cx+R*v*Math.cos(a),y=cy+R*v*Math.sin(a);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.fillStyle='rgba(243,112,33,0.3)';ctx.fill();ctx.strokeStyle='rgba(243,112,33,0.85)';ctx.lineWidth=2;ctx.stroke();
   for(let i=0;i<n;i++){const a=Math.PI*2*i/n-Math.PI/2;const v=scores[i]/100;const x=cx+R*v*Math.cos(a),y=cy+R*v*Math.sin(a);ctx.beginPath();ctx.arc(x,y,scores[i]>75?5:3,0,Math.PI*2);ctx.fillStyle=scores[i]>75?'#f37021':'rgba(243,112,33,0.55)';ctx.fill();const lx=cx+(R+18)*Math.cos(a),ly=cy+(R+18)*Math.sin(a);ctx.font='12px Noto Sans TC';ctx.fillStyle='#a1a1aa';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(labels[i],lx,ly)}
 }
+function inferDimensionFromText(text){
+  const value=String(text||'').toLowerCase(),matches=[];
+  if(/價格|技術|波動|rsi|布林|成交量|多空|資金費率|衍生品/.test(value))matches.push('price');
+  if(/鏈上|巨鯨|地址|交易所餘額|tvl|穩定幣|協議/.test(value))matches.push('chain');
+  if(/新聞|公告|媒體|消息|etf/.test(value))matches.push('news');
+  if(/總經|利率|美元|dxy|公債|fed|cpi|監管|機構/.test(value))matches.push('macro');
+  if(/情緒|社群|恐慌|貪婪|預測市場|fear|greed/.test(value))matches.push('sentiment');
+  return matches.length?matches.join(','):'other';
+}
 function fillWarnings(scores,report){
-  const labels=['價格走勢','鏈上活躍度','新聞情緒','總經政策','社群熱度'];
+  const labels=['價格走勢','鏈上活躍度','新聞品質','總經政策','市場情緒'];
   const box=document.getElementById('radar-notes');box.innerHTML='';
-  const mx=Math.max(...scores),mn=Math.min(...scores);
-  if(mx-mn>35){const low=labels.filter((_,i)=>scores[i]<40),high=labels.filter((_,i)=>scores[i]>75);if(low.length)box.innerHTML+=`<div class="warn-pill"><span class="wi">&#9888;</span><span>不確定性：「${low.join('、')}」維度資料覆蓋不足。</span></div>`;if(high.length&&low.length)box.innerHTML+=`<div class="warn-pill"><span class="wi">&#9888;</span><span>信號偏斜：「${high.join('、')}」顯著高於其他維度。</span></div>`}
-  if(!box.innerHTML)box.innerHTML='<div class="warn-pill"><span class="wi">&#10003;</span><span>各維度覆蓋均衡，無重大偏斜。</span></div>';
-  // Contradiction panel
-  const contraMatch=report.match(/矛盾信號[：:]([\s\S]*?)(?=\n#|\n\*\*|$)/i);
+  const covered=scores.filter(score=>score>10).length;
+  box.innerHTML=`<div class="warn-pill"><span class="wi">◎</span><span>證據品質雷達涵蓋 <strong>${covered}/5</strong> 維度；分數綜合來源數、content_reference 完整度與抓取新鮮度。</span></div>`;
+  const low=labels.filter((_,i)=>scores[i]<45),high=labels.filter((_,i)=>scores[i]>=75);
+  if(low.length)box.innerHTML+=`<div class="warn-pill"><span class="wi">&#9888;</span><span>資料缺口：「${low.join('、')}」覆蓋或可重現細節不足，應降低結論權重。</span></div>`;
+  if(high.length&&low.length)box.innerHTML+=`<div class="warn-pill"><span class="wi">↔</span><span>信號偏斜：「${high.join('、')}」品質高於缺口維度，不代表市場方向一致。</span></div>`;
+  const contraMatch=report.match(/\*{0,2}矛盾信號[：:]?\*{0,2}[：:]?([\s\S]*?)(?=\n#{1,3}\s|\n\*\*[^*]+[：:]?\*\*|$)/i);
   if(contraMatch){
-    const items=contraMatch[1].trim().split(/\n-\s*/).filter(Boolean);
-    if(items.length){let html='<div class="contradiction-panel"><div class="cp-title">⚠️ 矛盾信號</div>';items.forEach(it=>html+=`<div class="cp-item">${it.trim()}</div>`);html+='</div>';box.innerHTML+=html}
+    const items=contraMatch[1].trim().split(/\n\s*[-•]\s*/).map(item=>item.replace(/^[-•]\s*/, '').trim()).filter(Boolean);
+    if(items.length){let html='<div class="contradiction-panel"><div class="cp-title">⚠️ 矛盾信號交叉檢視</div>';items.forEach(item=>{const dimension=inferDimensionFromText(item);html+=`<div class="cp-item" role="button" tabindex="0" data-dimension="${dimension}">${escapeHtml(item)}<span class="cp-link">依文字關鍵詞連動 · 點擊聚焦相關證據</span></div>`});html+='</div>';box.innerHTML+=html}
   }
+}
+function highlightEvidenceDimension(dimension,openFirst=false){
+  const dimensions=String(dimension||'').split(',').filter(Boolean),cards=[...document.querySelectorAll('.ev-item')],matched=cards.filter(card=>dimensions.includes(card.dataset.dimension));
+  cards.forEach(card=>{card.classList.toggle('dim-highlight',matched.includes(card));card.classList.toggle('dim-muted',matched.length&&!matched.includes(card))});
+  if(openFirst&&matched.length){const idx=parseInt(matched[0].dataset.idx)||0;showEvViz(idx);matched[0].scrollIntoView({behavior:'smooth',block:'center'})}
+  window.setTimeout(()=>cards.forEach(card=>card.classList.remove('dim-highlight','dim-muted')),3200);
+}
+function bindContradictionInteractions(){
+  document.querySelectorAll('.cp-item').forEach(item=>{
+    const activate=()=>highlightEvidenceDimension(item.dataset.dimension,true);
+    item.addEventListener('click',activate);
+    item.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();activate()}});
+    item.addEventListener('mouseenter',()=>highlightEvidenceDimension(item.dataset.dimension,false));
+  });
 }
 
 // ====== REPORT WITH TIMELINE CARDS ======
@@ -392,52 +540,54 @@ function renderReportWithCards(reportText){
   });
   document.getElementById('report-col').innerHTML=html;
   // Bind cite button clicks
-  document.querySelectorAll('.cite-btn').forEach(el=>{el.addEventListener('click',()=>showEvViz(parseInt(el.dataset.idx)||0))});
+  document.querySelectorAll('.cite-btn').forEach(el=>{const activate=()=>showEvViz(parseInt(el.dataset.idx)||0);el.addEventListener('click',event=>{event.stopPropagation();activate()});el.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();activate()}})});
   document.querySelectorAll('.ev-item').forEach(el=>{el.addEventListener('click',()=>showEvViz(parseInt(el.dataset.idx)||0))});
 }
 
 function renderEvidenceTimelineCard(ev,idx){
-  const category=getEvidenceCategory(ev);
+  const category=getEvidenceCategory(ev),dimension=evidenceDimension(ev);
   const claim=String(ev.related_claim||'此證據尚未提供對應判斷');
-  const signal=getSignal(claim);
-  const evidenceId=String(ev.evidence_id||`evidence-${idx+1}`);
+  const signal=getSignal(claim),evidenceId=String(ev.evidence_id||`evidence-${idx+1}`);
   const tip=`${getSourceName(ev.source)} | ${ev.fetched_at||'--'}`;
-  return `<div class="ev-item" data-idx="${idx}">
+  return `<div class="ev-item" data-idx="${idx}" data-dimension="${dimension}">
     <div class="ev-icon">${getIcon(category)}</div>
     <div class="ev-body">
-      <div class="ev-text"><strong>${escapeHtml(category)}</strong>｜${cleanText(escapeHtml(claim))}${extractEvidenceBadges(ev.content_reference)}</div>
-      <div class="ev-footer"><span class="cite-btn" data-idx="${idx}" data-tip="${escapeHtml(tip)}"><span class="cite-icon">🔍</span> ${escapeHtml(evidenceId.slice(0,8))}</span></div>
+      <div class="ev-text"><strong>${escapeHtml(category)}</strong>｜${cleanText(escapeHtml(claim))}${extractEvidenceBadges(ev.content_reference,ev)}</div>
+      <div class="ev-footer"><span class="cite-btn" role="button" tabindex="0" data-idx="${idx}" data-tip="${escapeHtml(tip)}"><span class="cite-icon">🔍</span> ${escapeHtml(evidenceId.slice(0,8))}</span></div>
     </div>
     <span class="signal-arrow ${signal.cls}">${signal.icon}</span>
   </div>`;
 }
 function getEvidenceCategory(ev){
-  const text=`${ev.source||''} ${ev.related_claim||''}`.toLowerCase();
-  if(/binance|coingecko|ohlcv|price|quant|technical|價格|技術/.test(text))return'價格與技術面';
-  if(/mempool|etherscan|blockscout|helius|xrpl|onchain|鏈上/.test(text))return'鏈上活躍度';
-  if(/news|rss|cryptopanic|新聞|公告/.test(text))return'新聞情緒';
-  if(/fred|macro|stlouisfed|總經|利率/.test(text))return'總經環境';
-  if(/alternative\.me|fear|greed|sentiment|社群|情緒/.test(text))return'社群熱度';
-  return'交叉驗證';
+  const kind=normalizeEvidenceReference(ev?.content_reference,ev).kind;
+  if(kind==='derivatives')return'衍生品與槓桿';
+  if(['cftc','sec'].includes(kind))return'機構與監管';
+  if(kind==='defi')return'DeFi 流動性';
+  if(kind==='github')return'開發生態';
+  if(kind==='coinmetrics')return'鏈上指標';
+  if(kind==='prediction')return'預測市場';
+  if(kind==='news')return'新聞與公告';
+  if(kind==='macro')return'總經環境';
+  if(['sentiment','sentimentDistribution'].includes(kind))return'市場情緒';
+  if(['quant','technical','orderbook','dominance','series'].includes(kind))return'價格與技術面';
+  const dimension=evidenceDimension(ev);
+  return({price:'價格與技術面',chain:'鏈上活躍度',news:'新聞與公告',macro:'總經與機構',sentiment:'市場情緒'})[dimension]||'交叉驗證';
 }
-function extractEvidenceBadges(contentReference){
-  if(!contentReference||typeof contentReference!=='object')return'';
-  const badges=[];
-  Object.entries(contentReference).some(([key,value])=>{
-    if(value===null||typeof value==='object')return false;
-    const text=String(value);
-    if(text.length>24)return false;
-    badges.push(`<span class="data-badge">${escapeHtml(key.replaceAll('_',' '))} ${escapeHtml(text)}</span>`);
-    return badges.length>=3;
-  });
-  return badges.length?' '+badges.join(' '):'';
+function extractEvidenceBadges(contentReference,ev={}){
+  const metrics=normalizeEvidenceReference(contentReference,ev).metrics.slice(0,4);
+  if(!metrics.length)return'';
+  return' '+metrics.map(metric=>`<span class="data-badge ${metric.state.cls?`state-${metric.state.cls}`:''}">${escapeHtml(metric.label)} ${escapeHtml(metric.formatted)}${metric.state.label?` <span class="badge-state">${escapeHtml(metric.state.label)}</span>`:''}</span>`).join(' ');
 }
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]))}
 
 function getIcon(cat){
+  if(/衍生品|槓桿/.test(cat))return ICONS.derivatives;
+  if(/機構|監管/.test(cat))return ICONS.institution;
+  if(/DeFi|流動性/.test(cat))return ICONS.defi;
+  if(/預測/.test(cat))return ICONS.prediction;
   if(/價格|技術/.test(cat))return ICONS.price;
-  if(/鏈上/.test(cat))return ICONS.chain;
-  if(/新聞/.test(cat))return ICONS.news;
+  if(/鏈上|生態|開發/.test(cat))return ICONS.chain;
+  if(/新聞|公告/.test(cat))return ICONS.news;
   if(/總經/.test(cat))return ICONS.macro;
   if(/社群|情緒/.test(cat))return ICONS.sentiment;
   return ICONS.default;
@@ -454,7 +604,8 @@ function extractBadges(text){
   return badges.length?' '+badges.join(' '):'';
 }
 function cleanText(t){return t.replace(/[\d\.]+%/g,m=>`<strong style="color:var(--accent)">${m}</strong>`).replace(/\$[\d,\.]+/g,m=>`<strong style="color:var(--accent)">${m}</strong>`).trim()}
-function getSourceName(url){if(!url)return'--';try{return new URL(url).hostname.replace('api.','')}catch(e){return url.slice(0,30)}}
+function safeExternalUrl(value){try{const url=new URL(String(value));return['http:','https:'].includes(url.protocol)?url.href:null}catch(e){return null}}
+function getSourceName(url){if(!url)return'--';try{return new URL(url).hostname.replace(/^api\./,'')}catch(e){return String(url).slice(0,38)}}
 
 // ====== EVIDENCE VISUALIZATION (Right Panel) ======
 function showEvViz(i){
@@ -463,73 +614,111 @@ function showEvViz(i){
   panel.innerHTML='<div class="ev-loading"><span class="mini-spin"></span><span>載入證據…</span></div>';
   setTimeout(()=>{
     if(!evidenceList.length){panel.innerHTML='<p class="ep-hint">尚無證據。</p>';return}
-    const ev=evidenceList[Math.min(i,evidenceList.length-1)];
-    const src=ev.source||'';
-    const srcName=getSourceName(src);
-    const isUrl=src.startsWith('http');
-    const cr=ev.content_reference||{};
-    // Build header
-    let html=`<div class="ev-card"><div class="ec-header"><span class="ec-source-name">${srcName}</span>${isUrl?`<a class="ec-source-link" href="${src}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>查證</a>`:''}</div>`;
-    // Fetched at
-    html+=`<div class="ec-field"><span class="ec-label">抓取時間</span>${ev.fetched_at||'--'}</div>`;
-    // Dynamic viz based on content type
-    html+=renderContentViz(cr,srcName);
-    // Related claim
-    html+=`<div class="ec-field"><span class="ec-label">驗證主張</span>${ev.related_claim||'--'}</div>`;
-    html+='</div>';
+    const ev=evidenceList[Math.min(i,evidenceList.length-1)],src=String(ev.source||''),srcName=getSourceName(src),safeLink=safeExternalUrl(src);
+    const cr=ev.content_reference||{},normalized=normalizeEvidenceReference(cr,ev);
+    let html=`<div class="ev-card"><div class="ec-header"><span class="ec-source-name">${escapeHtml(srcName)}</span>${safeLink?`<a class="ec-source-link" href="${escapeHtml(safeLink)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>開啟來源</a>`:''}</div>`;
+    html+=`<div class="ec-field"><span class="ec-label">抓取時間（UTC）</span>${escapeHtml(ev.fetched_at||'--')}</div>`;
+    html+=renderContentViz(normalized);
+    html+=`<div class="ec-field"><span class="ec-label">驗證主張</span>${escapeHtml(ev.related_claim||'--')}</div></div>`;
     panel.innerHTML=html;
-    // Render any canvases
-    renderInlineCharts(panel,cr,srcName);
-  },200);
+    renderInlineCharts(panel,normalized);
+  },160);
 }
-
-function renderContentViz(cr,srcName){
-  if(typeof cr!=='object')return `<div class="ec-field"><span class="ec-label">內容摘要</span>${cr}</div>`;
-  // Sentiment type (has positive_pct)
-  if(cr.positive_pct!==undefined){
-    return `<div class="ec-field"><span class="ec-label">情緒分佈</span><div class="sentiment-viz"><canvas id="sent-donut" width="80" height="80"></canvas><div class="sv-legend"><span class="sv-pos">● 正面 ${cr.positive_pct}%</span><br><span class="sv-neu">● 中性 ${cr.neutral_pct||0}%</span><br><span class="sv-neg">● 負面 ${cr.negative_pct||0}%</span></div></div>${cr.top_headline?`<div class="sv-headline">"${cr.top_headline}"</div>`:''}</div>`;
-  }
-  // Technical type (has bollinger/rsi/volatility)
-  if(cr.bollinger_bandwidth||cr.volatility_30d||cr.rsi_14){
-    let h='<div class="ec-field"><span class="ec-label">技術指標</span>';
-    if(cr.volatility_30d){h+=`<div class="gauge-viz"><div class="gauge-value">${cr.volatility_30d}</div><div class="gauge-bar"><div class="gauge-fill" style="width:${parseInt(cr.volatility_30d)||50}%"></div></div><div class="gauge-label"><span>低波動</span><span>高波動</span></div></div>`}
-    if(cr.bollinger_bandwidth){h+=`<div class="gauge-viz"><div class="gauge-value">布林帶寬 ${cr.bollinger_bandwidth}</div><div class="gauge-bar"><div class="gauge-fill" style="width:${parseFloat(cr.bollinger_bandwidth)*10||30}%"></div></div><div class="gauge-label"><span>極窄(突破預警)</span><span>寬</span></div></div>`}
-    if(cr.rsi_14){h+=`<div class="gauge-viz"><div class="gauge-value">RSI ${cr.rsi_14}</div><div class="gauge-bar"><div class="gauge-fill" style="width:${parseInt(cr.rsi_14)||50}%"></div></div><div class="gauge-label"><span>超賣 30</span><span>超買 70</span></div></div>`}
-    h+='</div>';return h;
-  }
-  // Chain type
-  if(cr.whale_net_inflow_7d||cr.exchange_balance_change){
-    let h='<div class="ec-field"><span class="ec-label">鏈上數據</span>';
-    Object.entries(cr).forEach(([k,v])=>{h+=`<div style="display:flex;justify-content:space-between;padding:.2rem 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted);font-size:12px">${k}</span><span style="color:var(--accent);font-weight:600;font-size:13px">${v}</span></div>`});
-    h+='</div>';return h;
-  }
-  // Macro type
-  if(cr.series||cr.dxy_index){
-    let h='<div class="ec-field"><span class="ec-label">總經指標</span>';
-    Object.entries(cr).forEach(([k,v])=>{h+=`<div style="display:flex;justify-content:space-between;padding:.2rem 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted);font-size:12px">${k}</span><span style="color:var(--accent);font-weight:600;font-size:13px">${v}</span></div>`});
-    h+='</div>';return h;
-  }
-  // Fear & Greed
-  if(cr.current_value!==undefined&&cr.classification){
-    return `<div class="ec-field"><span class="ec-label">情緒指數</span><div class="gauge-viz"><div class="gauge-value">${cr.current_value} (${cr.classification})</div><div class="gauge-bar"><div class="gauge-fill" style="width:${cr.current_value}%"></div></div><div class="gauge-label"><span>0 極度恐慌</span><span>100 極度貪婪</span></div></div><div style="font-size:12px;color:var(--muted);margin-top:.3rem">上週：${cr.prev_week||'--'} | 趨勢：${cr.trend||'--'}</div></div>`;
-  }
-  // Fallback: pretty key-value
-  let h='<div class="ec-field"><span class="ec-label">內容摘要</span>';
-  Object.entries(cr).forEach(([k,v])=>{h+=`<div style="display:flex;justify-content:space-between;padding:.2rem 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted);font-size:12px">${k}</span><span style="font-size:13px">${v}</span></div>`});
-  h+='</div>';return h;
+function renderMetricGrid(metrics,title='關鍵數據'){
+  if(!metrics.length)return'';
+  return `<div class="viz-section"><div class="viz-title"><span>${escapeHtml(title)}</span><span class="viz-sub">真實 content_reference</span></div><div class="metric-grid">${metrics.slice(0,10).map(metric=>`<div class="metric-tile"><span class="mt-label">${escapeHtml(metric.label)}</span><span class="mt-value">${escapeHtml(metric.formatted)}</span>${metric.state.label?`<span class="mt-state">${escapeHtml(metric.state.label)}</span>`:''}</div>`).join('')}</div></div>`;
 }
-
-function renderInlineCharts(panel,cr,srcName){
-  // Sentiment donut
-  const donut=panel.querySelector('#sent-donut');
-  if(donut&&cr.positive_pct!==undefined){
-    const ctx=donut.getContext('2d');
-    const data=[cr.positive_pct,cr.neutral_pct||0,cr.negative_pct||0];
-    const colors=['#22c55e','#71717a','#ef4444'];
-    let start=-Math.PI/2;
-    data.forEach((d,i)=>{const angle=Math.PI*2*d/100;ctx.beginPath();ctx.moveTo(40,40);ctx.arc(40,40,35,start,start+angle);ctx.fillStyle=colors[i];ctx.fill();start+=angle});
-    ctx.beginPath();ctx.arc(40,40,20,0,Math.PI*2);ctx.fillStyle='#1a1a1f';ctx.fill();
-  }
+function traceValue(value){
+  if(Array.isArray(value))return value.slice(0,5).map(item=>typeof item==='object'?Object.keys(item).join('/'):String(item)).join('、');
+  if(value&&typeof value==='object')return Object.entries(value).slice(0,4).map(([key,item])=>`${key}=${typeof item==='object'?'…':item}`).join('、');
+  return String(value);
+}
+function renderTraceNote(normalized,message='此證據未在 content_reference 提供可直接繪圖的數值或時序；下列資訊可重現查詢，完整原始回應已封存於本次 run 的 raw 目錄。'){
+  const entries=normalized.trace.length?normalized.trace:Object.entries(normalized.ref).filter(([,value])=>value!==null&&value!==undefined).slice(0,5);
+  return `<div class="availability-note"><strong>資料可用性</strong>${escapeHtml(message)}${entries.length?`<div class="trace-tags">${entries.map(([key,value])=>`<span class="trace-tag">${escapeHtml(metricLabel(key))}: ${escapeHtml(traceValue(value).slice(0,70))}</span>`).join('')}</div>`:''}</div>`;
+}
+function renderCompareRows(rows,title){
+  const valid=rows.map(row=>({...row,n:toNumber(row.value)})).filter(row=>row.n!==null).map(row=>({...row,n:Math.abs(row.n)})),max=Math.max(1,...valid.map(row=>row.n));
+  if(!valid.length)return'';
+  return `<div class="viz-section"><div class="viz-title"><span>${escapeHtml(title)}</span></div>${valid.map((row,index)=>`<div class="compare-row"><span class="cr-label">${escapeHtml(row.label)}</span><div class="compare-track"><span class="compare-fill ${index%2?'alt':''}" style="width:${Math.max(2,row.n/max*100).toFixed(1)}%"></span></div><span class="compare-value">${escapeHtml(row.formatted||compactNumber(row.value))}</span></div>`).join('')}</div>`;
+}
+function renderRangeMetrics(metrics,title){
+  const ranged=metrics.filter(metric=>metric.range&&toNumber(metric.range.min)!==null&&toNumber(metric.range.max)!==null);
+  if(!ranged.length)return'';
+  return `<div class="viz-section"><div class="viz-title"><span>${escapeHtml(title)}</span><span class="viz-sub">30日區間，非推估時序</span></div>${ranged.map(metric=>{const min=toNumber(metric.range.min),max=toNumber(metric.range.max),current=toNumber(metric.value),avg=toNumber(metric.range.avg),span=max-min||1,pos=Math.max(0,Math.min(100,(current-min)/span*100)),avgPos=avg===null?null:Math.max(0,Math.min(100,(avg-min)/span*100));return `<div class="range-viz"><div class="range-head"><span>${escapeHtml(metric.label)}</span><span>${escapeHtml(metric.formatted)}</span></div><div class="range-track">${avgPos===null?'':`<span class="range-average" style="left:${avgPos}%" title="30日平均"></span>`}<span class="range-marker" style="left:${pos}%"></span></div><div class="range-labels"><span>${escapeHtml(compactNumber(min))}</span><span>平均 ${escapeHtml(compactNumber(avg))}</span><span>${escapeHtml(compactNumber(max))}</span></div></div>`}).join('')}</div>`;
+}
+function renderNewsItems(ref){
+  const items=Array.isArray(ref.items)?ref.items.slice(0,8):[];
+  if(!items.length)return renderTraceNote(normalizeEvidenceReference(ref),'新聞查詢完成，但 content_reference 未包含可顯示的新聞項目。');
+  return `<div class="viz-section"><div class="viz-title"><span>新聞與官方公告</span><span class="source-count"><b>${escapeHtml(ref.total_count??items.length)}</b> 筆</span></div><ul class="evidence-list">${items.map(item=>{const link=safeExternalUrl(item.url),title=escapeHtml(item.title||'未命名項目');return `<li>${link?`<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${title} ↗</a>`:title}<div class="list-meta"><span>${escapeHtml(item.published_at||'日期未提供')}</span><span>${escapeHtml(item.channel||'來源未分類')}</span></div></li>`}).join('')}</ul></div>`;
+}
+function renderSentiment(ref){
+  const value=toNumber(ref.current_index??ref.current_value),classification=ref.current_classification||ref.classification||'未分類',change=toNumber(ref.value_change??ref.trend);
+  if(value===null)return renderTraceNote(normalizeEvidenceReference(ref));
+  return `<div class="viz-section"><div class="viz-title"><span>Fear & Greed Index</span><span class="viz-sub">全市場指標</span></div><div class="gauge-viz"><div class="gauge-value">${escapeHtml(formatMetricValue('current_index',value))} · ${escapeHtml(classification)}</div><div class="gauge-bar"><div class="gauge-fill" style="width:${Math.max(0,Math.min(100,value))}%"></div></div><div class="gauge-label"><span>0 極度恐慌</span><span>100 極度貪婪</span></div></div>${change===null?'':`<div class="availability-note"><strong>期間變化</strong>${change>0?'+':''}${escapeHtml(change)} 點；查詢範圍 ${escapeHtml(ref.query_time_range||'未提供')}</div>`}</div>`;
+}
+function renderQuant(ref,metrics){
+  if(!metrics.length)return renderTraceNote(normalizeEvidenceReference(ref));
+  return `<div class="viz-section"><div class="viz-title"><span>${escapeHtml(ref.symbol||'')} 技術指標</span><span class="viz-sub">${escapeHtml(ref.window||'--')} 日視窗</span></div>${metrics.map(metric=>{const p=toNumber(metric.percentile),position=p===null?Math.max(0,Math.min(100,toNumber(metric.value)||0)):Math.max(0,Math.min(100,p));return `<div class="range-viz"><div class="range-head"><span>${escapeHtml(metric.label)}</span><span>${escapeHtml(metric.formatted)}${p===null?'':` · P${Math.round(p)}`}</span></div><div class="range-track"><span class="range-marker" style="left:${position}%"></span></div><div class="range-labels"><span>${p===null?'低':'P0'}</span><span>${escapeHtml(metric.state.label||'歷史位置')}</span><span>${p===null?'高':'P100'}</span></div></div>`}).join('')}</div>`;
+}
+function renderMacro(ref,metrics){
+  const entries=Object.entries(ref.indicators_summary||{});
+  if(!entries.length)return renderTraceNote(normalizeEvidenceReference(ref));
+  return `<div class="viz-section"><div class="viz-title"><span>FRED 總經指標</span><span class="viz-sub">${escapeHtml(ref.query_range||'')}</span></div>${entries.map(([key,item])=>{const change=toNumber(item.change_pct),width=Math.min(100,Math.abs(change||0)*10);return `<div class="range-viz"><div class="range-head"><span>${escapeHtml(metricLabel(key))} · ${escapeHtml(item.series_id||'')}</span><span>${escapeHtml(item.latest_value)} (${change>0?'+':''}${escapeHtml(item.change_pct)}%)</span></div><div class="compare-track"><span class="compare-fill ${change<0?'alt':''}" style="width:${Math.max(2,width)}%"></span></div><div class="range-labels"><span>${escapeHtml(item.latest_date||'')}</span><span>期間變化</span></div></div>`}).join('')}${ref.upcoming_events_count!==undefined?`<div class="availability-note"><strong>未來 30 天排定事件</strong>${escapeHtml(ref.upcoming_events_count)} 筆；事件明細保存在 raw payload。</div>`:''}</div>`;
+}
+function renderPrediction(ref){
+  const events=Array.isArray(ref.events)?ref.events.slice(0,8):[];
+  if(!events.length)return renderTraceNote(normalizeEvidenceReference(ref),'未找到可顯示的預測市場事件；不以缺值推估市場機率。');
+  return `<div class="viz-section"><div class="viz-title"><span>預測市場機率</span><span class="viz-sub">市場定價，非事實機率</span></div>${events.map(event=>{let probability=toNumber(event.outcome_price);if(probability===null)probability=0;if(probability<=1)probability*=100;probability=Math.max(0,Math.min(100,probability));return `<div class="range-viz"><div class="range-head"><span>${escapeHtml(event.title||event.slug||'未命名事件')}</span><span>${probability.toFixed(1)}%</span></div><div class="range-track"><span class="compare-fill" style="display:block;width:${probability}%"></span></div><div class="range-labels"><span>成交量 ${escapeHtml(compactNumber(event.volume_usd||0))}</span><span>流動性 ${escapeHtml(compactNumber(event.liquidity_usd||0))}</span></div></div>`}).join('')}</div>`;
+}
+function renderFilings(ref){
+  const filings=Array.isArray(ref.top_filings)?ref.top_filings.slice(0,8):[];
+  if(!filings.length)return renderTraceNote(normalizeEvidenceReference(ref));
+  return `<div class="viz-section"><div class="viz-title"><span>SEC 文件</span><span class="source-count"><b>${escapeHtml(ref.total_filings??filings.length)}</b> 筆</span></div><ul class="evidence-list">${filings.map(item=>`<li>${escapeHtml(item.title||item.entity_name||'未命名文件')}<div class="list-meta"><span>${escapeHtml(item.form_type||'')}</span><span>${escapeHtml(item.file_date||'')}</span><span>${escapeHtml(item.entity_name||'')}</span></div></li>`).join('')}</ul></div>`;
+}
+function objectBarRows(object){
+  return Object.entries(object||{}).map(([label,value])=>({label,value:typeof value==='object'?(value.tvl??value.value??value.total??0):value,formatted:typeof value==='object'?compactNumber(value.tvl??value.value??value.total??0):compactNumber(value)})).sort((a,b)=>(toNumber(b.value)||0)-(toNumber(a.value)||0)).slice(0,8);
+}
+function renderGenericFields(ref){
+  const fields=Object.entries(ref).filter(([key,value])=>!TRACE_KEYS.has(key)&&value!==null&&value!==undefined&&typeof value!=='object').slice(0,8);
+  if(!fields.length)return'';
+  return `<div class="viz-section"><div class="viz-title"><span>引用欄位</span></div><div class="metric-grid">${fields.map(([key,value])=>`<div class="metric-tile"><span class="mt-label">${escapeHtml(metricLabel(key))}</span><span class="mt-value">${escapeHtml(String(value).slice(0,40))}</span></div>`).join('')}</div></div>`;
+}
+function renderContentViz(normalized){
+  const {kind,ref,metrics}=normalized;
+  if(kind==='news')return renderNewsItems(ref);
+  if(kind==='sentiment')return renderSentiment(ref);
+  if(kind==='sentimentDistribution')return `<div class="viz-section"><div class="viz-title"><span>情緒分佈</span><span class="viz-sub">來源明示比例</span></div><div class="sentiment-viz"><canvas id="sent-donut" width="80" height="80"></canvas><div class="sv-legend"><span class="sv-pos">● 正面 ${escapeHtml(ref.positive_pct)}%</span><br><span class="sv-neu">● 中性 ${escapeHtml(ref.neutral_pct||0)}%</span><br><span class="sv-neg">● 負面 ${escapeHtml(ref.negative_pct||0)}%</span></div></div>${ref.top_headline?`<div class="sv-headline">「${escapeHtml(ref.top_headline)}」</div>`:''}</div>`;
+  if(kind==='quant')return renderQuant(ref,metrics);
+  if(kind==='macro')return renderMacro(ref,metrics);
+  if(kind==='coinmetrics')return renderMetricGrid(metrics,'Coin Metrics 鏈上數據')+renderRangeMetrics(metrics,'30 日分布位置');
+  if(kind==='prediction')return renderPrediction(ref);
+  if(kind==='sec')return renderFilings(ref);
+  if(kind==='defi')return renderMetricGrid(metrics,'DeFi 與穩定幣')+renderCompareRows(objectBarRows(ref.chain_tvl_breakdown),'各鏈 TVL 分布');
+  if(kind==='github')return renderMetricGrid(metrics,'開發活動')+`<div class="availability-note"><strong>${escapeHtml(ref.repo||'GitHub repository')}</strong>最新版本 ${escapeHtml(ref.latest_release_tag||'未提供')} · ${escapeHtml(ref.latest_release_date||'日期未提供')} ${ref.latest_release_name?`· ${escapeHtml(ref.latest_release_name)}`:''}</div>`;
+  if(kind==='cftc')return renderMetricGrid(metrics,'CFTC 部位摘要')+renderCompareRows([{label:'投機多單',value:ref.noncommercial_long},{label:'投機空單',value:ref.noncommercial_short},{label:'商業多單',value:ref.commercial_long},{label:'商業空單',value:ref.commercial_short}],'多空部位比較');
+  if(kind==='derivatives')return renderMetricGrid(metrics,'衍生品市場')+renderCompareRows([{label:'多頭帳戶',value:ref.long_account},{label:'空頭帳戶',value:ref.short_account},{label:'Put OI',value:ref.put_oi},{label:'Call OI',value:ref.call_oi}].filter(row=>row.value!==undefined),'市場結構比較');
+  if(kind==='orderbook')return renderMetricGrid(metrics,'現貨盤口')+renderCompareRows([{label:'買方 ±2%',value:ref.bid_depth_2pct},{label:'賣方 ±2%',value:ref.ask_depth_2pct}],'盤口深度比較');
+  if(kind==='dominance')return renderMetricGrid(metrics,'市場概覽')+renderCompareRows(objectBarRows(ref.dominance).map(row=>({...row,formatted:`${toNumber(row.value)?.toFixed(1)}%`})),'主要資產市佔');
+  if(kind==='technical')return renderMetricGrid(metrics,'技術指標')+renderTraceNote(normalized,'content_reference 提供指標快照但未提供 OHLCV 序列，因此不繪製價格線或布林帶時序。');
+  if(kind==='series')return renderMetricGrid(metrics,'序列摘要')+'<div class="viz-section"><div class="viz-title"><span>實際資料序列</span></div><canvas id="series-line" class="series-canvas" width="340" height="120"></canvas></div>';
+  const generic=renderMetricGrid(metrics)+renderGenericFields(ref);
+  return generic+renderTraceNote(normalized,generic?'可視化數值如上；其餘 metadata 用於重現查詢。':'此證據只提供查詢 metadata，未提供可安全繪製的時序或數值。');
+}
+function extractSeries(ref){
+  const sequence=Array.isArray(ref.series)?ref.series:Array.isArray(ref.observations)?ref.observations:[];
+  return sequence.map((item,index)=>{if(typeof item==='number')return{x:index,y:item};if(Array.isArray(item))return{x:item[0],y:toNumber(item[1])};if(item&&typeof item==='object')return{x:item.date||item.timestamp||index,y:toNumber(item.close??item.value??item.latest)};return{x:index,y:null}}).filter(point=>point.y!==null);
+}
+function drawSeries(canvas,points){
+  if(!canvas||points.length<2)return;
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,pad=14,values=points.map(point=>point.y),min=Math.min(...values),max=Math.max(...values),span=max-min||1;
+  ctx.clearRect(0,0,w,h);ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;for(let i=1;i<4;i++){const y=pad+(h-pad*2)*i/4;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke()}
+  ctx.beginPath();points.forEach((point,index)=>{const x=pad+(w-pad*2)*index/(points.length-1),y=h-pad-(point.y-min)/span*(h-pad*2);index?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle='#f37021';ctx.lineWidth=2;ctx.stroke();
+}
+function renderInlineCharts(panel,normalized){
+  const ref=normalized.ref,donut=panel.querySelector('#sent-donut');
+  if(donut&&ref.positive_pct!==undefined){const ctx=donut.getContext('2d'),data=[toNumber(ref.positive_pct)||0,toNumber(ref.neutral_pct)||0,toNumber(ref.negative_pct)||0],total=data.reduce((sum,value)=>sum+value,0)||100,colors=['#22c55e','#71717a','#ef4444'];let start=-Math.PI/2;data.forEach((value,index)=>{const angle=Math.PI*2*value/total;ctx.beginPath();ctx.moveTo(40,40);ctx.arc(40,40,35,start,start+angle);ctx.fillStyle=colors[index];ctx.fill();start+=angle});ctx.beginPath();ctx.arc(40,40,20,0,Math.PI*2);ctx.fillStyle='#1a1a1f';ctx.fill()}
+  const line=panel.querySelector('#series-line');if(line)drawSeries(line,extractSeries(ref));
 }
 </script>
 </body>
