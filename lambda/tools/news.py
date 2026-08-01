@@ -1,7 +1,8 @@
 """
 news.py — 新聞與官方公告工具
 
-資料來源：CryptoPanic、各專案官方部落格 RSS、GitHub releases
+資料來源：Google News RSS、媒體 RSS（CoinDesk / The Block / Cointelegraph）、
+         各專案官方部落格 RSS、GitHub releases
 """
 
 import time
@@ -9,10 +10,25 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote_plus
 
 import evidence
-import config
+
+# ---- 幣種搜尋詞對照表（Google News RSS 用）----
+_SYMBOL_SEARCH_TERMS = {
+    "BTC": "bitcoin",
+    "ETH": "ethereum",
+    "SOL": "solana",
+    "BNB": "bnb chain",
+    "XRP": "ripple XRP",
+}
+
+# ---- 媒體 RSS 白名單 ----
+_MEDIA_RSS_FEEDS = [
+    {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "source_name": "CoinDesk", "channel": "media_rss"},
+    {"url": "https://www.theblock.co/rss.xml", "source_name": "The Block", "channel": "media_rss"},
+    {"url": "https://cointelegraph.com/rss", "source_name": "Cointelegraph", "channel": "media_rss"},
+]
 
 # ---- 官方來源對照表 ----
 # 每個幣種對應其官方部落格 RSS feed 與 GitHub releases repo
@@ -102,97 +118,88 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
     """查詢指定幣種在近期的新聞、官方公告與監管消息。
 
     步驟：
-      1. 呼叫 CryptoPanic API（帶 currencies 參數過濾幣種）
-      2. 呼叫 fetch_official_announcements() 取得一手官方消息
-      3. 兩邊結果合併、依發布時間排序
+      1. 從 Google News RSS 取得該幣種的新聞聚合
+      2. 從媒體 RSS 白名單（CoinDesk / The Block / Cointelegraph）取得一手報導
+      3. 呼叫 fetch_official_announcements() 取得官方公告 + GitHub releases
+      4. 合併、去重、依發布時間排序
     content_reference 應包含：標題、發布時間、原文網址、引用片段。
     注意：一則通稿常被多家媒體轉載，摘要中應標註哪些來自同一來源家族，
          避免模型誤判為「多源共識」。
-    回傳：統一格式 dict
+    回傳：統一格式 dict（Contract C1）
     """
-    source_url = f"https://cryptopanic.com/api/v1/posts/?auth_token=***&currencies={symbol}"
+    # 建構 Google News RSS URL 作為 source 標示
+    search_term = _SYMBOL_SEARCH_TERMS.get(symbol, symbol.lower())
+    query = f"{search_term}+crypto"
+    if keywords:
+        kw_str = "+".join(keywords) if isinstance(keywords, list) else keywords
+        query += f"+{kw_str}"
+    google_news_url = f"https://news.google.com/rss/search?q={quote_plus(query)}&hl=en&gl=US&ceid=US:en"
+
+    source_url = google_news_url
     start_time = time.time()
 
     try:
-        # 1. 嘗試呼叫 CryptoPanic API（可能失敗，非必要）
-        api_results = []
-        cryptopanic_error = None
-
-        if config.CRYPTOPANIC_API_KEY:
-            api_url = (
-                f"https://cryptopanic.com/api/v1/posts/"
-                f"?auth_token={config.CRYPTOPANIC_API_KEY}&currencies={symbol}"
-            )
-            if keywords:
-                kw_str = ",".join(keywords) if isinstance(keywords, list) else keywords
-                api_url += f"&filter={kw_str}"
-
-            try:
-                resp = requests.get(api_url, timeout=30, headers={"User-Agent": "HoyabitAgent/1.0"})
-                resp.raise_for_status()
-                api_data = resp.json()
-                api_results = api_data.get("results", [])
-            except Exception as cp_err:
-                cryptopanic_error = f"CryptoPanic API 失敗: {type(cp_err).__name__}: {str(cp_err)}"
-                evidence.log_execution_step(
-                    "search_news", "warning", 0,
-                    note=f"{symbol}: {cryptopanic_error}，改用官方公告"
-                )
-        else:
-            cryptopanic_error = "CRYPTOPANIC_API_KEY 未設定"
-
-        # 將 CryptoPanic 結果正規化為統一格式
         news_items = []
-        for item in api_results:
-            title = item.get("title", "")
-            published_at = item.get("published_at", "")
-            url = item.get("url", "")
-            source_info = item.get("source", {})
-            source_name = source_info.get("title", "") if isinstance(source_info, dict) else ""
-            domain = source_info.get("domain", "") if isinstance(source_info, dict) else ""
 
-            news_items.append({
-                "title": title,
-                "published_at": published_at,
-                "url": url,
-                "source_name": source_name,
-                "domain": domain,
-                "origin": "cryptopanic",
-            })
+        # 1. Google News RSS
+        try:
+            resp = requests.get(
+                google_news_url,
+                timeout=30,
+                headers={"User-Agent": "HoyabitAgent/1.0"},
+            )
+            resp.raise_for_status()
+            google_entries = _parse_rss_entries(resp.text, "Google News")
+            for item in google_entries:
+                item["channel"] = "google_news"
+            news_items.extend(google_entries)
+        except Exception:
+            pass  # Google News 失敗 → skip，繼續其他來源
 
-        # 2. 取得官方公告（RSS + GitHub，免費且不需 API key）
+        # 2. 媒體 RSS 白名單（每個 feed 獨立 try/except）
+        for feed_config in _MEDIA_RSS_FEEDS:
+            try:
+                resp = requests.get(
+                    feed_config["url"],
+                    timeout=30,
+                    headers={"User-Agent": "HoyabitAgent/1.0"},
+                )
+                resp.raise_for_status()
+                media_entries = _parse_rss_entries(resp.text, feed_config["source_name"])
+                for item in media_entries:
+                    item["channel"] = feed_config["channel"]
+                news_items.extend(media_entries)
+            except Exception:
+                pass  # 單一 feed 失敗 → skip
+
+        # 3. 官方公告 + GitHub releases
         official_items = fetch_official_announcements(symbol)
         for item in official_items:
-            domain = ""
-            if item.get("url"):
-                try:
-                    domain = urlparse(item["url"]).netloc
-                except Exception:
-                    domain = ""
-            item["domain"] = domain
-            item["origin"] = "official"
+            # 根據 source_name 判斷是 official_rss 還是 github_release
+            if "GitHub" in item.get("source_name", ""):
+                item["channel"] = "github_release"
+            else:
+                item["channel"] = "official_rss"
             news_items.append(item)
 
-        # 若 CryptoPanic 和官方公告都沒有結果，回傳 error
-        if not news_items:
-            elapsed_ms = int((time.time() - start_time) * 1000)
-            evidence.log_execution_step(
-                "search_news", "error", elapsed_ms,
-                note=f"{symbol}: 無法取得任何新聞（CryptoPanic: {cryptopanic_error}，官方公告: 0 筆）"
-            )
-            return {
-                "error": f"[search_news] 無法取得 {symbol} 新聞：{cryptopanic_error}；官方公告也無資料",
-                "source": source_url,
-                "content_reference": {},
-            }
+        # 為所有 items 補上 domain 欄位
+        for item in news_items:
+            if not item.get("domain"):
+                if item.get("url"):
+                    try:
+                        item["domain"] = urlparse(item["url"]).netloc
+                    except Exception:
+                        item["domain"] = ""
+                else:
+                    item["domain"] = ""
 
-        # 3. 標註同一來源家族的重複報導
+        # 4. 標註同一來源家族的重複報導
         news_items = _mark_duplicate_sources(news_items)
 
-        # 4. 依發布時間排序（最新的在前）
+        # 5. 依發布時間排序（最新的在前）
         news_items.sort(key=lambda x: x.get("published_at", ""), reverse=True)
 
-        # 5. 組裝 content_reference
+        # 6. 組裝 content_reference
         content_reference = {
             "items": [
                 {
@@ -200,6 +207,7 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
                     "published_at": item.get("published_at", ""),
                     "url": item.get("url", ""),
                     "snippet": item.get("title", "")[:100],
+                    "channel": item.get("channel", ""),
                 }
                 for item in news_items[:20]  # 最多回傳 20 筆
             ],
@@ -207,7 +215,7 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
             "symbol": symbol,
         }
 
-        # 6. 組裝摘要
+        # 7. 組裝摘要
         # 統計來源家族重複
         duplicate_groups = {}
         for item in news_items:
@@ -227,12 +235,20 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
         ))
         top_headlines = [item.get("title", "") for item in news_items[:3]]
 
+        # 統計各管道數量
+        channel_counts = {}
+        for item in news_items:
+            ch = item.get("channel", "unknown")
+            channel_counts[ch] = channel_counts.get(ch, 0) + 1
+
+        channel_summary = "、".join(
+            f"{ch} {cnt} 篇" for ch, cnt in channel_counts.items()
+        )
+
         summary_parts = [
-            f"{symbol} 近期新聞：共 {len(news_items)} 筆（CryptoPanic {len(api_results)} 篇 + 官方公告 {len(official_items)} 篇），"
+            f"{symbol} 近期新聞：共 {len(news_items)} 筆（{channel_summary}），"
             f"來自 {unique_source_count} 個不同來源。",
         ]
-        if cryptopanic_error:
-            summary_parts.append(f"⚠️ CryptoPanic 不可用（{cryptopanic_error}），僅使用官方來源")
         if top_headlines:
             summary_parts.append(f"主要標題：{'；'.join(top_headlines)}")
         if duplicate_warnings:
@@ -248,17 +264,9 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
             note=f"{symbol}: {len(news_items)} news items, {len(duplicate_warnings)} duplicate warnings",
         )
 
-        # 決定 source 和 raw（視 CryptoPanic 是否可用）
-        if api_results:
-            actual_source = source_url
-            raw_data = {"cryptopanic_results": api_results, "official_results": [i.get("title", "") for i in official_items]}
-        else:
-            actual_source = f"official RSS/GitHub releases for {symbol}"
-            raw_data = {"official_results": official_items, "cryptopanic_error": cryptopanic_error}
-
         return {
-            "raw": raw_data,
-            "source": actual_source,
+            "raw": {"items": news_items[:20], "total_fetched": len(news_items)},
+            "source": source_url,
             "content_reference": content_reference,
             "summary": summary,
         }

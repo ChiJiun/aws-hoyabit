@@ -49,31 +49,36 @@ def test_mark_duplicate_sources():
     assert result[0]["source_family"] == result[1]["source_family"]
 
 
-def test_search_news_returns_error_dict_on_failure():
-    """Property 12: search_news never raises, returns error dict on failure."""
+def test_search_news_returns_graceful_response_on_all_feeds_failing():
+    """Property 8: RSS feed failures don't prevent partial results — when all fail,
+    still returns a valid C1 success response (empty items, no error raised)."""
     with patch("tools.news.requests.get") as mock_get:
         mock_get.side_effect = Exception("Network error")
-        result = search_news("BTC", 7, "test claim")
-        assert isinstance(result, dict)
-        assert "error" in result
-        assert "source" in result
-        assert "content_reference" in result
+        with patch("tools.news.fetch_official_announcements") as mock_official:
+            mock_official.return_value = []
+            result = search_news("BTC", 7, "test claim")
+            assert isinstance(result, dict)
+            # New behavior: graceful degradation returns success format with 0 items
+            assert "source" in result
+            assert "content_reference" in result
+            assert "summary" in result
+            assert "raw" in result
+            # Should not raise — that's the key property
+            assert result["content_reference"].get("total_count", 0) == 0
 
 
 def test_search_news_returns_unified_format_on_success():
-    """Property 13: successful return contains raw, source, content_reference, summary."""
+    """Property 2: successful return contains raw, source, content_reference, summary."""
+    rss_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0"><channel><title>Test</title>
+    <item><title>Bitcoin breaks 100k</title>
+    <pubDate>2026-07-01T10:00:00Z</pubDate>
+    <link>https://example.com/btc-100k</link></item>
+    </channel></rss>"""
+
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "results": [
-            {
-                "title": "Bitcoin breaks 100k",
-                "published_at": "2026-07-01T10:00:00Z",
-                "url": "https://example.com/btc-100k",
-                "source": {"title": "CoinDesk", "domain": "coindesk.com"},
-            }
-        ]
-    }
+    mock_response.text = rss_xml
     mock_response.raise_for_status = MagicMock()
 
     with patch("tools.news.requests.get") as mock_get:
@@ -91,25 +96,20 @@ def test_search_news_returns_unified_format_on_success():
 
 
 def test_search_news_marks_duplicates_in_summary():
-    """Requirement 7.3: duplicate source family reports are annotated."""
+    """Requirement 9.4: duplicate source family reports are annotated."""
+    rss_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0"><channel><title>Test</title>
+    <item><title>Major Bitcoin ETF approved by SEC</title>
+    <pubDate>2026-07-01T10:00:00Z</pubDate>
+    <link>https://coindesk.com/btc-etf</link></item>
+    <item><title>Major Bitcoin ETF approved by SEC today</title>
+    <pubDate>2026-07-01T10:05:00Z</pubDate>
+    <link>https://cointelegraph.com/btc-etf</link></item>
+    </channel></rss>"""
+
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "results": [
-            {
-                "title": "Major Bitcoin ETF approved by SEC",
-                "published_at": "2026-07-01T10:00:00Z",
-                "url": "https://coindesk.com/btc-etf",
-                "source": {"title": "CoinDesk", "domain": "coindesk.com"},
-            },
-            {
-                "title": "Major Bitcoin ETF approved by SEC today",
-                "published_at": "2026-07-01T10:05:00Z",
-                "url": "https://cointelegraph.com/btc-etf",
-                "source": {"title": "CoinTelegraph", "domain": "cointelegraph.com"},
-            },
-        ]
-    }
+    mock_response.text = rss_xml
     mock_response.raise_for_status = MagicMock()
 
     with patch("tools.news.requests.get") as mock_get:
@@ -133,8 +133,8 @@ if __name__ == "__main__":
     test_mark_duplicate_sources()
     print("test_mark_duplicate_sources: PASSED")
 
-    test_search_news_returns_error_dict_on_failure()
-    print("test_search_news_returns_error_dict_on_failure: PASSED")
+    test_search_news_returns_graceful_response_on_all_feeds_failing()
+    print("test_search_news_returns_graceful_response_on_all_feeds_failing: PASSED")
 
     test_search_news_returns_unified_format_on_success()
     print("test_search_news_returns_unified_format_on_success: PASSED")

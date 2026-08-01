@@ -1,15 +1,14 @@
 """
-tools 套件 — Agent 可呼叫的資料工具
+tools/ — 資料蒐集工具包
 
-每個工具函式都必須：
-  1. 接受 related_claim 參數（必填，由 LLM 提供，說明取數目的）
-  2. 回傳統一格式的 dict：
-     {
-       "raw": 原始 API 回應（會被封存到 S3 供抽查）,
-       "source": 實際呼叫的 API 網址或來源名稱,
-       "content_reference": {引用片段／查詢參數／指標數值／資料區間},
-       "summary": 給模型看的精簡摘要（不要放完整原始資料）
-     }
-  3. 失敗時不要拋出未處理的例外，而是回傳帶 error 說明的結果，
-     讓 Agent 能記錄缺口並繼續執行。
+包含以下工具模組（各自獨立，不互相 import）：
+- price.py: OHLCV 價格、盤口深度、市值佔比
+- quant.py: 技術指標計算（純本地，無外部 API）
+- news.py: Google News RSS + 媒體 RSS + 官方公告
+- onchain.py: 鏈上資料（依幣種分派五種來源）
+- sentiment.py: 市場情緒（alternative.me Fear & Greed）
+- macro.py: 總經指標（FRED + 排程事件）
+- derivatives.py: 衍生品（Hyperliquid / Binance Futures / Deribit）
+- prediction.py: 預測市場（Polymarket）
+- defi.py: DeFi TVL、穩定幣供給、GitHub 開發活躍度
 """

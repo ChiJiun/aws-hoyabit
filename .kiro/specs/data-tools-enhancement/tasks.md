@@ -8,8 +8,8 @@
 
 ## Tasks
 
-- [ ] 1. Hyperliquid 衍生品資料（Tier 1 必做 — 最高訊號價值）
-  - [ ] 1.1 建立 `lambda/tools/derivatives.py` 骨架與 Hyperliquid fetcher
+- [x] 1. Hyperliquid 衍生品資料（Tier 1 必做 — 最高訊號價值）
+  - [x] 1.1 建立 `lambda/tools/derivatives.py` 骨架與 Hyperliquid fetcher
     - 建立 `derivatives.py` 新檔案，實作 `get_derivatives()` 公開函式與 `_fetch_hyperliquid()` 內部函式
     - `get_derivatives` 接受 `symbol, source, metrics, related_claim` 參數，內部依 `source` 分派
     - Hyperliquid API：POST `https://api.hyperliquid.xyz/info` body `{"type": "metaAndAssetCtxs"}`
@@ -27,8 +27,8 @@
     - **Property 10: Funding rate summary includes value and direction** — 生成隨機 funding rate 數值，驗證 summary 含數值+方向
     - **Validates: Requirements 1.1, 1.3, 1.4, 1.5, 11.1, 11.3**
 
-- [ ] 2. Binance Futures 衍生品資料（Tier 1 必做 — 交叉驗證 + 散戶指標）
-  - [ ] 2.1 實作 `_fetch_binance_futures()` 內部函式
+- [x] 2. Binance Futures 衍生品資料（Tier 1 必做 — 交叉驗證 + 散戶指標）
+  - [x] 2.1 實作 `_fetch_binance_futures()` 內部函式
     - 在 `derivatives.py` 中新增 Binance Futures fetcher
     - 資金費率：GET `/fapi/v1/premiumIndex?symbol={symbol}USDT`
     - OI：GET `/fapi/v1/openInterest?symbol={symbol}USDT`
@@ -45,8 +45,8 @@
     - 測試 timeout 與連線錯誤時回傳 error dict
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
-- [ ] 3. Google News RSS + 媒體 RSS 新聞升級（Tier 1 必做 — 免費替換 CryptoPanic）
-  - [ ] 3.1 重構 `lambda/tools/news.py`：移除 CryptoPanic，改用 Google News RSS + 媒體 RSS
+- [x] 3. Google News RSS + 媒體 RSS 新聞升級（Tier 1 必做 — 免費替換 CryptoPanic）
+  - [x] 3.1 重構 `lambda/tools/news.py`：移除 CryptoPanic，改用 Google News RSS + 媒體 RSS
     - 移除對 `CRYPTOPANIC_API_KEY` 的 import 與依賴
     - 新增 Google News RSS 來源：URL 模板 `https://news.google.com/rss/search?q={query}+crypto&hl=en&gl=US&ceid=US:en`
     - 新增 `_MEDIA_RSS_FEEDS` 白名單：CoinDesk、The Block、Cointelegraph RSS URLs
@@ -64,8 +64,8 @@
     - **Property 8: RSS feed failures don't prevent partial results** — 隨機選擇 feed 子集拋出例外，驗證仍回傳成功結果
     - **Validates: Requirements 9.4, 9.6, 12.2**
 
-- [ ] 4. Polymarket 預測市場（Tier 2 強烈建議 — 創意度亮點）
-  - [ ] 4.1 建立 `lambda/tools/prediction.py` 實作 `get_prediction_market()`
+- [x] 4. Polymarket 預測市場（Tier 2 強烈建議 — 創意度亮點）
+  - [x] 4.1 建立 `lambda/tools/prediction.py` 實作 `get_prediction_market()`
     - 建立 `prediction.py` 新檔案
     - `get_prediction_market(keywords, related_claim)` 公開函式
     - Gamma API 搜尋：GET `https://gamma-api.polymarket.com/events?tag=crypto&active=true&closed=false&limit=10` 或 keyword search
@@ -83,11 +83,11 @@
     - 測試 API 失敗回傳 error dict
     - _Requirements: 4.1, 4.2, 4.5_
 
-- [ ] 5. Checkpoint — 核心高價值工具驗證
+- [x] 5. Checkpoint — 核心高價值工具驗證
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Deribit 選擇權與隱含波動率（Tier 2 強烈建議 — BTC/ETH 限定）
-  - [ ] 6.1 實作 `_fetch_deribit()` 內部函式
+- [x] 6. Deribit 選擇權與隱含波動率（Tier 2 強烈建議 — BTC/ETH 限定）
+  - [x] 6.1 實作 `_fetch_deribit()` 內部函式
     - 在 `derivatives.py` 中新增 Deribit fetcher
     - 進入分派前先驗證 symbol 必須為 BTC 或 ETH，否則直接回傳 error dict
     - DVOL：GET `/public/get_volatility_index_data?currency={currency}&start_timestamp={ms}&end_timestamp={ms}&resolution=3600`
@@ -99,8 +99,8 @@
     - **Property 5: Deribit rejects unsupported symbols** — 生成隨機非 BTC/ETH symbol，驗證回傳 error dict
     - **Validates: Requirements 3.3**
 
-- [ ] 7. DefiLlama TVL 與穩定幣供給（Tier 2 強烈建議）
-  - [ ] 7.1 建立 `lambda/tools/defi.py` 實作 `get_defi_data()`
+- [x] 7. DefiLlama TVL 與穩定幣供給（Tier 2 強烈建議）
+  - [x] 7.1 建立 `lambda/tools/defi.py` 實作 `get_defi_data()`
     - 建立 `defi.py` 新檔案
     - `get_defi_data(metrics, chain, related_claim)` 公開函式
     - TVL：GET `https://api.llama.fi/v2/chains`（全市場各鏈 TVL）
@@ -118,8 +118,8 @@
     - 測試 API 失敗回傳 error dict
     - _Requirements: 7.1, 7.2, 7.5_
 
-- [ ] 8. Binance Spot 盤口深度快照（Tier 2 強烈建議 — 流動性訊號）
-  - [ ] 8.1 在 `lambda/tools/price.py` 新增 `get_orderbook_depth()`
+- [x] 8. Binance Spot 盤口深度快照（Tier 2 強烈建議 — 流動性訊號）
+  - [x] 8.1 在 `lambda/tools/price.py` 新增 `get_orderbook_depth()`
     - GET `https://api.binance.com/api/v3/depth?symbol={symbol}USDT&limit=1000`
     - 計算 best_bid、best_ask
     - bid_depth_2pct = sum(qty for bids where price >= best_bid * 0.98)
@@ -133,11 +133,11 @@
     - **Property 6: Orderbook depth calculation correctness** — 生成隨機 [price, qty] 對的 orderbook，驗證計算結果正確
     - **Validates: Requirements 5.2**
 
-- [ ] 9. Checkpoint — Tier 2 工具驗證
+- [x] 9. Checkpoint — Tier 2 工具驗證
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. GitHub 開發活躍度（Tier 3 有餘裕）
-  - [ ] 10.1 在 `lambda/tools/defi.py` 新增 `get_dev_activity()`
+- [x] 10. GitHub 開發活躍度（Tier 3 有餘裕）
+  - [x] 10.1 在 `lambda/tools/defi.py` 新增 `get_dev_activity()`
     - `get_dev_activity(symbol, related_claim)` 公開函式
     - `_SYMBOL_TO_REPO` 映射表：BTC→bitcoin/bitcoin, ETH→ethereum/go-ethereum 等
     - commit 頻率：GET `/repos/{owner}/{repo}/stats/commit_activity`，取最後 4 週加總
@@ -153,8 +153,8 @@
     - 測試 symbol 不在映射表時的錯誤處理
     - _Requirements: 8.1, 8.2, 8.5_
 
-- [ ] 11. CoinGecko 市值佔比（Tier 3 有餘裕）
-  - [ ] 11.1 在 `lambda/tools/price.py` 新增 `get_market_dominance()`
+- [x] 11. CoinGecko 市值佔比（Tier 3 有餘裕）
+  - [x] 11.1 在 `lambda/tools/price.py` 新增 `get_market_dominance()`
     - GET `https://api.coingecko.com/api/v3/global`，帶 `x-cg-demo-api-key` header（若有設定）
     - 提取 `data.market_cap_percentage`（btc, eth 等百分比）
     - 提取 `data.total_market_cap.usd`
@@ -168,19 +168,19 @@
     - 測試 API key 未設定時回傳 error dict
     - _Requirements: 6.1, 6.2, 6.5_
 
-- [ ] 12. config.py 環境變數與 __init__.py 更新
-  - [ ] 12.1 更新 `lambda/config.py` 新增環境變數預留
+- [x] 12. config.py 環境變數與 __init__.py 更新
+  - [x] 12.1 更新 `lambda/config.py` 新增環境變數預留
     - 新增 CMC_API_KEY、COINGLASS_API_KEY、REDDIT_CLIENT_ID、REDDIT_CLIENT_SECRET、SOSOVALUE_API_KEY、DUNE_API_KEY 的 os.environ.get
     - 移除 CRYPTOPANIC_API_KEY（已不再使用）
     - 更新 `load_local_env()` 的 global 宣告
     - _Requirements: 10.5, 13.5_
 
-  - [ ] 12.2 更新 `lambda/tools/__init__.py` 匯出新模組
+  - [x] 12.2 更新 `lambda/tools/__init__.py` 匯出新模組
     - 在 __init__.py 中新增對 derivatives、prediction、defi 的說明（docstring 更新）
     - _Requirements: 13.7_
 
-- [ ] 13. Agent 工具註冊與 TOOL_DISPATCH 擴充
-  - [ ] 13.1 更新 `lambda/agent.py` 的 TOOL_DISPATCH 與 build_tool_config()
+- [x] 13. Agent 工具註冊與 TOOL_DISPATCH 擴充
+  - [x] 13.1 更新 `lambda/agent.py` 的 TOOL_DISPATCH 與 build_tool_config()
     - 在檔案頂部新增 `from tools import derivatives, prediction, defi`
     - TOOL_DISPATCH 新增 6 個工具映射：get_derivatives, get_prediction_market, get_defi_data, get_dev_activity, get_orderbook_depth, get_market_dominance
     - build_tool_config() 新增 6 個 toolSpec（description 含訊號價值說明）
@@ -192,7 +192,7 @@
     - 驗證 TOOL_DISPATCH 含全部 12 個工具名稱且值為 callable
     - **Validates: Requirements 10.3**
 
-- [ ] 14. Final checkpoint — 全工具整合驗證
+- [x] 14. Final checkpoint — 全工具整合驗證
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

@@ -18,10 +18,17 @@ TIME_BUDGET_SECONDS = int(os.environ.get("TIME_BUDGET_SECONDS", 600))
 
 # ---- 外部 API 金鑰 ----
 COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY")
-CRYPTOPANIC_API_KEY = os.environ.get("CRYPTOPANIC_API_KEY")
 ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY")
 HELIUS_API_KEY = os.environ.get("HELIUS_API_KEY")
 FRED_API_KEY = os.environ.get("FRED_API_KEY")
+
+# ---- 預留的外部 API 金鑰（選用，缺少時對應工具 graceful fail）----
+CMC_API_KEY = os.environ.get("CMC_API_KEY")
+COINGLASS_API_KEY = os.environ.get("COINGLASS_API_KEY")
+REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
+REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
+SOSOVALUE_API_KEY = os.environ.get("SOSOVALUE_API_KEY")
+DUNE_API_KEY = os.environ.get("DUNE_API_KEY")
 
 # ---- 業務常數 ----
 SUPPORTED_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "XRP"]
@@ -58,8 +65,11 @@ def load_local_env():
     # 重新從 os.environ 刷新所有模組級變數
     global AWS_REGION, BEDROCK_MODEL_ID, DATA_BUCKET
     global MAX_AGENT_TURNS, TIME_BUDGET_SECONDS
-    global COINGECKO_API_KEY, CRYPTOPANIC_API_KEY, ETHERSCAN_API_KEY
+    global COINGECKO_API_KEY, ETHERSCAN_API_KEY
     global HELIUS_API_KEY, FRED_API_KEY
+    global CMC_API_KEY, COINGLASS_API_KEY
+    global REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET
+    global SOSOVALUE_API_KEY, DUNE_API_KEY
 
     AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
     BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
@@ -69,7 +79,13 @@ def load_local_env():
     TIME_BUDGET_SECONDS = int(os.environ.get("TIME_BUDGET_SECONDS", 600))
 
     COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY")
-    CRYPTOPANIC_API_KEY = os.environ.get("CRYPTOPANIC_API_KEY")
     ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY")
     HELIUS_API_KEY = os.environ.get("HELIUS_API_KEY")
     FRED_API_KEY = os.environ.get("FRED_API_KEY")
+
+    CMC_API_KEY = os.environ.get("CMC_API_KEY")
+    COINGLASS_API_KEY = os.environ.get("COINGLASS_API_KEY")
+    REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
+    REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
+    SOSOVALUE_API_KEY = os.environ.get("SOSOVALUE_API_KEY")
+    DUNE_API_KEY = os.environ.get("DUNE_API_KEY")
