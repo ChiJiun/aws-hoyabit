@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 import config
 import evidence
 from tools import price, news, onchain, quant, sentiment, macro
-from tools import derivatives, prediction, defi
+from tools import derivatives, prediction, defi, institutional
 
 # 工具名稱與實際函式的對應表。
 # 這裡的 key 必須跟 build_tool_config() 裡宣告的 toolSpec name 完全一致，
@@ -31,6 +31,9 @@ TOOL_DISPATCH = {
     "get_dev_activity": defi.get_dev_activity,
     "get_orderbook_depth": price.get_orderbook_depth,
     "get_market_dominance": price.get_market_dominance,
+    "get_cftc_cot": institutional.get_cftc_cot,
+    "get_sec_filings": institutional.get_sec_filings,
+    "get_coin_metrics": institutional.get_coin_metrics,
 }
 
 
@@ -357,6 +360,61 @@ def build_tool_config():
                             "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
                         },
                         "required": ["related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_cftc_cot",
+                "description": "取得 CFTC Commitments of Traders 報告中 CME Bitcoin 期貨的機構持倉數據。"
+                               "訊號價值：投機淨多頭/空頭 = smart money 方向定位，淨部位極端時常見反轉。僅 BTC 有資料。每週更新。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string", "description": "目前僅支援 BTC（CME Bitcoin Futures）"},
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["symbol", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_sec_filings",
+                "description": "搜尋 SEC EDGAR 近期加密相關監管文件（8-K、S-1、10-K 等）。"
+                               "訊號價值：監管動態的一手來源，ETF 申請/批准、執法行動等直接影響市場的事件。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "keywords": {"type": "string", "description": "搜尋關鍵字（如 bitcoin, ethereum, crypto ETF）"},
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["keywords", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_coin_metrics",
+                "description": "取得 Coin Metrics Community 的機構級鏈上/市場指標：已實現市值、MVRV 比率、NVT、活躍地址數等。"
+                               "訊號價值：MVRV > 3 = 歷史性高估區、NVT 極高 = 交易活動不支撐估值。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string", "description": "幣種代號（BTC/ETH/SOL/BNB/XRP）"},
+                            "metrics": {
+                                "type": "array", "items": {"type": "string"},
+                                "description": "指標列表，可選：RealizedCap, CapMVRVCur, NVTAdj, AdrActCnt, TxCnt, FeeMeanUSD"
+                            },
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["symbol", "metrics", "related_claim"]
                     }
                 }
             }

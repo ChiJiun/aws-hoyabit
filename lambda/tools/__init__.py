@@ -11,4 +11,5 @@ tools/ — 資料蒐集工具包
 - derivatives.py: 衍生品（Hyperliquid / Binance Futures / Deribit）
 - prediction.py: 預測市場（Polymarket）
 - defi.py: DeFi TVL、穩定幣供給、GitHub 開發活躍度
+- institutional.py: CFTC COT、SEC EDGAR、Coin Metrics Community
 """
