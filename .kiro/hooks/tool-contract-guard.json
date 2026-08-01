@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "工具契約守門員",
+      "trigger": "PostFileSave",
+      "description": "編輯資料工具後,檢查是否遵守統一回傳契約 C1 與錯誤處理規範",
+      "matcher": "lambda[\\\\/]tools[\\\\/].*\\\\.py$",
+      "action": {
+        "type": "agent",
+        "prompt": "檢查剛修改的工具檔案是否符合 steering/contracts.md 的契約 C1:1) 成功回傳 dict 必含 raw、source、content_reference、summary 四鍵;2) 失敗回傳 {\"error\": ...} 而非拋出例外(所有外部呼叫都包在 try/except 內,requests 有 timeout);3) 不 import 其他 tools、agent、report、export 模組;4) summary 精簡不塞原始資料。若有違反,直接列出違反處並提出修正;若符合,簡短確認即可。"
+      }
+    }
+  ]
+}

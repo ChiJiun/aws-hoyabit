@@ -6,7 +6,6 @@ config.py — 環境變數與常數集中管理
 """
 
 import os
-from pathlib import Path
 
 # ---- AWS 設定 ----
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
@@ -29,24 +28,38 @@ SUPPORTED_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "XRP"]
 BASELINE_END_DATE = "2026-05-31"   # 賽方基準資料截止日，用來判斷是否需要補即時資料
 
 
+def check_required_env():
+    """檢查必要環境變數是否已設定，回傳缺少的變數名清單。
+
+    啟動時呼叫一次，一次性列出所有缺漏的變數名，方便部署時快速排錯。
+    只檢查「系統運作必須」的變數，API 金鑰視為選用（缺了某支工具會 graceful fail）。
+    """
+    required = {
+        "BEDROCK_MODEL_ID": BEDROCK_MODEL_ID,
+        "DATA_BUCKET": DATA_BUCKET,
+    }
+    missing = [name for name, value in required.items() if not value]
+    return missing
+
+
 def load_local_env():
     """本機開發時，從專案根目錄的 .env 檔案載入環境變數。
 
     部署到 Lambda 後不會用到這個函式（Lambda 直接從設定畫面注入環境變數）。
-    呼叫後會重新讀取 os.environ 並更新本模組的全域變數，
-    確保其他模組 import 的值是最新的。
+    呼叫多次是安全的（冪等），每次都會重新讀取 .env 並刷新模組級變數。
     """
+    from pathlib import Path
     from dotenv import load_dotenv
 
     # .env 位於專案根目錄（lambda/ 的上一層）
     env_path = Path(__file__).resolve().parent.parent / ".env"
     load_dotenv(dotenv_path=env_path, override=True)
 
-    # 重新讀取環境變數，更新模組層級的全域變數
+    # 重新從 os.environ 刷新所有模組級變數
     global AWS_REGION, BEDROCK_MODEL_ID, DATA_BUCKET
     global MAX_AGENT_TURNS, TIME_BUDGET_SECONDS
-    global COINGECKO_API_KEY, CRYPTOPANIC_API_KEY
-    global ETHERSCAN_API_KEY, HELIUS_API_KEY, FRED_API_KEY
+    global COINGECKO_API_KEY, CRYPTOPANIC_API_KEY, ETHERSCAN_API_KEY
+    global HELIUS_API_KEY, FRED_API_KEY
 
     AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
     BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")

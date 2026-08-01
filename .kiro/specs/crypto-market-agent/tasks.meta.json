@@ -1,391 +1,181 @@
 {
   "pbtResults": {
+    "1.5 撰寫 evidence.py 的屬性測試": {
+      "status": "passed",
+      "lastRunTimestamp": 1785546683650
+    },
     "2.7 撰寫 quant.py 的屬性測試": {
       "status": "passed",
-      "lastRunTimestamp": 1785560074441
+      "lastRunTimestamp": 1785547921415
     }
   },
   "executionHistory": {
     "1.1 實作 config.py 的 load_local_env 函式": [
       {
-        "executionId": "5b3a68ee-65ca-4e2e-bd2e-fd016bbfe608",
-        "chatSessionId": "sess_61b8b140-1a30-4d7d-90f2-0d6b60e29e33",
-        "timestamp": 1785550172693
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545269759
       },
       {
-        "executionId": "5b3a68ee-65ca-4e2e-bd2e-fd016bbfe608",
-        "chatSessionId": "sess_61b8b140-1a30-4d7d-90f2-0d6b60e29e33",
-        "timestamp": 1785550358808
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545761355
       }
     ],
     "1.2 實作 evidence.py 的 reset_stores 函式": [
       {
-        "executionId": "8165f61d-2035-408a-aa42-ee39060c5cb2",
-        "chatSessionId": "sess_0fd81c5c-c259-4142-a250-212f0b58b15d",
-        "timestamp": 1785550548974
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545270598
       },
       {
-        "executionId": "8165f61d-2035-408a-aa42-ee39060c5cb2",
-        "chatSessionId": "sess_0fd81c5c-c259-4142-a250-212f0b58b15d",
-        "timestamp": 1785551043764
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545762156
       }
     ],
     "1.3 實作 evidence.py 的 log_evidence 函式": [
       {
-        "executionId": "533d5e22-a2c2-4b4c-99bb-59c3bd236267",
-        "chatSessionId": "sess_068b10c3-4baa-40e8-a94a-546fd0c9d50f",
-        "timestamp": 1785551105349
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545768494
       },
       {
-        "executionId": "533d5e22-a2c2-4b4c-99bb-59c3bd236267",
-        "chatSessionId": "sess_068b10c3-4baa-40e8-a94a-546fd0c9d50f",
-        "timestamp": 1785551607033
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545900023
       }
     ],
     "1.4 實作 evidence.py 的 log_execution_step 函式": [
       {
-        "executionId": "5e383839-6804-46b9-9629-977fe5c33a80",
-        "chatSessionId": "sess_4ae1db21-3faa-4a4b-86c5-5882de6e2668",
-        "timestamp": 1785551702097
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545769273
       },
       {
-        "executionId": "5e383839-6804-46b9-9629-977fe5c33a80",
-        "chatSessionId": "sess_4ae1db21-3faa-4a4b-86c5-5882de6e2668",
-        "timestamp": 1785552045383
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545900976
       }
     ],
     "1. 基礎設施模組（config.py、evidence.py）": [
       {
-        "executionId": "5e383839-6804-46b9-9629-977fe5c33a80",
-        "chatSessionId": "sess_4ae1db21-3faa-4a4b-86c5-5882de6e2668",
-        "timestamp": 1785552045644
+        "executionId": "af071916-11a1-42a9-8e50-724f36bfa360",
+        "chatSessionId": "sess_81a52d1d-f151-4b35-9a2b-0bb0fa26d2a5",
+        "timestamp": 1785545901135
       }
     ],
-    "12.1 實作 read_baseline_csv 函式": [
+    "1.5 撰寫 evidence.py 的屬性測試": [
       {
-        "executionId": "b4c950f4-4eb9-4b2c-b371-cc62e2850d1f",
-        "chatSessionId": "sess_88b826ef-839f-4918-8e7f-224e9929faba",
-        "timestamp": 1785552104977
+        "executionId": "e91d4fb3-cfce-44cd-ba65-869cef3fba6b",
+        "chatSessionId": "sess_abd59f3a-0bd7-4a87-9500-9deca2b55e6f",
+        "timestamp": 1785546372512
       },
       {
-        "executionId": "b4c950f4-4eb9-4b2c-b371-cc62e2850d1f",
-        "chatSessionId": "sess_88b826ef-839f-4918-8e7f-224e9929faba",
-        "timestamp": 1785552953190
-      }
-    ],
-    "12.2 實作 save_raw_payload 函式": [
-      {
-        "executionId": "a60106de-80e4-4e46-b235-ad3583885b51",
-        "chatSessionId": "sess_7b920b4e-74b6-41f5-a106-0b8d80283d85",
-        "timestamp": 1785553125864
-      },
-      {
-        "executionId": "a60106de-80e4-4e46-b235-ad3583885b51",
-        "chatSessionId": "sess_7b920b4e-74b6-41f5-a106-0b8d80283d85",
-        "timestamp": 1785553432962
-      }
-    ],
-    "12.3 實作 save_output_file 函式": [
-      {
-        "executionId": "9961dc3d-d79e-41b5-a721-e30ecd618ba3",
-        "chatSessionId": "sess_fccd6b49-d1d0-4f02-b3c9-a327a3e7a9d1",
-        "timestamp": 1785553467036
-      },
-      {
-        "executionId": "9961dc3d-d79e-41b5-a721-e30ecd618ba3",
-        "chatSessionId": "sess_fccd6b49-d1d0-4f02-b3c9-a327a3e7a9d1",
-        "timestamp": 1785553583478
-      }
-    ],
-    "12.4 實作 generate_download_link 函式": [
-      {
-        "executionId": "062a13b3-49cf-4d02-b749-984451ae289c",
-        "chatSessionId": "sess_3c570c37-882b-4282-b61e-d07f604c4501",
-        "timestamp": 1785553625439
-      },
-      {
-        "executionId": "062a13b3-49cf-4d02-b749-984451ae289c",
-        "chatSessionId": "sess_3c570c37-882b-4282-b61e-d07f604c4501",
-        "timestamp": 1785553777602
-      }
-    ],
-    "12. S3 讀寫模組（storage.py）": [
-      {
-        "executionId": "062a13b3-49cf-4d02-b749-984451ae289c",
-        "chatSessionId": "sess_3c570c37-882b-4282-b61e-d07f604c4501",
-        "timestamp": 1785553777658
+        "executionId": "e91d4fb3-cfce-44cd-ba65-869cef3fba6b",
+        "chatSessionId": "sess_abd59f3a-0bd7-4a87-9500-9deca2b55e6f",
+        "timestamp": 1785546700750
       }
     ],
     "2.1 實作 calc_atr_pct 函式": [
       {
-        "executionId": "f60e92a2-b58a-4a56-89d4-ecb70092952d",
-        "chatSessionId": "sess_1a6cea4f-1575-4d9c-a62d-0e3d7efb5bf5",
-        "timestamp": 1785554429420
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785546767534
       },
       {
-        "executionId": "f60e92a2-b58a-4a56-89d4-ecb70092952d",
-        "chatSessionId": "sess_1a6cea4f-1575-4d9c-a62d-0e3d7efb5bf5",
-        "timestamp": 1785554622797
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785547253101
       }
     ],
     "2.2 實作 calc_bollinger_bandwidth 函式": [
       {
-        "executionId": "1cdc381e-416a-492e-888b-89b658f43263",
-        "chatSessionId": "sess_787a2ae1-ee03-498c-b191-7006a76ba67b",
-        "timestamp": 1785554652824
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785546768164
       },
       {
-        "executionId": "1cdc381e-416a-492e-888b-89b658f43263",
-        "chatSessionId": "sess_787a2ae1-ee03-498c-b191-7006a76ba67b",
-        "timestamp": 1785554741411
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785547253397
       }
     ],
     "2.3 實作 calc_adx 函式": [
       {
-        "executionId": "9b5829d1-6572-4323-8da5-f59a605aed1d",
-        "chatSessionId": "sess_e8a63976-2b04-46ff-8c69-e344a6597829",
-        "timestamp": 1785554759703
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785546769041
       },
       {
-        "executionId": "9b5829d1-6572-4323-8da5-f59a605aed1d",
-        "chatSessionId": "sess_e8a63976-2b04-46ff-8c69-e344a6597829",
-        "timestamp": 1785554882482
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785547254202
       }
     ],
     "2.4 實作 calc_percentile_rank 函式": [
       {
-        "executionId": "40f5ef96-1497-4cfe-b055-fe937226630b",
-        "chatSessionId": "sess_53e62264-562d-4131-8c4c-c6ff24930197",
-        "timestamp": 1785554972718
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785546769892
       },
       {
-        "executionId": "40f5ef96-1497-4cfe-b055-fe937226630b",
-        "chatSessionId": "sess_53e62264-562d-4131-8c4c-c6ff24930197",
-        "timestamp": 1785555088680
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785547254613
       }
     ],
     "2.5 實作 calc_correlation 函式": [
       {
-        "executionId": "94840b94-989d-4cc0-93e8-978b5512311b",
-        "chatSessionId": "sess_e3f35027-3def-41c8-8689-9a8e0686d60f",
-        "timestamp": 1785555106520
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785546770525
       },
       {
-        "executionId": "94840b94-989d-4cc0-93e8-978b5512311b",
-        "chatSessionId": "sess_e3f35027-3def-41c8-8689-9a8e0686d60f",
-        "timestamp": 1785555246868
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785547255467
       }
     ],
     "2.6 實作 compute_quant 主函式": [
       {
-        "executionId": "a79bdf96-3898-45a4-8532-50aa37cc1332",
-        "chatSessionId": "sess_a1b70427-4a1a-4519-b73e-e536797ec8ce",
-        "timestamp": 1785555261640
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785546771549
       },
       {
-        "executionId": "a79bdf96-3898-45a4-8532-50aa37cc1332",
-        "chatSessionId": "sess_a1b70427-4a1a-4519-b73e-e536797ec8ce",
-        "timestamp": 1785555928374
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785547256195
+      },
+      {
+        "executionId": "0dbabc69-eb05-4f01-af88-88b1012fbdfb",
+        "chatSessionId": "sess_3c2014e7-27ce-4d1b-9865-feb47337e253",
+        "timestamp": 1785547306201
+      },
+      {
+        "executionId": "0dbabc69-eb05-4f01-af88-88b1012fbdfb",
+        "chatSessionId": "sess_3c2014e7-27ce-4d1b-9865-feb47337e253",
+        "timestamp": 1785547349080
       }
     ],
     "2. 技術指標計算工具（tools/quant.py）": [
       {
-        "executionId": "a79bdf96-3898-45a4-8532-50aa37cc1332",
-        "chatSessionId": "sess_a1b70427-4a1a-4519-b73e-e536797ec8ce",
-        "timestamp": 1785555928443
-      }
-    ],
-    "3.1 實作 fetch_recent_from_exchange 函式": [
-      {
-        "executionId": "32e07c09-fa7a-49f6-ac49-10e3b9306004",
-        "chatSessionId": "sess_acf57992-1a3e-417d-bcfa-880a162741b1",
-        "timestamp": 1785555960509
-      },
-      {
-        "executionId": "32e07c09-fa7a-49f6-ac49-10e3b9306004",
-        "chatSessionId": "sess_acf57992-1a3e-417d-bcfa-880a162741b1",
-        "timestamp": 1785556166045
-      }
-    ],
-    "3.2 實作 check_data_seam 函式": [
-      {
-        "executionId": "9d1f8dae-cc96-45c8-9069-6af7b059783a",
-        "chatSessionId": "sess_f3eb654b-307b-4379-8de3-c6da3d07370d",
-        "timestamp": 1785556177967
-      },
-      {
-        "executionId": "9d1f8dae-cc96-45c8-9069-6af7b059783a",
-        "chatSessionId": "sess_f3eb654b-307b-4379-8de3-c6da3d07370d",
-        "timestamp": 1785556324242
-      }
-    ],
-    "3.3 實作 get_price_ohlcv 主函式": [
-      {
-        "executionId": "d313dc59-9156-49a1-99de-d0b7ab8d7d32",
-        "chatSessionId": "sess_85590e7d-b7bb-45bb-87ce-9527c6b0b889",
-        "timestamp": 1785556338655
-      },
-      {
-        "executionId": "d313dc59-9156-49a1-99de-d0b7ab8d7d32",
-        "chatSessionId": "sess_85590e7d-b7bb-45bb-87ce-9527c6b0b889",
-        "timestamp": 1785556696728
-      }
-    ],
-    "3. 價格與 OHLCV 資料工具（tools/price.py）": [
-      {
-        "executionId": "d313dc59-9156-49a1-99de-d0b7ab8d7d32",
-        "chatSessionId": "sess_85590e7d-b7bb-45bb-87ce-9527c6b0b889",
-        "timestamp": 1785556696929
-      }
-    ],
-    "4.1 實作 fetch_official_announcements 函式": [
-      {
-        "executionId": "c1d56d70-cba0-4e99-929c-81b27818b454",
-        "chatSessionId": "sess_225c245f-63f2-44eb-9c07-3d47e39db77b",
-        "timestamp": 1785556714348
-      },
-      {
-        "executionId": "c1d56d70-cba0-4e99-929c-81b27818b454",
-        "chatSessionId": "sess_225c245f-63f2-44eb-9c07-3d47e39db77b",
-        "timestamp": 1785556984290
-      }
-    ],
-    "4.2 實作 search_news 主函式": [
-      {
-        "executionId": "7fbaf867-e64f-4527-a901-0d9be550ea02",
-        "chatSessionId": "sess_b19e1f22-9b7d-4e13-91c5-cacda2d62093",
-        "timestamp": 1785556997427
-      },
-      {
-        "executionId": "7fbaf867-e64f-4527-a901-0d9be550ea02",
-        "chatSessionId": "sess_b19e1f22-9b7d-4e13-91c5-cacda2d62093",
-        "timestamp": 1785557435286
-      }
-    ],
-    "4. 新聞與官方公告工具（tools/news.py）": [
-      {
-        "executionId": "7fbaf867-e64f-4527-a901-0d9be550ea02",
-        "chatSessionId": "sess_b19e1f22-9b7d-4e13-91c5-cacda2d62093",
-        "timestamp": 1785557435694
-      }
-    ],
-    "5.1 實作 fetch_btc_onchain 函式": [
-      {
-        "executionId": "15b1f071-86ae-433a-a7f8-733978dec7be",
-        "chatSessionId": "sess_57109b8a-ceb6-4f1a-bd30-a8c2fee04812",
-        "timestamp": 1785557495163
-      },
-      {
-        "executionId": "15b1f071-86ae-433a-a7f8-733978dec7be",
-        "chatSessionId": "sess_57109b8a-ceb6-4f1a-bd30-a8c2fee04812",
-        "timestamp": 1785557718810
-      }
-    ],
-    "5.2 實作 fetch_evm_onchain 函式": [
-      {
-        "executionId": "9ac3de92-3826-4a54-9bac-7c6c790fe034",
-        "chatSessionId": "sess_a0fa0cb4-70a0-4398-b7ec-7ac082506d0e",
-        "timestamp": 1785558409459
-      },
-      {
-        "executionId": "9ac3de92-3826-4a54-9bac-7c6c790fe034",
-        "chatSessionId": "sess_a0fa0cb4-70a0-4398-b7ec-7ac082506d0e",
-        "timestamp": 1785558853238
-      }
-    ],
-    "5.3 實作 fetch_sol_onchain 函式": [
-      {
-        "executionId": "0fd76b6f-fae3-4c6d-8a86-416acd7f76b1",
-        "chatSessionId": "sess_a2d1f3a9-5db3-442e-9829-65368bffdf0c",
-        "timestamp": 1785558872724
-      },
-      {
-        "executionId": "0fd76b6f-fae3-4c6d-8a86-416acd7f76b1",
-        "chatSessionId": "sess_a2d1f3a9-5db3-442e-9829-65368bffdf0c",
-        "timestamp": 1785559117908
-      }
-    ],
-    "5.4 實作 fetch_xrp_onchain 函式": [
-      {
-        "executionId": "424035fd-afe2-4ecc-86bc-6ae272e2520b",
-        "chatSessionId": "sess_afd9b781-7652-4f7e-bac9-7c128e2b7259",
-        "timestamp": 1785559131177
-      },
-      {
-        "executionId": "424035fd-afe2-4ecc-86bc-6ae272e2520b",
-        "chatSessionId": "sess_afd9b781-7652-4f7e-bac9-7c128e2b7259",
-        "timestamp": 1785559352457
-      }
-    ],
-    "5.5 實作 get_onchain 主函式": [
-      {
-        "executionId": "21dcd1ac-2a46-42c0-a766-7de423b4915e",
-        "chatSessionId": "sess_97076d65-8a6d-4d80-b6dd-97985d87d13a",
-        "timestamp": 1785559370697
-      },
-      {
-        "executionId": "21dcd1ac-2a46-42c0-a766-7de423b4915e",
-        "chatSessionId": "sess_97076d65-8a6d-4d80-b6dd-97985d87d13a",
-        "timestamp": 1785559516621
-      }
-    ],
-    "5. 鏈上資料工具（tools/onchain.py）": [
-      {
-        "executionId": "21dcd1ac-2a46-42c0-a766-7de423b4915e",
-        "chatSessionId": "sess_97076d65-8a6d-4d80-b6dd-97985d87d13a",
-        "timestamp": 1785559516679
-      }
-    ],
-    "6.1 實作 get_sentiment 函式": [
-      {
-        "executionId": "3cdb8ebc-36e9-40e0-a9b0-ab27b76b9bae",
-        "chatSessionId": "sess_fa6aae90-f39f-4076-9265-16bb41913e7f",
-        "timestamp": 1785559533132
-      },
-      {
-        "executionId": "3cdb8ebc-36e9-40e0-a9b0-ab27b76b9bae",
-        "chatSessionId": "sess_fa6aae90-f39f-4076-9265-16bb41913e7f",
-        "timestamp": 1785559764786
-      }
-    ],
-    "6. 市場情緒工具（tools/sentiment.py）": [
-      {
-        "executionId": "3cdb8ebc-36e9-40e0-a9b0-ab27b76b9bae",
-        "chatSessionId": "sess_fa6aae90-f39f-4076-9265-16bb41913e7f",
-        "timestamp": 1785559764838
-      }
-    ],
-    "7.1 實作 fetch_upcoming_events 函式": [
-      {
-        "executionId": "0e0cc6d4-9175-4c42-a729-ce902f1d3ba7",
-        "chatSessionId": "sess_f62d5425-9b46-43d7-a4c8-0b9d65c762c4",
-        "timestamp": 1785559787861
+        "executionId": "73377092-86b9-447a-bf06-8bc7ef277834",
+        "chatSessionId": "sess_f5f5c29e-2bd8-495b-a910-9115902c4a4a",
+        "timestamp": 1785547256294
       }
     ],
     "2.7 撰寫 quant.py 的屬性測試": [
       {
-        "executionId": "3c342ac2-d4e8-4650-9a5e-0d5946e61cb8",
-        "chatSessionId": "sess_1a6bf2a3-ec1a-4c1b-b575-6a35ac262a89",
-        "timestamp": 1785559888219
+        "executionId": "91970f08-135f-471c-927f-e29b7dc9341e",
+        "chatSessionId": "sess_6263db88-f538-4e84-b071-dba184d70265",
+        "timestamp": 1785547399290
       },
       {
-        "executionId": "3c342ac2-d4e8-4650-9a5e-0d5946e61cb8",
-        "chatSessionId": "sess_1a6bf2a3-ec1a-4c1b-b575-6a35ac262a89",
-        "timestamp": 1785560094072
-      }
-    ],
-    "3.4 撰寫 price.py 的單元測試": [
-      {
-        "executionId": "21496905-1ac7-43c6-9572-0365da7e0876",
-        "chatSessionId": "sess_221d0f96-4d85-4cca-a6f8-ea049e8f3d4a",
-        "timestamp": 1785560109736
-      }
-    ],
-    "4.3 撰寫 news.py 的單元測試": [
-      {
-        "executionId": "0297db1e-0787-4139-8411-fe1b68d0742b",
-        "chatSessionId": "sess_5030b3ba-132b-4575-8c3e-00d1b58aa32b",
-        "timestamp": 1785560219411
+        "executionId": "91970f08-135f-471c-927f-e29b7dc9341e",
+        "chatSessionId": "sess_6263db88-f538-4e84-b071-dba184d70265",
+        "timestamp": 1785547943982
       }
     ]
   }

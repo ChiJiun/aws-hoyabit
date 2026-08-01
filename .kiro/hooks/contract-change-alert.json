@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "契約變更影響分析",
+      "trigger": "PostFileSave",
+      "description": "contracts.md 被修改時,分析對六個模組的衝擊",
+      "matcher": "contracts\\\\.md$",
+      "action": {
+        "type": "agent",
+        "prompt": "steering/contracts.md 是六個模組唯一的耦合點,剛被修改了。請:1) 用 git diff 找出改了哪個契約(C1–C6);2) 對照 steering/structure.md 的模組表,列出受影響的模組與檔案清單;3) 檢查受影響模組的程式是否已同步(搜尋舊欄位名/舊簽名的殘留);4) 提醒此變更需全隊知悉。輸出一份簡短的影響清單。"
+      }
+    }
+  ]
+}

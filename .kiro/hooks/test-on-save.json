@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "存檔即測試",
+      "trigger": "PostFileSave",
+      "description": "lambda 程式變更後自動執行對應的 pytest",
+      "matcher": "lambda[\\\\/].*\\\\.py$",
+      "action": {
+        "type": "command",
+        "command": "python -m pytest tests/ -x -q --tb=short 2>&1 | head -50",
+        "timeout": 60
+      }
+    }
+  ]
+}

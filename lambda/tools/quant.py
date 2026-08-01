@@ -6,103 +6,331 @@ quant.py — 技術指標計算工具
 模型心算數字是現場 Demo 時最容易被評審驗證出錯的地方。
 """
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta, timezone
 
-import storage
+
+def calc_atr_pct(df, window):
+    """計算 ATR（平均真實區間）並轉成佔價格的百分比。
+
+    True Range = max(H-L, |H-prevC|, |L-prevC|)
+    ATR = EWM(TR, span=window)
+    回傳最後一筆 ATR / 最後收盤價 * 100
+    """
+    high = df["high"]
+    low = df["low"]
+    close = df["close"]
+    prev_close = close.shift(1)
+
+    tr1 = high - low
+    tr2 = (high - prev_close).abs()
+    tr3 = (low - prev_close).abs()
+
+    true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = true_range.ewm(span=window, adjust=False).mean()
+
+    last_atr = atr.iloc[-1]
+    last_close = close.iloc[-1]
+
+    return last_atr / last_close * 100
+
+
+def calc_bollinger_bandwidth(df, window):
+    """計算布林帶寬（上下軌距離佔中軌的比例）。
+
+    Mid = SMA(close, window)
+    Upper = Mid + 2 * std
+    Lower = Mid - 2 * std
+    BW = (Upper - Lower) / Mid * 100
+    回傳最後一筆 BW 值。
+    """
+    close = df["close"]
+    mid = close.rolling(window=window).mean()
+    std = close.rolling(window=window).std()
+
+    upper = mid + 2 * std
+    lower = mid - 2 * std
+    bandwidth = (upper - lower) / mid * 100
+
+    return bandwidth.iloc[-1]
+
+
+def calc_adx(df, window):
+    """計算 ADX（平均趨向指標）。
+
+    標準 +DM/-DM/TR/+DI/-DI/DX/ADX 計算流程。
+    回傳最後一筆 ADX 值。
+    """
+    high = df["high"]
+    low = df["low"]
+    close = df["close"]
+
+    # +DM / -DM
+    plus_dm = high.diff()
+    minus_dm = -low.diff()
+
+    plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0.0)
+    minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0.0)
+
+    # True Range
+    prev_close = close.shift(1)
+    tr1 = high - low
+    tr2 = (high - prev_close).abs()
+    tr3 = (low - prev_close).abs()
+    true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+    # Smoothed with EWM (span=window)
+    atr = true_range.ewm(span=window, adjust=False).mean()
+    plus_dm_smooth = plus_dm.ewm(span=window, adjust=False).mean()
+    minus_dm_smooth = minus_dm.ewm(span=window, adjust=False).mean()
+
+    # +DI / -DI
+    plus_di = (plus_dm_smooth / atr) * 100
+    minus_di = (minus_dm_smooth / atr) * 100
+
+    # DX
+    di_sum = plus_di + minus_di
+    di_diff = (plus_di - minus_di).abs()
+    dx = (di_diff / di_sum.replace(0, np.nan)) * 100
+
+    # ADX = EWM of DX
+    adx = dx.ewm(span=window, adjust=False).mean()
+
+    return adx.iloc[-1]
+
+
+def calc_percentile_rank(series, current_value, lookback=365):
+    """計算當前數值在過去 lookback 天資料中的百分位。
+
+    回傳 0-100 的浮點數，表示有多少比例的歷史值 <= current_value。
+    """
+    recent = series.dropna().tail(lookback)
+    if len(recent) == 0:
+        return 50.0  # 無資料時回傳中位數
+
+    count_below = (recent <= current_value).sum()
+    percentile = count_below / len(recent) * 100
+    return float(percentile)
+
+
+def calc_correlation(df_a, df_b, window):
+    """計算兩個幣種日報酬率的 Pearson 相關係數。
+
+    使用最近 window 天的日報酬率計算相關係數。
+    結果 clip 至 [-1, 1]。
+    """
+    returns_a = df_a["close"].pct_change().dropna().tail(window)
+    returns_b = df_b["close"].pct_change().dropna().tail(window)
+
+    # 對齊兩個序列（取共同索引）
+    aligned_a, aligned_b = returns_a.align(returns_b, join="inner")
+
+    if len(aligned_a) < 2:
+        return 0.0
+
+    corr = aligned_a.corr(aligned_b)
+
+    # 處理 NaN（例如其中一方完全無變化）
+    if pd.isna(corr):
+        return 0.0
+
+    return float(np.clip(corr, -1.0, 1.0))
 
 
 def compute_quant(symbol, features, window, related_claim, compare_symbol=None):
-    """計算指定的技術指標，每個指標同時附帶歷史百分位排名。
+    """計算指定的技術指標。主入口函式。
 
-    Args:
-        symbol: 幣種代號（如 "BTC"）
-        features: 要計算的指標清單（如 ["atr_pct", "adx", "volume_zscore"]）
-        window: 計算視窗（天數）
-        related_claim: LLM 提供的取數目的說明
-        compare_symbol: 比較幣種代號（僅 correlation 指標需要）
-
-    Returns:
-        統一格式 dict（成功時含 raw/source/content_reference/summary，失敗時含 error）
+    步驟：
+      1. 取得該幣種的價格資料（呼叫 price.get_price_ohlcv）
+      2. 依 features 清單逐一計算對應指標
+      3. 每個指標同時計算「當前值」與「在歷史資料中的百分位」
+    features 可能包含：atr_pct、bollinger_bandwidth、adx、range_ratio、
+                      volume_zscore、realized_vol、correlation
+    回傳：統一格式 dict
     """
     try:
-        # 1. 取得主要幣種的 OHLCV 資料
-        df = storage.read_baseline_csv(symbol)
+        from tools.price import get_price_ohlcv
 
-        # 若需要計算 correlation 且有比較幣種，讀取比較幣種資料
+        # 計算需要的起始日期：window + 365 天（用於百分位計算）
+        lookback_days = window + 365
+        end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        start_date = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+        # 取得主幣種價格資料
+        price_result = get_price_ohlcv(symbol, start_date, end_date, related_claim)
+        if isinstance(price_result, dict) and "error" in price_result:
+            return {
+                "error": f"Failed to get price data for {symbol}: {price_result['error']}",
+                "source": "local_pandas_computation",
+                "content_reference": {},
+            }
+
+        # price_result 應該包含 raw 欄位中的 DataFrame 或直接是 DataFrame
+        if isinstance(price_result, dict) and "raw" in price_result:
+            raw_data = price_result["raw"]
+            if isinstance(raw_data, pd.DataFrame):
+                df = raw_data
+            else:
+                df = pd.DataFrame(raw_data)
+        elif isinstance(price_result, pd.DataFrame):
+            df = price_result
+        else:
+            return {
+                "error": f"Unexpected price data format for {symbol}",
+                "source": "local_pandas_computation",
+                "content_reference": {},
+            }
+
+        if df.empty or len(df) < window:
+            return {
+                "error": f"Insufficient price data for {symbol}: got {len(df)} rows, need at least {window}",
+                "source": "local_pandas_computation",
+                "content_reference": {},
+            }
+
+        # 取得比較幣種資料（如需要）
         df_compare = None
-        if compare_symbol is not None and "correlation" in features:
-            df_compare = storage.read_baseline_csv(compare_symbol)
+        if compare_symbol and "correlation" in features:
+            compare_result = get_price_ohlcv(compare_symbol, start_date, end_date, related_claim)
+            if isinstance(compare_result, dict) and "error" in compare_result:
+                # 相關係數無法計算，但其他指標仍可繼續
+                pass
+            elif isinstance(compare_result, dict) and "raw" in compare_result:
+                raw_compare = compare_result["raw"]
+                if isinstance(raw_compare, pd.DataFrame):
+                    df_compare = raw_compare
+                else:
+                    df_compare = pd.DataFrame(raw_compare)
+            elif isinstance(compare_result, pd.DataFrame):
+                df_compare = compare_result
 
-        # 2. 依 features 清單逐一計算
-        raw_results = {}
-        content_ref = {}
-        summary_parts = []
+        # 逐一計算各指標
+        results = {}
+        content_ref = {"symbol": symbol, "window": window, "indicators": {}}
 
         for feature in features:
-            if feature == "atr_pct":
-                series = calc_atr_pct(df, window)
-                current_value = float(series.dropna().iloc[-1])
-                percentile = calc_percentile_rank(series, current_value)
-                raw_results[feature] = {"value": current_value, "percentile": percentile}
-                content_ref[feature] = {"value": current_value, "percentile": percentile, "window": window}
-                summary_parts.append(f"ATR% = {current_value:.2f} (百分位 {percentile:.0f})")
+            try:
+                if feature == "atr_pct":
+                    value = calc_atr_pct(df, window)
+                    # 計算歷史 ATR% 序列用於百分位
+                    high = df["high"]
+                    low = df["low"]
+                    close = df["close"]
+                    prev_close = close.shift(1)
+                    tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
+                    atr_series = tr.ewm(span=window, adjust=False).mean()
+                    atr_pct_series = atr_series / close * 100
+                    percentile = calc_percentile_rank(atr_pct_series, value)
 
-            elif feature == "bollinger_bandwidth":
-                series = calc_bollinger_bandwidth(df, window)
-                current_value = float(series.dropna().iloc[-1])
-                percentile = calc_percentile_rank(series, current_value)
-                raw_results[feature] = {"value": current_value, "percentile": percentile}
-                content_ref[feature] = {"value": current_value, "percentile": percentile, "window": window}
-                summary_parts.append(f"布林帶寬 = {current_value:.4f} (百分位 {percentile:.0f})")
+                elif feature == "bollinger_bandwidth":
+                    value = calc_bollinger_bandwidth(df, window)
+                    # 計算歷史 BW 序列用於百分位
+                    close = df["close"]
+                    mid = close.rolling(window=window).mean()
+                    std = close.rolling(window=window).std()
+                    bw_series = (mid + 2 * std - (mid - 2 * std)) / mid * 100
+                    percentile = calc_percentile_rank(bw_series, value)
 
-            elif feature == "adx":
-                series = calc_adx(df, window)
-                current_value = float(series.dropna().iloc[-1])
-                percentile = calc_percentile_rank(series, current_value)
-                raw_results[feature] = {"value": current_value, "percentile": percentile}
-                content_ref[feature] = {"value": current_value, "percentile": percentile, "window": window}
-                summary_parts.append(f"ADX = {current_value:.2f} (百分位 {percentile:.0f})")
+                elif feature == "adx":
+                    value = calc_adx(df, window)
+                    # ADX 百分位：重建 ADX 序列
+                    high = df["high"]
+                    low = df["low"]
+                    close = df["close"]
+                    plus_dm = high.diff()
+                    minus_dm_raw = -low.diff()
+                    plus_dm = plus_dm.where((plus_dm > minus_dm_raw) & (plus_dm > 0), 0.0)
+                    minus_dm_raw = minus_dm_raw.where((minus_dm_raw > plus_dm) & (minus_dm_raw > 0), 0.0)
+                    prev_c = close.shift(1)
+                    tr = pd.concat([high - low, (high - prev_c).abs(), (low - prev_c).abs()], axis=1).max(axis=1)
+                    atr_s = tr.ewm(span=window, adjust=False).mean()
+                    plus_dm_s = plus_dm.ewm(span=window, adjust=False).mean()
+                    minus_dm_s = minus_dm_raw.ewm(span=window, adjust=False).mean()
+                    plus_di = (plus_dm_s / atr_s) * 100
+                    minus_di = (minus_dm_s / atr_s) * 100
+                    di_sum = plus_di + minus_di
+                    di_diff = (plus_di - minus_di).abs()
+                    dx = (di_diff / di_sum.replace(0, np.nan)) * 100
+                    adx_series = dx.ewm(span=window, adjust=False).mean()
+                    percentile = calc_percentile_rank(adx_series, value)
 
-            elif feature == "volume_zscore":
-                vol = df["volume"]
-                rolling_mean = vol.rolling(window=window).mean()
-                rolling_std = vol.rolling(window=window).std()
-                zscore_series = (vol - rolling_mean) / rolling_std
-                current_value = float(zscore_series.dropna().iloc[-1])
-                percentile = calc_percentile_rank(zscore_series, current_value)
-                raw_results[feature] = {"value": current_value, "percentile": percentile}
-                content_ref[feature] = {"value": current_value, "percentile": percentile, "window": window}
-                summary_parts.append(f"成交量Z-score = {current_value:.2f} (百分位 {percentile:.0f})")
+                elif feature == "volume_zscore":
+                    volume = df["volume"].astype(float)
+                    recent_vol = volume.tail(window)
+                    mean_vol = recent_vol.mean()
+                    std_vol = recent_vol.std()
+                    current_vol = volume.iloc[-1]
+                    if std_vol == 0 or pd.isna(std_vol):
+                        value = 0.0
+                    else:
+                        value = float((current_vol - mean_vol) / std_vol)
+                    # Z-score 的百分位：用歷史 rolling z-score
+                    rolling_mean = volume.rolling(window=window).mean()
+                    rolling_std = volume.rolling(window=window).std()
+                    zscore_series = (volume - rolling_mean) / rolling_std.replace(0, np.nan)
+                    percentile = calc_percentile_rank(zscore_series, value)
 
-            elif feature == "realized_vol":
-                daily_returns = df["close"].pct_change()
-                realized_vol_series = daily_returns.rolling(window=window).std() * np.sqrt(365)
-                current_value = float(realized_vol_series.dropna().iloc[-1])
-                percentile = calc_percentile_rank(realized_vol_series, current_value)
-                raw_results[feature] = {"value": current_value, "percentile": percentile}
-                content_ref[feature] = {"value": current_value, "percentile": percentile, "window": window}
-                summary_parts.append(f"已實現波動率 = {current_value:.4f} (百分位 {percentile:.0f})")
+                elif feature == "realized_vol":
+                    close = df["close"]
+                    daily_returns = close.pct_change().dropna()
+                    recent_returns = daily_returns.tail(window)
+                    value = float(recent_returns.std() * np.sqrt(365) * 100)
+                    # 歷史 realized vol 序列
+                    rv_series = daily_returns.rolling(window=window).std() * np.sqrt(365) * 100
+                    percentile = calc_percentile_rank(rv_series, value)
 
-            elif feature == "correlation":
-                if compare_symbol is None or df_compare is None:
-                    raw_results[feature] = {"value": None, "percentile": None}
-                    content_ref[feature] = {"value": None, "percentile": None, "window": window}
-                    summary_parts.append("相關係數 = N/A (未指定比較幣種)")
+                elif feature == "correlation":
+                    if df_compare is not None and not df_compare.empty:
+                        value = calc_correlation(df, df_compare, window)
+                        percentile = 50.0  # 相關係數的百分位意義不大，給中性值
+                    else:
+                        value = None
+                        percentile = None
+
+                elif feature == "range_ratio":
+                    # Range Ratio: (最近 window 天最高 - 最低) / 最新收盤價 * 100
+                    close = df["close"]
+                    high = df["high"]
+                    low = df["low"]
+                    recent_high = high.tail(window).max()
+                    recent_low = low.tail(window).min()
+                    last_close = close.iloc[-1]
+                    value = float((recent_high - recent_low) / last_close * 100)
+                    # 歷史 range ratio 序列
+                    rolling_high = high.rolling(window=window).max()
+                    rolling_low = low.rolling(window=window).min()
+                    rr_series = (rolling_high - rolling_low) / close * 100
+                    percentile = calc_percentile_rank(rr_series, value)
+
                 else:
-                    corr_value = calc_correlation(df, df_compare, window)
-                    raw_results[feature] = {"value": corr_value, "percentile": None}
-                    content_ref[feature] = {"value": corr_value, "percentile": None, "window": window}
-                    summary_parts.append(f"{symbol}/{compare_symbol} 相關係數 = {corr_value:.4f}")
+                    # 不支援的指標，跳過
+                    results[feature] = {"value": None, "percentile": None, "note": "unsupported feature"}
+                    continue
 
-        # 3. 組裝統一格式回傳
-        summary_text = "技術指標計算結果：" + "、".join(summary_parts)
+                results[feature] = {"value": round(value, 4) if value is not None else None, "percentile": round(percentile, 1) if percentile is not None else None}
+                content_ref["indicators"][feature] = results[feature]
+
+            except Exception as e:
+                results[feature] = {"value": None, "percentile": None, "error": str(e)}
+                content_ref["indicators"][feature] = results[feature]
+
+        # 組裝摘要
+        summary_parts = []
+        for feat, res in results.items():
+            if res.get("value") is not None:
+                summary_parts.append(f"{feat}={res['value']} (P{res.get('percentile', '?')})")
+            elif res.get("error"):
+                summary_parts.append(f"{feat}=error({res['error']})")
+            else:
+                summary_parts.append(f"{feat}=N/A")
+        summary = f"{symbol} {window}d indicators: " + ", ".join(summary_parts)
 
         return {
-            "raw": raw_results,
+            "raw": results,
             "source": "local_pandas_computation",
             "content_reference": content_ref,
-            "summary": summary_text,
+            "summary": summary,
         }
 
     except Exception as e:
@@ -111,133 +339,3 @@ def compute_quant(symbol, features, window, related_claim, compare_symbol=None):
             "source": "local_pandas_computation",
             "content_reference": {},
         }
-
-
-def calc_atr_pct(df, window):
-    # 功能：計算 ATR（平均真實區間）並轉成佔價格的百分比。
-    # 用途：衡量波動率，是判斷「盤整」的核心指標之一。
-    high = df["high"]
-    low = df["low"]
-    close = df["close"]
-    prev_close = close.shift(1)
-
-    # True Range = max(high - low, abs(high - prev_close), abs(low - prev_close))
-    tr = pd.concat(
-        [
-            high - low,
-            (high - prev_close).abs(),
-            (low - prev_close).abs(),
-        ],
-        axis=1,
-    ).max(axis=1)
-
-    # ATR = rolling mean of TR over the specified window
-    atr = tr.rolling(window=window).mean()
-
-    # Convert to percentage of the current close price
-    atr_pct = (atr / close) * 100
-    return atr_pct
-
-
-def calc_adx(df, window):
-    # 功能：計算 ADX（平均趨向指標）。
-    # 用途：衡量趨勢強度。一般以低於 20 視為無明確趨勢，可支持盤整判斷。
-    high = df["high"]
-    low = df["low"]
-    close = df["close"]
-    prev_high = high.shift(1)
-    prev_low = low.shift(1)
-    prev_close = close.shift(1)
-
-    # +DM / -DM
-    plus_dm = high - prev_high
-    minus_dm = prev_low - low
-    plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0.0)
-    minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0.0)
-
-    # True Range
-    tr = pd.concat(
-        [
-            high - low,
-            (high - prev_close).abs(),
-            (low - prev_close).abs(),
-        ],
-        axis=1,
-    ).max(axis=1)
-
-    # Wilder's smoothing (EWM with alpha = 1/window)
-    alpha = 1.0 / window
-    smoothed_tr = tr.ewm(alpha=alpha, adjust=False).mean()
-    smoothed_plus_dm = plus_dm.ewm(alpha=alpha, adjust=False).mean()
-    smoothed_minus_dm = minus_dm.ewm(alpha=alpha, adjust=False).mean()
-
-    # +DI / -DI
-    plus_di = 100 * smoothed_plus_dm / smoothed_tr
-    minus_di = 100 * smoothed_minus_dm / smoothed_tr
-
-    # DX
-    dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di)
-
-    # ADX = smoothed DX
-    adx = dx.ewm(alpha=alpha, adjust=False).mean()
-    return adx
-
-
-def calc_bollinger_bandwidth(df, window):
-    # 功能：計算布林帶寬（上下軌距離佔中軌的比例）。
-    # 用途：帶寬收窄代表波動率壓縮，常見於盤整或突破前的醞釀期。
-    close = df["close"]
-
-    sma = close.rolling(window=window).mean()
-    std = close.rolling(window=window).std()
-
-    upper = sma + 2 * std
-    lower = sma - 2 * std
-
-    bandwidth = (upper - lower) / sma
-    return bandwidth
-
-
-def calc_percentile_rank(series, current_value, lookback=365):
-    # 功能：計算當前數值在過去 lookback 天資料中的百分位。
-    # 這是把「絕對數值」轉成「相對歷史位置」的關鍵，讓推論有比較基準。
-
-    # 取最後 lookback 筆並去除 NaN
-    window = series.tail(lookback).dropna()
-
-    # 邊界：若無有效資料則回傳 50（中位數假設）
-    if len(window) == 0:
-        return 50.0
-
-    # 計算百分位：有多少比例的歷史值 <= current_value
-    rank = (window <= current_value).sum() / len(window) * 100
-
-    # 確保結果落在 [0, 100]
-    return float(np.clip(rank, 0, 100))
-
-
-def calc_correlation(df_a, df_b, window):
-    # 功能：計算兩個幣種報酬率的相關係數。
-    # 用途：比較分析題型（範例三）會需要，用來說明兩者風險敞口的差異。
-
-    # 計算日報酬率
-    returns_a = df_a["close"].pct_change().dropna()
-    returns_b = df_b["close"].pct_change().dropna()
-
-    # 取最後 window 天的報酬率
-    returns_a = returns_a.tail(window)
-    returns_b = returns_b.tail(window)
-
-    # 邊界處理：資料不足或標準差為零（全同值）時回傳中性相關
-    if len(returns_a) < 2 or len(returns_b) < 2:
-        return 0.0
-
-    # 計算 Pearson 相關係數
-    corr = returns_a.corr(returns_b)
-
-    # NaN 處理（例如其中一方標準差為零）
-    if pd.isna(corr):
-        return 0.0
-
-    # 夾值確保結果必定落在 [-1, 1]（防止浮點數溢出邊界）
-    return float(np.clip(corr, -1.0, 1.0))
