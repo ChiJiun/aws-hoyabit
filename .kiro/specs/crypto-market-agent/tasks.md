@@ -282,23 +282,23 @@
     - **Property 18: 來源多樣性檢查** — 類別數 < 3 時報告未通過
     - **驗證: 需求 5.3、13.1、13.4、13.5**
 
-- [ ] 12. S3 讀寫模組（storage.py）
+- [x] 12. S3 讀寫模組（storage.py）
 
-  - [ ] 12.1 實作 read_baseline_csv 函式
+  - [x] 12.1 實作 read_baseline_csv 函式
     - 從 S3 路徑 baseline/{symbol}USDT_daily_ohlcv.csv 讀取並回傳 DataFrame
     - 本機測試時從本地 data/baseline/ 讀取
     - _需求：18.1_
 
-  - [ ] 12.2 實作 save_raw_payload 函式
+  - [x] 12.2 實作 save_raw_payload 函式
     - 上傳原始 API 回應至 S3 路徑 runs/{run_id}/raw/{evidence_id}.json
     - 本機測試時寫入 outputs/ 資料夾
     - _需求：4.6、18.2_
 
-  - [ ] 12.3 實作 save_output_file 函式
+  - [x] 12.3 實作 save_output_file 函式
     - 上傳交付物至 S3 路徑 runs/{run_id}/{filename}
     - _需求：15.2、18.2_
 
-  - [ ] 12.4 實作 generate_download_link 函式
+  - [x] 12.4 實作 generate_download_link 函式
     - 產生 S3 presigned URL，預設 1 小時有效
     - _需求：15.3、18.3、18.4_
 
