@@ -1,0 +1,169 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Implement `initCoinSelector()` function": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561072128
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561087701
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561188733
+      }
+    ],
+    "2.1 Implement `showLoading()` function": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561072196
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561197473
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561307978
+      }
+    ],
+    "2.2 Implement `showError(message)` function": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561072279
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561199579
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561308674
+      }
+    ],
+    "3. Checkpoint - Verify selector and state transitions": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561072357
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561350408
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561358181
+      }
+    ],
+    "4.1 Implement `callAnalysisApi(payload)` function": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561072415
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561367290
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561509568
+      }
+    ],
+    "4.2 Implement `renderReport(data)` function": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561072479
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561368006
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561510257
+      }
+    ],
+    "5.1 Implement `handleSubmit()` function": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561072534
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561368921
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561511290
+      }
+    ],
+    "6. Final checkpoint - Full flow verification": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561072602
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561519278
+      },
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561526492
+      }
+    ],
+    "1. Implement coin selector and state management": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561188797
+      }
+    ],
+    "2. Implement loading state and error display": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561308735
+      }
+    ],
+    "4. Implement API communication and report rendering": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561510363
+      }
+    ],
+    "5. Implement orchestrator and wire everything together": [
+      {
+        "executionId": "03bb1ef4-c458-4fd9-87ba-54b5cecf4b11",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785561511348
+      }
+    ]
+  }
+}

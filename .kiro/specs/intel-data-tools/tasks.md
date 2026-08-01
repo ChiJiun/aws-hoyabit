@@ -11,3 +11,10 @@
 - [ ] 7. onchain.py:get_onchain 分派主函式(R8.6, R8.7)
 - [ ] 8. 測試:P5/P12 + mock 各 API 失敗 + content_reference 欄位齊備
 - [ ] 9. 檢查點:四工具 summary 長度抽查(context 預算)
+
+## 異常訊號擴充(docs/anomaly-signal-plan.md 表 A6–A10)
+- [ ] 10. sentiment.py:F&G 極端值/7 日急變 flag(A6)
+- [ ] 11. news.py:新聞密度突增(A7)+ 重大官方事件關鍵字(A8)
+- [ ] 12. onchain.py:活躍度偏離 30 日均 ±30%(A9)
+- [ ] 13. macro.py:DXY/殖利率 20 日變化極端(A10)
+- [ ] 14. 測試:各 flag 觸發與不觸發案例

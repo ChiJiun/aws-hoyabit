@@ -174,13 +174,13 @@
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 9.1、9.3**
 
-- [ ] 7. 總體經濟工具（tools/macro.py）
+- [x] 7. 總體經濟工具（tools/macro.py）
 
-  - [ ] 7.1 實作 fetch_upcoming_events 函式
+  - [x] 7.1 實作 fetch_upcoming_events 函式
     - 取得未來已排定的重要總經事件（FOMC、CPI 公布日等）
     - _需求：10.1_
 
-  - [ ] 7.2 實作 get_macro 主函式
+  - [x] 7.2 實作 get_macro 主函式
     - 呼叫 FRED API 取得指定總經指標（DXY、10Y 殖利率、聯邦基金利率）
     - 整合 fetch_upcoming_events 結果
     - content_reference 包含 FRED series ID、查詢時間範圍、數值序列摘要

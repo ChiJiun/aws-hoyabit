@@ -11,3 +11,6 @@
 - [x] 7. storage.py:generate_download_link presigned 1hr(R18.3, R18.4)
 - [x] 8. 測試:屬性測試 P4/P7/P8/P9/P10(tests/test_evidence.py + test_config.py)
 - [x] 9. 檢查點:介面凍結,contracts.md C2/C3/C6 一致確認完成
+
+## 異常訊號擴充
+- [ ] 10. config.py:ANOMALY_THRESHOLDS 集中管理(docs/anomaly-signal-plan.md 表 A 的門檻,賽前可調)

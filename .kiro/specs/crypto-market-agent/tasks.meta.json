@@ -177,6 +177,37 @@
         "chatSessionId": "sess_6263db88-f538-4e84-b071-dba184d70265",
         "timestamp": 1785547943982
       }
+    ],
+    "7.1 實作 fetch_upcoming_events 函式": [
+      {
+        "executionId": "25f79667-dd28-4586-908b-53c70a9f2d36",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785559500521
+      },
+      {
+        "executionId": "25f79667-dd28-4586-908b-53c70a9f2d36",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785559877890
+      }
+    ],
+    "7.2 實作 get_macro 主函式": [
+      {
+        "executionId": "25f79667-dd28-4586-908b-53c70a9f2d36",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785559502626
+      },
+      {
+        "executionId": "25f79667-dd28-4586-908b-53c70a9f2d36",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785559878338
+      }
+    ],
+    "7. 總體經濟工具（tools/macro.py）": [
+      {
+        "executionId": "25f79667-dd28-4586-908b-53c70a9f2d36",
+        "chatSessionId": "sess_c8b8956d-00a3-43f7-b021-836e63e4fd83",
+        "timestamp": 1785559878464
+      }
     ]
   }
 }
