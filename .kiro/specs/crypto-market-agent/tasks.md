@@ -196,7 +196,7 @@
 - [ ] 8. 檢查點 — 基礎設施與工具模組
   - 確認所有測試通過，如有疑問請詢問使用者。
 
-- [x] 9. Agent 主迴圈（agent.py）
+- [ ] 9. Agent 主迴圈（agent.py）
 
   - [x] 9.1 實作 build_tool_config 函式
     - 組出 Bedrock Converse API 的 toolConfig JSON
@@ -238,27 +238,43 @@
     - **Property 6: Context 膨脹防護**
     - **驗證: 需求 2.1、2.3、3.2、3.6**
 
-- [x] 10. 報告渲染（report.py）
+  - [x] 9.7 修訂 SYSTEM_PROMPT 的動態多維度分析規劃
+    - 要求依題目選擇至少 2 個能回答不同子問題、彼此互補的相關維度，並交叉說明實際維度的一致訊號、背離訊號或證據不足
+    - 移除固定五類、七工具或其他工具數量配額，以及強制工具呼叫順序；保留至少 3 個來源類別只作為匯出驗證政策
+    - 要求只說明與題目相關或已嘗試的省略、失敗維度及其信心影響，不臆測無關缺口
+    - _需求：12.2、13.2、13.3、13.4、13.5、13.6、13.9_
 
-  - [x] 10.1 實作 calculate_coverage 函式
-    - 統計 evidence_list 中涵蓋的資料類別（價格、新聞、鏈上、情緒、總經）
-    - 回傳 (覆蓋率百分比, 已取得的類別清單, 缺少的類別清單)
-    - _需求：12.4_ | _Property 18_
+  - [x]* 9.8 更新 SYSTEM_PROMPT 單元測試
+    - 驗證提示詞包含題目相關的互補維度選擇、跨維度一致／背離／不足比較及 evidence_id 要求
+    - 驗證提示詞不含固定 5 類、7 工具配額或 mandatory tool order
+    - _需求：12.2、12.3、12.9、13.2、13.3、13.4、13.5、13.6、13.9_
+
+- [ ] 10. 報告渲染（report.py）
+
+  - [x] 10.1 以決定性 13 維分類與多維度摘要取代 calculate_coverage
+    - 移除固定五類覆蓋率計算，定義 13 個 ANALYSIS_DIMENSIONS，並依 capability_id、結構化 content_reference、canonical source provider 與工具預設值的固定優先序，為每筆已採用證據選出唯一 primary dimension
+    - 實作 build_analysis_summary，從 evidence_list 與 execution-log-derived report metadata 彙整不重複證據筆數、canonical provider 獨立來源數、實際分析維度、逐維度 evidence/source/content_reference 明細、可確定的失敗嘗試與相關省略
+    - 同一 provider 的不同 URL endpoint 只計為一個來源；只將 analyzed_evidence_ids 對應的證據列為實際分析，未知失敗維度不得臆測
+    - 維持 C2 Evidence Record 與既有 C4 render_report 參數契約，report.py 不呼叫外部 API
+    - _需求：12.5、12.6、12.7、13.5、13.6、13.9_ | _Property 17、18_
 
   - [x] 10.2 實作 build_evidence_table 函式
     - 將 evidence_list 轉為 Markdown 表格（evidence_id、來源、取得時間、對應判斷）
-    - _需求：12.2_
+    - _需求：12.3_
 
-  - [x] 10.3 實作 render_report 主函式
-    - 使用 f-string 模板確保三章節存在：市場判斷、關鍵依據、信心說明
-    - 附錄包含資料覆蓋率與完整證據表
-    - missing_sources 寫入限制段落
-    - _需求：12.1、12.2、12.3、12.4、12.5、12.6_ | _Property 16_
+  - [x] 10.3 更新 render_report 的多維度附錄與信心說明
+    - 保留市場判斷、關鍵依據、信心說明三章節與完整證據表，並在附錄渲染實際分析維度、證據筆數、獨立來源數及逐維度明細
+    - 渲染 error、unavailable、timeout 等已知失敗嘗試，並將題目相關省略／失敗的原因與信心影響寫入信心說明
+    - 不輸出 x/5、固定五類分母、固定覆蓋百分比、x/3 匯出門檻達成率或維度分數
+    - 僅消費 analysis_text、evidence_list、missing_sources 與既有 coverage 位置傳入的 report metadata，不新增 API 呼叫或跨模組依賴
+    - _需求：12.1、12.3、12.4、12.5、12.6、12.7、12.8、12.9、13.2、13.3、13.4、13.5、13.6、13.9_ | _Property 18_
 
-  - [ ]* 10.4 撰寫 report.py 的屬性測試
-    - **Property 16: 報告三章節保證** — render_report 輸出必含「市場判斷」「關鍵依據」「信心說明」
-    - **Property 18: 來源多樣性檢查** — calculate_coverage 正確計算類別數
-    - **驗證: 需求 12.1、13.5**
+  - [x]* 10.4 更新 report.py 的屬性與單元測試
+    - **Property 17: 維度分類決定性與完備性** — 涵蓋 13 維 capability、重複輸入、複合命中與固定優先序，結果必為唯一合法維度
+    - **Property 18: 多維度附錄忠實且無固定分母** — 涵蓋重複 evidence_id、未採用證據、同 provider 不同 endpoint、URL hostname／非 URL provider canonicalization、成功失敗混合與相關／無關省略
+    - 驗證附錄包含實際維度、證據筆數、獨立來源數、逐維度明細與 error／unavailable／timeout 失敗嘗試
+    - 驗證輸出不含 x/5、固定覆蓋百分比、x/3 門檻達成率或 dimension score，且在模擬網路 client 失敗時仍可純本地完成渲染
+    - **驗證: 需求 12.5、12.6、12.7、13.5、13.6、13.9**
 
 - [x] 11. 交付物匯出（export.py）
 
@@ -272,15 +288,16 @@
     - _需求：5.3、15.1_ | _Property 11_
 
   - [x] 11.3 實作 validate_before_export 函式
-    - 檢查：四欄位齊備、來源類別數 >= 3、付費來源非唯一、無投資建議語句
+    - 檢查 Evidence Record 完整、來源類別數 >= 3、付費來源非唯一，以及分析文字不含投資建議語句
+    - 將三來源類別門檻只作為匯出 pass/fail 條件，不提供報告分母、覆蓋率或分數
     - 回傳 (全數通過, 未通過項目清單)
-    - _需求：13.1、13.4、13.5_ | _Property 17、18_
+    - _需求：13.1、13.7、13.8、13.9_ | _Property 19、20_
 
-  - [ ]* 11.4 撰寫 export.py 的屬性測試
-    - **Property 11: JSONL 格式正確性** — export_execution_log 每行可被 json.loads 解析
-    - **Property 17: 投資建議偵測** — 含禁止語句的文字被標記未通過
-    - **Property 18: 來源多樣性檢查** — 類別數 < 3 時報告未通過
-    - **驗證: 需求 5.3、13.1、13.4、13.5**
+  - [ ]* 11.4 更新 export.py 的屬性測試
+    - **Property 19: 投資建議交付前必拒絕** — 任意包含禁止投資建議語句的分析文字都被標記未通過
+    - **Property 20: 三來源類別門檻僅約束匯出** — 來源類別去重後只有 >= 3 才通過，且相同輸入不會使報告產生固定分母、百分比或分數
+    - 將 export 的來源類別生成與 report 的 canonical source/provider 計數分開，避免混用兩種概念
+    - **驗證: 需求 13.1、13.7、13.8、13.9**
 
 - [x] 12. S3 讀寫模組（storage.py）
 
@@ -305,7 +322,7 @@
 - [ ] 13. 檢查點 — Agent 迴圈與報告模組
   - 確認所有測試通過，如有疑問請詢問使用者。
 
-- [x] 14. Lambda 進入點整合（handler.py）
+- [ ] 14. Lambda 進入點整合（handler.py）
 
   - [x] 14.1 實作 parse_request 函式
     - 從 event body 解析 symbols（1-2 個）與 question
@@ -333,6 +350,13 @@
     - **Property 1: 有效請求必定被接受** — 1-2 個支援幣種 + 非空 question 必定通過
     - **Property 2: 無效幣種必定被拒絕** — 不在 SUPPORTED_SYMBOLS 中的代號被拒
     - **驗證: 需求 1.2、1.3、1.4、1.5**
+
+  - [x] 14.6 串接 execution log 衍生的 report metadata 與兩條報告路徑
+    - 從既有 evidence_list、execution_log、分析實際引用的 evidence_id 與能力資訊整理 analyzed_evidence_ids、evidence_capabilities、attempted_capabilities、relevant_omissions
+    - 在 lambda_handler 與 main 本機路徑都透過既有 C4 coverage 參數位置傳入 metadata，並確保匯出驗證在報告儲存前執行
+    - 更新本機執行摘要，顯示實際分析維度、證據筆數、canonical 獨立來源數與失敗嘗試，不顯示 x/5 或固定覆蓋百分比
+    - 維持 C2 Evidence Record 及 C5 HTTP request/response 欄位與語意不變，不新增外部 API 或服務
+    - _需求：12.5、12.6、12.7、13.5、13.6、13.7、13.8、13.9_ | _Property 18、19、20_
 
 - [x] 15. 前端 JavaScript 函式（frontend/index.html）
 
@@ -375,14 +399,16 @@
 
 - [x] 16. 整合測試（tests/test_local_run.py）
 
-  - [x] 16.1 實作 run_single_case 函式
-    - 呼叫 handler 內部邏輯執行測試案例
-    - 檢查：無例外、report_text 非空、evidence 涵蓋 >= 3 類別、無孤兒結論、耗時合理
-    - _需求：21.3_
+  - [x] 16.1 更新 run_single_case 的兩條報告路徑整合驗證
+    - 驗證 Lambda 與本機流程都從 evidence/execution log 產生 report metadata，並渲染實際維度、證據筆數、canonical 獨立來源數、逐維度明細與失敗嘗試
+    - 驗證 C2 Evidence Record 與 C5 HTTP 回應契約未改變，report.py 不呼叫外部 API
+    - 將來源類別 >= 3 保留為 export pass/fail 斷言，另行驗證 report 不含 x/5、x/3、固定覆蓋百分比或維度分數
+    - _需求：12.5、12.6、12.7、13.5、13.6、13.8、13.9_ | _Property 18、20_
 
-  - [x] 16.2 實作 print_summary 函式
-    - 印出總表：案例名稱、通過/失敗、耗時、證據筆數、涵蓋類別數
-    - _需求：21.3_
+  - [x] 16.2 更新 print_summary 的本機執行摘要
+    - 輸出案例名稱、通過／失敗、耗時、實際分析維度、證據筆數、canonical 獨立來源數及已知失敗嘗試
+    - 移除固定涵蓋類別數、x/5 與固定覆蓋百分比顯示
+    - _需求：12.5、12.6、12.7_ | _Property 18_
 
   - [x] 16.3 實作 main 函式
     - 依序執行三個 TEST_CASES，最後印出總表
@@ -405,21 +431,11 @@
 ```json
 {
   "waves": [
-    { "id": 0, "tasks": ["1.1", "1.2", "15.1", "15.2", "15.3"] },
-    { "id": 1, "tasks": ["1.3", "1.4", "15.4", "15.5"] },
-    { "id": 2, "tasks": ["1.5", "2.1", "2.2", "2.3", "2.4", "12.1", "15.6"] },
-    { "id": 3, "tasks": ["2.5", "2.6", "12.2", "12.3", "12.4"] },
-    { "id": 4, "tasks": ["2.7", "3.1", "3.2", "6.1", "7.1"] },
-    { "id": 5, "tasks": ["3.3", "4.1", "5.1", "5.2", "5.3", "5.4", "6.2", "7.2"] },
-    { "id": 6, "tasks": ["3.4", "4.2", "5.5", "7.3"] },
-    { "id": 7, "tasks": ["4.3", "5.6", "9.1", "10.1", "10.2", "11.1", "11.2", "11.3"] },
-    { "id": 8, "tasks": ["9.2", "9.3", "10.3", "10.4", "11.4"] },
-    { "id": 9, "tasks": ["9.4", "9.5"] },
-    { "id": 10, "tasks": ["9.6", "14.1", "14.2"] },
-    { "id": 11, "tasks": ["14.3", "14.4"] },
-    { "id": 12, "tasks": ["14.5", "15.7"] },
-    { "id": 13, "tasks": ["16.1", "16.2"] },
-    { "id": 14, "tasks": ["16.3"] }
+    { "id": 0, "tasks": ["3.4", "4.3", "5.6", "6.2", "7.3", "9.7", "10.1", "11.4"] },
+    { "id": 1, "tasks": ["9.8", "10.3"] },
+    { "id": 2, "tasks": ["10.4", "14.6"] },
+    { "id": 3, "tasks": ["16.1"] },
+    { "id": 4, "tasks": ["16.2"] }
   ]
 }
 ```

@@ -7,6 +7,14 @@
     "2.7 撰寫 quant.py 的屬性測試": {
       "status": "passed",
       "lastRunTimestamp": 1785547921415
+    },
+    "10.4 更新 report.py 的屬性與單元測試": {
+      "status": "passed",
+      "lastRunTimestamp": 1785596110812
+    },
+    "9.6 撰寫 agent.py 的單元測試": {
+      "status": "passed",
+      "lastRunTimestamp": 1785596110539
     }
   },
   "executionHistory": {

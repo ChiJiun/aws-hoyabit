@@ -67,7 +67,7 @@ scripts/                   # 部署腳本
 - `related_claim` — LLM 提供（必填、不可為空）
 
 ### 5. Agent 迴圈必定終止
-`run_agent_loop` 受 `MAX_AGENT_TURNS`（預設 8）與 `TIME_BUDGET_SECONDS`（預設 600）雙重限制。超出任一條件必須強制跳出，不可無限迴圈。
+`run_agent_loop` 受 `MAX_AGENT_TURNS`（預設 15）與 `TIME_BUDGET_SECONDS`（預設 600）雙重限制。超出任一條件必須強制跳出，不可無限迴圈。
 
 ### 6. Context 膨脹防護
 `dispatch_tool_call` 回傳給模型的 toolResult 只含 `summary` + `evidence_id`，不含完整 `raw` 資料。

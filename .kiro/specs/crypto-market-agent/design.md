@@ -10,6 +10,15 @@
 - **證據自動記錄**：程式產生 source／fetched_at／content_reference，LLM 僅提供 related_claim
 - **15 分鐘執行預算**：MAX_AGENT_TURNS + 時間檢查雙重終止條件
 
+### 修訂需求的研究摘要與設計決策
+
+本次設計先核對 Requirements 12、13、現有六個工具能力及 C2/C4/C5 模組契約。關鍵發現是：舊 `calculate_coverage()` 將五個預期類別當成固定分母，無法表達題目相關性、同一工具依結構化內容呈現的不同資料語意，以及失敗嘗試；同時，來源類別數量與分析維度是兩個不同概念。據此採取以下決策：
+
+- 報告改為由證據與執行紀錄衍生的**多維度分析摘要**，只陳述本次實際分析與已知失敗，不計算覆蓋率或維度分數。
+- 維度使用封閉且決定性的 13 維分類；來源類別仍只由 `export.py` 用於 `>= 3` 匯出驗證，不進入報告分母。
+- C4 既有 `coverage` 參數名稱為相容性入口，不再代表百分比，而承載 Handler/Agent 由 execution log 衍生的報告 metadata；不增加跨模組呼叫或外部服務。
+- C2 四欄位 Evidence Record、C5 HTTP 回應及整體單 Lambda 架構均保持不變。
+
 ## 架構（Architecture）
 
 ```mermaid
@@ -77,7 +86,7 @@ sequenceDiagram
 | `AWS_REGION` | AWS 區域 | `us-east-1` |
 | `BEDROCK_MODEL_ID` | Bedrock 模型 ID | 必填 |
 | `DATA_BUCKET` | S3 資料桶名稱 | 必填 |
-| `MAX_AGENT_TURNS` | Agent 迴圈最大輪次 | `8` |
+| `MAX_AGENT_TURNS` | Agent 迴圈最大輪次 | `15` |
 | `TIME_BUDGET_SECONDS` | 執行時間預算（秒） | `600` |
 | `COINGECKO_API_KEY` | CoinGecko API 金鑰 | — |
 | `ETHERSCAN_API_KEY` | Etherscan API 金鑰 | — |
@@ -130,26 +139,31 @@ def main() -> None
 #### 系統提示詞（SYSTEM_PROMPT）
 
 ```
-你是加密市場分析助理。使用者會給你一個幣種和一個問題，
+你是加密市場分析助理。使用者會給你一個或兩個幣種和一個問題，
 你要蒐集多方資料，產出一份有證據支撐的分析。你不做投資建議
-（不說買進、賣出、目標價），你只做資訊的整理與判斷。
+（不說買進、賣出、目標價、建議持有），你只做資訊的整理與判斷。
 
-工作步驟：
-1. 先想清楚：要回答這個問題，需要哪幾類資料？至少涵蓋價格、新聞、鏈上三類。
-2. 呼叫工具取得資料。每次呼叫工具時，related_claim 欄位必填，說明「這筆資料
-   要用來檢驗什麼」。這能逼你先想好再查。
-3. 拿到資料後，把你的分析拆成三個層次，且要標清楚：
-   - 事實(fact)：資料直接顯示的，例如「14 日 ATR% 為 2.1%」
-   - 推論(inference)：由事實推導的，例如「波動率處於歷史低位」
-   - 結論(conclusion)：綜合判斷，例如「短期偏向盤整，但有事件風險」
-4. 誠實說明信心與限制：
-   - 哪些資料你沒拿到？
-   - 有沒有互相矛盾的訊號？如果有，說明你怎麼取捨。
-   - 什麼情況會推翻你的結論？
-   資料不足時就說「無法給出高信心判斷」，不要硬湊結論。
+分析規劃：
+1. 先拆解題目要回答的子問題，從已實作能力中選擇至少 2 個能回答不同子問題、
+   且彼此互補的相關分析維度。可用維度為：價格、技術指標、市場結構與流動性、
+   衍生品、鏈上、情緒、預測市場、新聞與公告、總體經濟、DeFi、開發活躍度、
+   機構資料、監管資料。不要為湊數選擇與題目無關的維度。
+2. 依題目與已取得證據動態決定工具呼叫，不設固定工具數量、資料類別配額或
+   強制呼叫順序。每次呼叫工具時 related_claim 必填，說明這筆資料要檢驗什麼。
+3. 蒐集足以形成多維度判斷的證據，並保留「至少 3 個不同證據來源類別」作為
+   匯出驗證政策；這個門檻不是報告的分母、覆蓋率或評分。
+4. 對實際分析維度做交叉比較，明確說明一致訊號、背離訊號或證據不足；若來源
+   矛盾，說明矛盾內容與取捨依據。
+5. 對與題目相關但省略、無法取得或執行失敗的維度，說明原因及其對信心的影響；
+   不臆測或列舉與題目無關且未嘗試的缺失維度。
 
-重要：所有數字運算（技術指標、百分位、相關係數）都要透過 compute_quant
-工具計算，不要自己心算。
+寫作要求：
+- 把分析拆成事實(fact) → 推論(inference) → 結論(conclusion)，所有被使用的事實
+  都要附 evidence_id。
+- 誠實說明已知限制、資料不足、矛盾訊號，以及可能推翻結論的條件。資料不足時
+  就說「無法給出高信心判斷」，不要硬湊結論。
+- 所有數字運算（技術指標、百分位、相關係數）都要透過 compute_quant 工具計算，
+  不要自行心算。
 ```
 
 #### 核心介面
@@ -246,21 +260,82 @@ def log_execution_step(tool_name: str, status: str, elapsed_ms: int,
 
 ### report.py — 報告渲染
 
+`report.py` 是純渲染與確定性彙整層，**不得呼叫任何外部 API**。它只消費 `analysis_text`、`evidence_list`，以及 Agent/Handler 依既有 execution log 與分析結果整理出的 report metadata。C4 介面不增加參數；既有 `coverage` 參數名稱保留作為相容入口，但其值不再是百分比。
+
 ```python
-def render_report(run_id: str, question: str, analysis_text: str,
-                  evidence_list: list[dict], missing_sources: list[str] | None = None) -> str
-    # 使用 f-string 模板確保三個章節一定存在：
-    #   1. 市場判斷
-    #   2. 關鍵依據（每條附 evidence_id）
-    #   3. 信心說明（已知限制、矛盾、推翻條件）
-    #   附錄：資料覆蓋率、完整證據表
+ANALYSIS_DIMENSIONS = (
+    "price", "technical_indicators", "market_structure_liquidity",
+    "derivatives", "onchain", "sentiment", "prediction_markets",
+    "news_announcements", "macro", "defi", "development_activity",
+    "institutional_data", "regulation",
+)
+
+def classify_dimension(capability_id: str | None, source: str,
+                       content_reference: dict) -> str
+    # 依下表與固定優先序回傳唯一 primary dimension
+    # 不使用 analysis_text 的自由文字猜測分類
+
+def build_analysis_summary(evidence_list: list[dict], coverage: dict | None) -> dict
+    # coverage 是 C4 的既有參數名稱；內容為 execution-log-derived/report metadata
+    # 回傳實際分析維度、證據筆數、獨立來源數、逐維度明細、已知失敗維度
 
 def build_evidence_table(evidence_list: list[dict]) -> str
-    # 轉 Markdown 表格
+    # 依 C2 四欄位契約輸出完整 Markdown 證據表
 
-def calculate_coverage(evidence_list: list[dict]) -> tuple[float, list[str], list[str]]
-    # 已取得類別 / 預期類別（價格、新聞、鏈上、情緒、總經）
+def render_report(analysis_text: str, evidence_list: list[dict],
+                  missing_sources: list[str] | None, coverage: dict | None) -> str
+    # 使用模板確保三個章節一定存在：
+    #   1. 市場判斷
+    #   2. 關鍵依據（每條附 evidence_id）
+    #   3. 信心說明（限制、資料不足、矛盾、推翻條件、相關省略/失敗維度）
+    # 附錄輸出 build_analysis_summary() 與完整證據表
 ```
+
+原本的 `calculate_coverage(evidence_list) -> (percentage, obtained, missing)` 移除，不提供相容的固定五類計算。呼叫端改在既有 C4 `coverage` 位置傳入下列 metadata；這不改變 Evidence Record、HTTP 回應或模組依賴：
+
+```json
+{
+  "analyzed_evidence_ids": ["ev_a1b2c3"],
+  "evidence_capabilities": {"ev_a1b2c3": "technical.compute_quant"},
+  "attempted_capabilities": [
+    {"capability_id": "derivatives.funding", "status": "error", "reason": "timeout"}
+  ],
+  "relevant_omissions": [
+    {"dimension": "regulation", "reason": "與題目相關但本次無可用來源", "confidence_impact": "中"}
+  ]
+}
+```
+
+`analyzed_evidence_ids` 由 Agent 最終分析實際引用的 evidence_id 產生；若缺少此欄位，渲染器只從 `analysis_text` 中可解析的 evidence_id 保守推導，不把僅蒐集但未使用的證據宣稱為「已分析」。`attempted_capabilities` 由既有 execution log 的工具名稱、狀態與 note，加上 dispatch 時已知的 capability metadata 整理；無法確定維度時不臆測，只在「已知失敗」明細保留原始工具名稱。
+
+#### 決定性維度分類
+
+每筆已採用證據只能有一個 primary dimension，避免重複計數。同一組 `capability_id + source + content_reference` 必定得到相同結果。分類依序採用：(1) 程式產生且屬於允許清單的 capability_id；(2) 結構化 `content_reference` 的 metric/data_type/provider；(3) 正規化 source provider；(4) 工具預設維度。若多條規則同時命中，固定優先序為：監管資料 → 機構資料 → 開發活躍度 → DeFi → 預測市場 → 衍生品 → 市場結構與流動性 → 鏈上 → 情緒 → 總體經濟 → 技術指標 → 價格 → 新聞與公告。
+
+| 分析維度 | 決定性 capability／結構化識別規則 | 現有工具預設或例子 |
+|---------|----------------------------------|-------------------|
+| 價格 (`price`) | `price.ohlcv`、現貨價格／OHLCV／報酬資料；不含 order book 或衍生品欄位 | `get_price_ohlcv` 預設 |
+| 技術指標 (`technical_indicators`) | `technical.*`；ATR、布林帶寬、ADX、成交量 Z-score、已實現波動率、相關係數、百分位 | `compute_quant` 預設 |
+| 市場結構與流動性 (`market_structure_liquidity`) | `market_structure.*`；order book、bid-ask spread、depth、slippage、volume profile、現貨流動性 | 對應結構化 metric 命中，不以一般 OHLCV 成交量誤判 |
+| 衍生品 (`derivatives`) | `derivatives.*`；funding、open interest、basis、liquidation、futures/options 指標 | 對應 provider 或 data_type 命中 |
+| 鏈上 (`onchain`) | `onchain.*`；區塊、交易、地址、手續費、鏈上流量；排除已命中 DeFi 的協議指標 | `get_onchain` 預設 |
+| 情緒 (`sentiment`) | `sentiment.*`；Fear & Greed、結構化社群情緒指標 | `get_sentiment` 預設 |
+| 預測市場 (`prediction_markets`) | `prediction_market.*`；市場機率、合約機率、成交機率 | 已知 prediction-market provider/data_type |
+| 新聞與公告 (`news_announcements`) | `news.*`；一般媒體、官方公告、RSS 新聞；僅在未命中更專門維度時使用 | `search_news` 預設 |
+| 總體經濟 (`macro`) | `macro.*`；利率、通膨、就業、美元、流動性及經濟日程 | `get_macro` 預設 |
+| DeFi (`defi`) | `defi.*`；TVL、協議存借款、DEX 流動性／交易、收益率、協議事件 | DeFi provider 或 protocol metric 命中 |
+| 開發活躍度 (`development_activity`) | `development.*`；commit、contributor、release、issue、repository activity | GitHub release/開發資料，即使由 `search_news` 取得仍歸此維度 |
+| 機構資料 (`institutional_data`) | `institutional.*`；ETF flow/holding、基金／託管／機構持倉與研究資料 | 已知機構 provider/data_type 命中 |
+| 監管資料 (`regulation`) | `regulation.*`；監管機關規則、執法、申報、法院或立法資料 | 官方 regulator provider/data_type 命中 |
+
+`build_analysis_summary()` 的計數規則：
+
+- **證據筆數**：`evidence_list` 中合法且 evidence_id 不重複的實際筆數，不是類別配額。
+- **獨立來源數**：URL 以小寫 hostname（移除 `www.`）正規化；非 URL 以程式維護的 canonical provider 名稱正規化後去重。同一 provider 的不同 endpoint 只算一個來源。
+- **實際分析維度**：只取 `analyzed_evidence_ids` 對應的維度；逐維度列出 evidence_id、canonical source 與 content_reference 摘要。
+- **失敗嘗試維度**：只列 execution-log-derived metadata 中可確定為 error、unavailable 或 timeout 的能力，保留狀態與原因；未知時不虛構。
+- **相關缺失維度**：只呈現 Agent 標記為題目相關的省略，或實際嘗試失敗的維度；不得列出無關且未嘗試的維度。
+- **禁止輸出**：不得產生 `x/5`、固定五類分母、類別覆蓋百分比、`x/3` 匯出門檻達成率或任何維度 score。
 
 ---
 
@@ -276,9 +351,10 @@ def export_execution_log(execution_log: list[dict]) -> str
 def validate_before_export(evidence_list: list[dict], analysis_text: str) -> tuple[bool, list[str]]
     # 檢查：
     #   1. 每筆證據四欄位齊備
-    #   2. 來源類別數 >= 3
+    #   2. 證據來源類別數 >= 3（僅為 export pass/fail 條件）
     #   3. 付費來源非唯一依據
-    #   4. 無投資建議語句（買進/賣出/目標價）
+    #   4. 無投資建議語句（買進/賣出/目標價/建議持有）
+    # 不回傳供報告使用的分母、覆蓋率或分數
     # 回傳 (全數通過, 未通過項目清單)
 ```
 
@@ -472,6 +548,35 @@ messages.append({
 {"timestamp": "2026-07-30T14:15:35Z", "tool_name": "get_onchain", "status": "error", "elapsed_ms": 5012, "evidence_id": null, "note": "Helius API rate limit exceeded"}
 ```
 
+### Report Metadata（C4 `coverage` 相容參數）
+
+```json
+{
+  "analyzed_evidence_ids": ["ev_a1b2c3", "ev_d4e5f6"],
+  "evidence_capabilities": {
+    "ev_a1b2c3": "price.ohlcv",
+    "ev_d4e5f6": "technical.compute_quant"
+  },
+  "attempted_capabilities": [
+    {
+      "capability_id": "derivatives.funding",
+      "tool_name": "search_news",
+      "status": "timeout",
+      "reason": "upstream timeout"
+    }
+  ],
+  "relevant_omissions": [
+    {
+      "dimension": "institutional_data",
+      "reason": "本次無可用來源",
+      "confidence_impact": "無法交叉驗證機構資金流"
+    }
+  ]
+}
+```
+
+此 metadata 是單次執行中的衍生資料，不加入 Evidence Record，也不加入 C5 HTTP 回應。`capability_id` 只能使用維度分類表定義的程式常數；自由文字 reason/note 只供顯示，不能覆寫分類結果。`report.py` 可在欄位缺失時保守降級，但不得自行呼叫 API 補資料。
+
 ## 正確性屬性（Correctness Properties）
 
 *屬性（Property）是在系統所有有效執行中都應成立的特徵或行為——本質上是對系統應做什麼的形式化陳述。屬性是人類可讀的規格與機器可驗證的正確性保證之間的橋梁。*
@@ -485,6 +590,10 @@ messages.append({
 - 需求 4.1/4.2 可合併：都是「證據記錄包含正確欄位」
 - 需求 5.1/5.2 可合併：「無論成功或失敗都產生執行紀錄」
 - 需求 6.6/7.5/8.7/9.3/10.4/20.2/20.3 可合併：「所有工具永不拋錯」
+- 需求 12.5/12.6/12.7 與 13.6/13.9 的報告資料轉換要求合併為「多維度附錄忠實且無固定分母」，避免重複檢查同一摘要
+- 需求 13.1/13.7 合併為「投資建議交付前必拒絕」；驗證呼叫時機另以整合測試覆蓋
+- 需求 13.8/13.9 的 export 邏輯合併為「三來源類別門檻僅約束匯出」
+- 需求 12.2/12.3/12.4/12.8/12.9 與 13.2/13.3/13.4/13.5 主要涉及模型語意或特定情境，以 example/edge/integration 測試覆蓋，不建立無法普遍量化的屬性
 
 最終精簡為以下獨立屬性：
 
@@ -612,25 +721,41 @@ messages.append({
 
 ### Property 16: 報告三章節保證
 
-*For any* 分析文字與證據清單，`render_report()` 產出的 Markdown 必定包含「市場判斷」、「關鍵依據」、「信心說明」三個章節標題。
+*For any* 分析文字、證據清單與合法 report metadata，`render_report()` 產出的 Markdown 必定包含「市場判斷」、「關鍵依據」、「信心說明」三個章節標題。
 
 **Validates: Requirements 12.1**
 
 ---
 
-### Property 17: 投資建議偵測
+### Property 17: 維度分類決定性與完備性
 
-*For any* 包含「買進」、「賣出」、「目標價」、「建議持有」等禁止語句的文字，`validate_before_export()` 必定將其標記為未通過。
+*For all* 已實作 capability_id 及其合法 source/content_reference，同一輸入重複呼叫 `classify_dimension()` 必定回傳相同結果，且結果必定是 13 個 `ANALYSIS_DIMENSIONS` 之一；若多個識別規則命中，必定依固定優先序選出唯一 primary dimension。
 
-**Validates: Requirements 13.1, 13.4**
+**Validates: Requirements 12.5**
 
 ---
 
-### Property 18: 來源多樣性檢查
+### Property 18: 多維度附錄忠實且無固定分母
 
-*For any* 證據清單，`validate_before_export()` 必定正確計算不重複的來源類別數，且當類別數 < 3 時報告為未通過。
+*For any* 合法 evidence_list 與 execution-log-derived report metadata，`build_analysis_summary()` 及 `render_report()` 必定：(a) 以不重複 evidence_id 計算實際證據筆數；(b) 以 canonical provider 計算獨立來源數；(c) 只列實際採用證據對應的分析維度與逐維度 evidence/source 明細；(d) 完整列出可確定的失敗嘗試及相關省略；且 (e) 不產生固定 `x/5`、固定五類分母、類別覆蓋百分比、`x/3` 門檻達成率或維度分數。
 
-**Validates: Requirements 13.5**
+**Validates: Requirements 12.5, 12.6, 12.7, 13.6, 13.9**
+
+---
+
+### Property 19: 投資建議交付前必拒絕
+
+*For any* 包含「買進」、「賣出」、「目標價」、「建議持有」等禁止投資建議語句的分析文字，`validate_before_export()` 必定將其標記為未通過。
+
+**Validates: Requirements 13.1, 13.7**
+
+---
+
+### Property 20: 三來源類別門檻僅約束匯出
+
+*For any* 證據清單，`validate_before_export()` 必定正確計算不重複的證據來源類別，且此項驗證若且唯若類別數 `>= 3` 時通過；相同輸入交給報告摘要時，該門檻不得被用作分母、覆蓋率或評分。
+
+**Validates: Requirements 13.8, 13.9**
 
 ## 錯誤處理（Error Handling）
 
@@ -673,7 +798,7 @@ def get_xxx(related_claim, ...):
 Agent Loop 在每輪開始前檢查已耗用時間。超出 TIME_BUDGET_SECONDS 時：
 1. 標記當前狀態為「時間預算耗盡」
 2. 直接進入 summarize_final_analysis 階段
-3. 報告的信心說明中加入「因時間限制，以下資料類別未能取得」
+3. 將尚未完成且與題目相關的維度寫入 report metadata；報告信心說明只標註這些相關省略與已知失敗及其信心影響
 
 ### Bedrock API 錯誤
 
@@ -706,21 +831,24 @@ Agent Loop 在每輪開始前檢查已耗用時間。超出 TIME_BUDGET_SECONDS 
 
 本專案的以下模組適合屬性測試：
 - **handler.parse_request**：輸入驗證是經典 PBT 場景（隨機有效/無效輸入）
-- **evidence.log_evidence**：欄位產生邏輯是純函式
-- **export.validate_before_export**：驗證規則是確定性的布林判斷
+- **evidence.log_evidence**：欄位產生與狀態重設具有明確不變量
+- **export.validate_before_export**：禁止語句與 `>= 3` 來源類別規則是確定性的布林判斷
 - **tools/quant.py**：所有計算都是純 pandas 運算，有明確的數學性質
-- **report.render_report**：模板渲染保證結構完整
+- **report.classify_dimension**：封閉分類、唯一結果與優先序是確定性純邏輯
+- **report.build_analysis_summary**：去重計數、來源正規化、維度分組與失敗集合過濾是純資料轉換
+- **report.render_report**：模板結構及禁止產生固定分母/分數具有輸出不變量
 
 以下模組不適合 PBT，改用其他策略：
-- **Bedrock API 整合**：外部服務行為，用 Mock 做整合測試
+- **Bedrock 的題目相關性、維度互補性與跨維度推理**：屬語意行為，以代表性題型 + Mock 做 example/integration 測試
 - **S3 讀寫**：用 moto 模擬，做整合測試
 - **外部 API 呼叫**：用 Mock 驗證錯誤處理路徑
+- **Markdown 可讀性與事實→推論→結論的語意品質**：使用結構斷言與人工評估案例
 
 ### 屬性測試配置
 
 - 使用 **Hypothesis** 作為 PBT 框架
-- 每個屬性測試最少 100 次迭代
-- 每個測試以註解標記對應的設計屬性：
+- 每個屬性以**單一 property-based test** 實作，每個測試最少 100 次迭代
+- 每個測試以註解標記對應的設計屬性，格式固定為 `Feature: crypto-market-agent, Property {number}: {property_text}`：
 
 ```python
 # Feature: crypto-market-agent, Property 1: 有效請求必定被接受
@@ -734,20 +862,26 @@ def test_valid_request_accepted(symbols, question):
     assert len(result[0]) == len(symbols)
 ```
 
+Properties 17、18 的生成器必須涵蓋所有 13 維 capability_id、同 provider 不同 URL、重複 evidence_id、未被分析引用的證據、成功/失敗混合嘗試、相關與無關省略，以及可能同時命中多條分類規則的輸入。Property 20 必須將來源**類別**與報告的獨立 source/provider 計數分開生成，避免誤把 export policy 寫回報告。
+
 ### 單元測試重點
 
-- CORS 標頭存在性（Smoke）
-- SYSTEM_PROMPT 包含必要指示（Smoke）
-- Bedrock end_turn 正確退出迴圈（Example）
-- 比較分析題型的 2 幣種輸入處理（Example）
-- Lambda 15 分鐘逾時配置驗證（Smoke）
+- CORS 標頭與 C5 成功/失敗 HTTP body 欄位維持不變（Smoke）
+- C2 Evidence Record 仍只有 source、fetched_at、content_reference、related_claim 加 evidence_id（Smoke）
+- SYSTEM_PROMPT 要求至少兩個題目相關且互補的維度、說明相關省略、交叉比較一致/背離/不足，且不含固定工具數、固定類別配額或強制呼叫順序（Smoke）
+- 一致訊號、背離訊號、來源矛盾及證據不足各一組代表案例；驗證事實→推論→結論與 evidence_id 引用（Example/Edge）
+- `report.py` 在網路 client 被設為失敗時仍可完成渲染，證明沒有外部 API 呼叫（Unit）
+- 附錄包含實際維度、證據筆數、獨立來源數、逐維度明細及已知失敗；不包含 `5/5`、`4/5`、固定百分比或 dimension score（Example）
+- 相關省略/失敗會進入信心說明並描述 confidence impact；無關且未嘗試的維度不出現（Edge）
+- Bedrock end_turn 正確退出迴圈、比較分析題型的 2 幣種輸入處理、Lambda 15 分鐘逾時配置（Example/Smoke）
 
 ### 整合測試重點
 
-- 五幣種 × 三題型 = 15 組合的端到端流程（使用 Mock Bedrock）
-- S3 baseline CSV 讀取路徑正確性（使用 moto）
-- Presigned URL 產生（使用 moto）
-- 原始 API 回應封存路徑正確性
+- 五幣種 × 三題型 = 15 組合的端到端流程（使用 Mock Bedrock），每案至少選兩個互補維度並覆蓋一致、背離或不足狀態
+- Handler/Agent 從 execution log 整理 report metadata，透過既有 C4 `coverage` 位置交給 report；不改 Evidence Record 與 C5 HTTP 回應
+- `validate_before_export()` 在來源類別少於 3 時拒絕、達 3 時通過；相同執行的 report 不把 3 當分母或分數
+- 匯出驗證在儲存 report 前執行投資建議語句檢查
+- S3 baseline CSV 讀取、Presigned URL 產生及原始 API 回應封存路徑正確性（使用 moto）
 
 ### 本機測試
 
