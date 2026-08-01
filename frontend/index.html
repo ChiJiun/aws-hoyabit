@@ -3,122 +3,182 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>加密市場分析 AI Agent</title>
-
-<!-- CDN：Google Fonts（字體）-->
+<title>加密市場分析 AI Agent — HOYA BIT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-<!-- CDN：marked.js（把模型輸出的 Markdown 報告轉成排版好的 HTML）-->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-
 <style>
 :root{
-  --ink:#0f1720;        /* 底色：深墨藍 */
-  --panel:#17222e;      /* 面板 */
-  --line:#26333f;       /* 分隔線 */
-  --text:#e6ecf2;       /* 主要文字 */
-  --muted:#8496a6;      /* 次要文字 */
-  --accent:#e0a33e;     /* 強調色：琥珀金，全站只用這一個 */
-  --radius:10px;
+  --ink:#09090b;--surface:#131316;--card:#1a1a1f;--line:#27272a;
+  --text:#f4f4f5;--muted:#71717a;--accent:#f37021;
+  --accent-glow:rgba(243,112,33,0.45);--accent-dim:rgba(243,112,33,0.12);
+  --green:#22c55e;--red:#ef4444;
+  --radius:12px;--radius-sm:8px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{
-  background:var(--ink); color:var(--text);
-  font-family:'Noto Sans TC',system-ui,sans-serif;
-  line-height:1.7; padding:3rem 1.5rem; min-height:100vh;
-}
-.wrap{max-width:720px;margin:0 auto}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--text);font-family:'Noto Sans TC',system-ui,sans-serif;font-size:16px;line-height:1.75;min-height:100vh}
+a{color:var(--accent);text-decoration:none}a:hover{opacity:.85}
 
-/* 標題區 */
-.eyebrow{
-  font-family:'IBM Plex Mono',monospace; font-size:12px;
-  letter-spacing:.14em; color:var(--accent); margin-bottom:.5rem;
-}
-h1{font-size:26px;font-weight:500;margin-bottom:.4rem}
-.sub{color:var(--muted);font-size:14px;margin-bottom:2.5rem}
+/* ===== HEADER ===== */
+.dash-header{padding:1rem 1.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}
+.dash-header .brand{display:flex;align-items:center;gap:.6rem}
+.dash-header .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent-glow)}
+.dash-header .brand-name{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.1em;color:var(--accent)}
+.dash-header .meta{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;text-align:right}
+.dash-header .meta span{display:block}
 
-/* 輸入面板 */
-.panel{
-  background:var(--panel); border:1px solid var(--line);
-  border-radius:var(--radius); padding:1.75rem;
-}
-.label{font-size:13px;color:var(--muted);margin-bottom:.6rem}
-
-/* 幣種選擇：用等寬字體呈現代號，貼近交易介面的視覺語言 */
-.coins{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.75rem}
-.coin{
-  font-family:'IBM Plex Mono',monospace; font-size:14px;
-  background:transparent; color:var(--text);
-  border:1px solid var(--line); border-radius:6px;
-  padding:.45rem 1rem; cursor:pointer; transition:.15s;
-}
+/* ===== INPUT ===== */
+.input-section{max-width:680px;margin:2.5rem auto;padding:0 1rem}
+.input-section h1{font-size:26px;font-weight:700;margin-bottom:.3rem}
+.input-section .sub{font-size:15px;color:var(--muted);margin-bottom:1.8rem}
+.form-panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem}
+.form-label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem}
+.coins{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.coin{font-family:'IBM Plex Mono',monospace;font-size:14px;background:transparent;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:.4rem 1rem;cursor:pointer;transition:.15s}
 .coin:hover{border-color:var(--muted)}
-.coin[aria-pressed="true"]{
-  background:var(--accent); border-color:var(--accent); color:var(--ink); font-weight:500;
-}
-
-textarea{
-  width:100%; background:var(--ink); color:var(--text);
-  border:1px solid var(--line); border-radius:6px;
-  padding:.85rem; font-family:inherit; font-size:15px;
-  resize:vertical; min-height:110px; margin-bottom:1.75rem;
-}
+.coin[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#000;font-weight:500}
+textarea{width:100%;background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:var(--radius-sm);padding:.75rem 1rem;font-family:inherit;font-size:16px;resize:vertical;min-height:100px;margin-bottom:1.5rem}
 textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.btn-submit{width:100%;background:var(--accent);color:#000;border:none;border-radius:var(--radius-sm);padding:.75rem;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:filter .15s}
+.btn-submit:hover{filter:brightness(1.1)}.btn-submit:disabled{opacity:.4;cursor:not-allowed}
 
-.submit{
-  width:100%; background:var(--accent); color:var(--ink);
-  border:none; border-radius:6px; padding:.8rem;
-  font-family:inherit; font-size:15px; font-weight:500; cursor:pointer;
-}
-.submit:hover{filter:brightness(1.08)}
-.submit:disabled{opacity:.45;cursor:not-allowed}
-
-/* 執行中狀態 */
-#loading{display:none;text-align:center;padding:3rem 0}
-.spinner{
-  width:26px;height:26px;margin:0 auto 1rem;
-  border:2px solid var(--line); border-top-color:var(--accent);
-  border-radius:50%; animation:spin .9s linear infinite;
-}
+/* ===== LOADING ===== */
+#loading{display:none;text-align:center;padding:5rem 2rem}
+.spinner{width:28px;height:28px;margin:0 auto 1rem;border:2.5px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #loading-msg{color:var(--muted);font-size:14px}
 .elapsed{font-family:'IBM Plex Mono',monospace;color:var(--accent);font-size:13px;margin-top:.5rem}
+#error{display:none;max-width:680px;margin:1.5rem auto;padding:1rem 1.2rem;border:1px solid #7f1d1d;border-radius:var(--radius-sm);background:#1c1012;color:#fca5a5;font-size:14px}
 
-/* 報告輸出 */
-#result{display:none;margin-top:2.5rem}
-#report h1,#report h2,#report h3{margin:1.75rem 0 .75rem;font-weight:500;line-height:1.4}
-#report h1{font-size:22px} #report h2{font-size:18px} #report h3{font-size:16px}
-#report p,#report li{margin-bottom:.7rem}
-#report ul,#report ol{padding-left:1.4rem}
-#report table{width:100%;border-collapse:collapse;font-size:14px;margin:1rem 0}
-#report th,#report td{border:1px solid var(--line);padding:.5rem .7rem;text-align:left}
-#report code{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--accent)}
-#report hr{border:none;border-top:1px solid var(--line);margin:2rem 0}
+/* ===== DASHBOARD ===== */
+#dashboard{display:none}
+.dash-grid{max-width:1400px;margin:0 auto;padding:1.5rem 1rem}
+/* Hero row */
+.top-row{display:grid;grid-template-columns:1.8fr 1fr;gap:1rem;margin-bottom:1rem}
+.hero-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem 2rem;position:relative;overflow:hidden}
+.hero-card::before{content:'';position:absolute;top:-40%;right:-20%;width:260px;height:260px;background:radial-gradient(circle,var(--accent-dim) 0%,transparent 70%);pointer-events:none}
+.hero-card .hero-topic{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:.5rem;letter-spacing:.05em}
+.hero-card h2{font-size:24px;font-weight:700;color:#fff;margin-bottom:1rem;line-height:1.4}
+.conclusion-box{border:2px solid var(--accent);border-radius:var(--radius-sm);padding:1.2rem 1.5rem;background:var(--card);box-shadow:0 0 24px var(--accent-glow),0 0 64px var(--accent-dim);animation:pulse 3.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 24px var(--accent-glow),0 0 64px var(--accent-dim)}50%{box-shadow:0 0 36px var(--accent-glow),0 0 90px var(--accent-glow)}}
+.conclusion-box p{font-size:19px;font-weight:600;color:#fff}
+.data-cards{display:flex;flex-direction:column;gap:.75rem}
+.data-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem 1.3rem;flex:1;display:flex;flex-direction:column;justify-content:center}
+.data-card .dc-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
+.data-card .dc-value{font-size:22px;font-weight:600;font-family:'IBM Plex Mono',monospace}
+.data-card .dc-value.up{color:var(--accent)}.data-card .dc-value.down{color:var(--red)}
 
-.downloads{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--line)}
-.dl{
-  font-size:14px; color:var(--text); text-decoration:none;
-  border:1px solid var(--line); border-radius:6px; padding:.5rem 1rem;
-}
-.dl:hover{border-color:var(--accent);color:var(--accent)}
+/* Confidence gauge */
+.conf-gauge{display:flex;align-items:center;gap:1rem;padding:.8rem 1rem;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm)}
+.conf-ring{position:relative;width:64px;height:64px;flex-shrink:0}
+.conf-ring svg{transform:rotate(-90deg)}
+.conf-ring .ring-bg{stroke:var(--line);fill:none;stroke-width:6}
+.conf-ring .ring-fg{stroke:var(--accent);fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .8s ease}
+.conf-ring .ring-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--accent);font-family:'IBM Plex Mono',monospace}
+.conf-gauge .conf-label{font-size:13px;color:var(--muted)}
 
-#error{display:none;margin-top:1.5rem;padding:1rem;border:1px solid #7a3b3b;border-radius:6px;color:#e8a5a5;font-size:14px}
+/* Radar row */
+.radar-row{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem}
+.radar-row h3{font-size:18px;font-weight:700;margin-bottom:1.2rem;color:#fff}
+.radar-flex{display:flex;align-items:flex-start;justify-content:center;gap:2rem;flex-wrap:wrap}
+.radar-wrap{width:280px;height:280px;flex-shrink:0}
+.radar-wrap canvas{width:100%;height:100%}
+.radar-notes{max-width:400px;flex:1}
+.warn-pill{display:flex;align-items:flex-start;gap:.5rem;background:var(--card);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:.6rem .8rem;margin-bottom:.5rem;font-size:14px;line-height:1.6;color:var(--text)}
+.warn-pill .wi{color:var(--accent);flex-shrink:0;font-size:15px}
+/* Contradiction panel */
+.contradiction-panel{background:var(--card);border:1px solid var(--red);border-radius:var(--radius-sm);padding:.8rem 1rem;margin-top:.6rem}
+.contradiction-panel .cp-title{font-size:13px;font-weight:600;color:var(--red);margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem}
+.contradiction-panel .cp-item{font-size:14px;color:var(--text);margin-bottom:.3rem;padding-left:1.2rem;position:relative}
+.contradiction-panel .cp-item::before{content:'⚡';position:absolute;left:0;color:var(--accent)}
 
-@media (max-width:600px){body{padding:2rem 1rem}h1{font-size:22px}}
-@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+/* Evidence split */
+.evidence-row{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem}
+.evidence-row h3{font-size:18px;font-weight:700;margin-bottom:1rem;color:#fff}
+.split{display:grid;grid-template-columns:1fr minmax(300px,420px);gap:1rem;min-height:400px}
+
+/* Left: report with timeline cards */
+.report-col{background:var(--card);border-radius:var(--radius-sm);padding:1.5rem;overflow-y:auto;max-height:650px;line-height:1.8;font-size:16px}
+.report-col h1,.report-col h2,.report-col h3{margin:1.5rem 0 .7rem;font-weight:700;color:#fff}
+.report-col h1{font-size:22px}.report-col h2{font-size:19px}.report-col h3{font-size:17px}
+.report-col p{margin-bottom:.8rem}
+/* Timeline evidence items */
+.ev-item{display:flex;gap:.8rem;padding:.8rem;margin-bottom:.6rem;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--line);transition:border-color .2s}
+.ev-item:hover{border-color:var(--accent)}
+.ev-item .ev-icon{width:36px;height:36px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.ev-item .ev-body{flex:1;min-width:0}
+.ev-item .ev-body .ev-text{font-size:15px;line-height:1.6;margin-bottom:.4rem}
+.ev-item .ev-footer{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+/* Cite button */
+.cite-btn{display:inline-flex;align-items:center;gap:.25rem;background:var(--accent);color:#000;padding:.15rem .5rem;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;position:relative;transition:filter .15s}
+.cite-btn:hover{filter:brightness(1.15)}
+.cite-btn .cite-icon{font-size:12px}
+/* Cite tooltip */
+.cite-btn::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#222;color:var(--text);font-size:11px;line-height:1.4;padding:.4rem .6rem;border-radius:6px;white-space:normal;min-width:200px;max-width:280px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:100;border:1px solid var(--accent);text-align:left;font-weight:400}
+.cite-btn:hover::after{opacity:1}
+/* Data badge */
+.data-badge{display:inline-flex;align-items:center;gap:.2rem;background:var(--ink);border:1px solid var(--line);border-radius:4px;padding:.1rem .5rem;font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:500}
+/* Signal arrow */
+.signal-arrow{font-size:16px;font-weight:700;margin-left:auto;flex-shrink:0}
+.signal-arrow.bullish{color:var(--green)}
+.signal-arrow.bearish{color:var(--red)}
+.signal-arrow.neutral{color:var(--muted)}
+
+/* Right: evidence viz panel */
+.ev-panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1.2rem;transition:border-color .25s;position:sticky;top:1rem;align-self:start;max-height:600px;overflow-y:auto}
+.ev-panel.show{border-color:var(--accent)}
+.ev-panel .ep-hint{font-size:13px;color:var(--muted)}
+.ev-panel .ev-loading{display:flex;align-items:center;gap:.5rem;color:var(--muted);font-size:13px;padding:.5rem 0}
+.ev-panel .ev-loading .mini-spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+/* Evidence card */
+.ev-card{background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius-sm);padding:1.2rem;margin-bottom:.8rem;animation:cardIn .28s ease,pulse 3.5s ease-in-out infinite;box-shadow:0 0 24px var(--accent-glow),0 0 64px var(--accent-dim)}
+@keyframes cardIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+.ev-card .ec-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem;padding-bottom:.6rem;border-bottom:1px solid var(--line)}
+.ev-card .ec-source-name{font-size:14px;font-weight:600;color:var(--accent)}
+.ev-card .ec-source-link{display:inline-flex;align-items:center;gap:.2rem;font-size:11px;color:var(--muted);margin-left:auto}
+.ev-card .ec-source-link:hover{color:var(--accent)}
+.ev-card .ec-source-link svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+.ev-card .ec-field{margin-bottom:.5rem;font-size:13px;line-height:1.5}
+.ev-card .ec-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.2rem}
+/* Viz: sentiment donut */
+.sentiment-viz{display:flex;align-items:center;gap:1rem;margin:.6rem 0}
+.sentiment-viz canvas{width:80px;height:80px}
+.sentiment-viz .sv-legend{font-size:12px;line-height:1.6}
+.sentiment-viz .sv-legend .sv-pos{color:var(--green)}.sentiment-viz .sv-legend .sv-neg{color:var(--red)}.sentiment-viz .sv-legend .sv-neu{color:var(--muted)}
+.sv-headline{font-size:14px;font-weight:600;color:var(--accent);margin-bottom:.4rem}
+/* Viz: gauge meter */
+.gauge-viz{margin:.6rem 0}
+.gauge-bar{height:8px;background:var(--line);border-radius:4px;position:relative;overflow:hidden}
+.gauge-bar .gauge-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .6s ease}
+.gauge-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:.2rem}
+.gauge-value{font-size:16px;font-weight:700;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-bottom:.3rem}
+
+/* Download */
+.dl-footer{display:flex;gap:.75rem;flex-wrap:wrap;padding:.5rem 1rem 2rem;max-width:1400px;margin:0 auto}
+.dl-btn{font-size:14px;color:var(--text);border:1px solid var(--line);border-radius:var(--radius-sm);padding:.5rem 1rem;background:var(--surface);transition:border-color .15s,color .15s;display:inline-flex;align-items:center;gap:.4rem}
+.dl-btn:hover{border-color:var(--accent);color:var(--accent)}
+.dl-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* Responsive */
+@media(min-width:1200px){.dash-grid{padding:1.5rem 2rem}.split{grid-template-columns:1fr 420px}}
+@media(max-width:768px){.top-row,.split{grid-template-columns:1fr}.ev-panel{position:static;max-height:none}.radar-flex{flex-direction:column;align-items:center}.dash-grid,.dl-footer{padding-left:.75rem;padding-right:.75rem}.dash-header{padding:.75rem 1rem}.hero-card,.radar-row,.evidence-row{padding:1rem}.report-col{max-height:none}}
+@media(prefers-reduced-motion:reduce){.spinner,.conclusion-box,.mini-spin{animation:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
-
-  <p class="eyebrow">HOYA BIT ／ 智慧交易</p>
+<!-- HEADER -->
+<header class="dash-header" id="dash-header" style="display:none">
+  <div class="brand"><span class="brand-dot"></span><span class="brand-name">HOYA BIT AGENT</span></div>
+  <div class="meta"><span id="hdr-run-id"></span><span id="hdr-time"></span></div>
+</header>
+<!-- INPUT -->
+<section class="input-section" id="input-section">
   <h1>加密市場分析 AI Agent</h1>
-  <p class="sub">輸入幣種與分析題目，系統會蒐集價格、鏈上、新聞與情緒資料，產出附帶可回溯來源的分析報告。</p>
-
-  <div class="panel" id="input-panel">
-    <p class="label">選擇幣種（比較分析題型可選兩個）</p>
+  <p class="sub">輸入幣種與分析題目，Agent 將自主蒐集多源資料並產出可回溯的結構化報告。</p>
+  <div class="form-panel">
+    <p class="form-label">幣種選擇（比較題可選兩個）</p>
     <div class="coins" id="coins">
       <button class="coin" aria-pressed="false">BTC</button>
       <button class="coin" aria-pressed="false">ETH</button>
@@ -126,229 +186,315 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:t
       <button class="coin" aria-pressed="false">BNB</button>
       <button class="coin" aria-pressed="false">XRP</button>
     </div>
-
-    <p class="label">分析題目</p>
-    <textarea id="question" placeholder="例：市場上有聲音認為 SOL 短期內將維持盤整、缺乏明確方向，請蒐集支持與反對此觀點的證據，並說明你最終的判斷與理由。"></textarea>
-
-    <button class="submit" id="submit">開始分析</button>
+    <p class="form-label">分析題目</p>
+    <textarea id="question" placeholder="例：請分析 BTC 近期是否處於高波動蓄勢階段，並從價格、鏈上、新聞多角度提供證據支持你的判斷。"></textarea>
+    <button class="btn-submit" id="submit">開始分析</button>
   </div>
-
-  <div id="loading">
-    <div class="spinner"></div>
-    <p id="loading-msg">正在規劃資料蒐集範圍</p>
-    <p class="elapsed" id="elapsed">00:00</p>
-  </div>
-
-  <div id="error"></div>
-
-  <div id="result">
-    <div id="report"></div>
-    <div class="downloads">
-      <a class="dl" id="dl-evidence" href="#" download>下載證據清單</a>
-      <a class="dl" id="dl-log" href="#" download>下載執行紀錄</a>
+</section>
+<!-- LOADING -->
+<div id="loading"><div class="spinner"></div><p id="loading-msg">正在規劃資料蒐集範圍</p><p class="elapsed" id="elapsed">00:00</p></div>
+<div id="error"></div>
+<!-- DASHBOARD -->
+<div id="dashboard">
+<div class="dash-grid">
+  <div class="top-row">
+    <div class="hero-card">
+      <p class="hero-topic" id="hero-topic"></p>
+      <h2 id="hero-title"></h2>
+      <div class="conclusion-box"><p id="hero-conclusion"></p></div>
+    </div>
+    <div class="data-cards" id="data-cards">
+      <div class="data-card"><p class="dc-label">當前價格</p><p class="dc-value" id="dc-price">--</p></div>
+      <div class="data-card"><p class="dc-label">24H 漲跌</p><p class="dc-value" id="dc-change">--</p></div>
+      <div class="conf-gauge" id="conf-gauge">
+        <div class="conf-ring"><svg width="64" height="64" viewBox="0 0 64 64"><circle class="ring-bg" cx="32" cy="32" r="28"/><circle class="ring-fg" id="conf-ring-fg" cx="32" cy="32" r="28" stroke-dasharray="175.9" stroke-dashoffset="175.9"/></svg><span class="ring-text" id="conf-pct">--</span></div>
+        <span class="conf-label">整體信心水準</span>
+      </div>
     </div>
   </div>
-
+  <!-- Radar -->
+  <div class="radar-row">
+    <h3>信心水準與風險聲明</h3>
+    <div class="radar-flex">
+      <div class="radar-wrap"><canvas id="radar-canvas" width="280" height="280"></canvas></div>
+      <div class="radar-notes" id="radar-notes"></div>
+    </div>
+  </div>
+  <!-- Evidence Split -->
+  <div class="evidence-row">
+    <h3>證據溯源 — 點擊橘色標記查看原始資料</h3>
+    <div class="split">
+      <div class="report-col" id="report-col"></div>
+      <div class="ev-panel" id="ev-panel"><p class="ep-hint">← 點擊報告中的橘色引用按鈕，即可展開證據視覺化卡片</p></div>
+    </div>
+  </div>
+</div>
+<div class="dl-footer" id="dl-footer">
+  <a class="dl-btn" id="dl-evidence" href="#" target="_blank"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>證據清單</a>
+  <a class="dl-btn" id="dl-log" href="#" target="_blank"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>執行紀錄</a>
+</div>
 </div>
 
 <script>
-// 部署後把這裡換成你的 Lambda Function URL（執行 scripts/set_api_url.sh 自動替換）
-const API_URL = "https://YOUR_FUNCTION_URL_HERE.lambda-url.us-east-1.on.aws/";
+const API_URL=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?`${window.location.origin}/api`:"https://請填入你的-function-url.lambda-url.us-east-1.on.aws/";
+const MSGS=["正在規劃資料蒐集範圍","正在讀取價格與技術指標","正在檢索新聞與官方公告","正在查詢鏈上活躍度","正在整理證據並產出報告"];
+const DEMO_MODE=(window.location.protocol==='file:');
+let selectedCoins=[],timer=null,msgTimer=null,sec=0,mi=0,evidenceList=[];
+const ICONS={price:'📈',chain:'⛓️',news:'📰',macro:'🏛️',sentiment:'🌡️',default:'🔍'};
 
-// 等待期間輪播的提示文字。前端無法得知 Lambda 內部進度，
-// 所以這裡是預先寫死的訊息輪播，目的是讓使用者知道系統還在運作。
-const LOADING_MESSAGES = [
-  "正在規劃資料蒐集範圍",
-  "正在讀取價格與技術指標",
-  "正在檢索新聞與官方公告",
-  "正在查詢鏈上活躍度",
-  "正在整理證據並產出報告"
-];
+const DEMO_DATA={run_id:"demo_run_20260801",report_text:`# BTC 當前市場狀況與判斷\n\n## 市場判斷\n\n市場判斷：高波動蓄勢，短期傾向向上突破。根據近30日實現波動率（annualized 68%）與布林帶收窄至近兩個月最低值，價格正處於壓縮釋放週期的蓄力階段。\n\n## 關鍵依據\n\n1. **價格與技術面** [EV-a1b2c3d4e5f6]：30日實現波動率年化68%，布林帶寬度收窄至3.2%，RSI 處於55中性偏多區間。當前價格 $104,250。\n\n2. **鏈上活躍度** [EV-b2c3d4e5f6a7]：根據近期鏈上大戶異動，巨鯨地址（>1000 BTC）過去7日淨流入 12,340 BTC，交易所餘額持續下降，顯示囤幣意願增強。\n\n3. **新聞情緒** [EV-c3d4e5f6a7b8]：CryptoPanic 近7日新聞情緒偏多（正面62%、中性28%、負面10%），主要驅動為 ETF 資金持續淨流入及機構配置消息。\n\n4. **總經環境** [EV-d4e5f6a7b8c9]：FRED 數據表明美國10年期公債殖利率持續回落至4.12%，DXY走弱至101.3，流動性環境對風險資產有利。\n\n5. **社群熱度** [EV-e5f6a7b8c9d0]：Fear & Greed Index 當前為72（貪婪），較上週65上升。社群討論熱度提升但尚未進入極度貪婪區間。\n\n## 信心說明\n\n整體信心：72%\n\n本次分析覆蓋價格充分、鏈上數據完整、新聞豐富，總經資料有限，社群熱度指標來源單一。\n\n**已知限制：**\n- 總經數據不足：缺乏就業數據與CPI最新公布值\n- 社群指標缺乏粒度：無法區分散戶vs機構情緒\n\n**矛盾信號：**\n- 鏈上囤幣意願強 vs. Fear & Greed已偏高，後者暗示短期回調風險\n`,evidence_list:[
+{evidence_id:"a1b2c3d4e5f6",source:"https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=30",fetched_at:"2026-08-01T11:45:22Z",content_reference:{symbol:"BTCUSDT",interval:"1d",close_latest:"104250.00",volatility_30d:"68%",bollinger_bandwidth:"3.2%",rsi_14:"55"},related_claim:"BTC 30日波動率偏高且布林帶收窄，處於蓄力階段"},
+{evidence_id:"b2c3d4e5f6a7",source:"https://mempool.space/api/v1/mining/pools/1w",fetched_at:"2026-08-01T11:46:05Z",content_reference:{whale_net_inflow_7d:"12340 BTC",exchange_balance_change:"-8200 BTC",active_addresses_7d_avg:"925000"},related_claim:"鏈上大戶異動顯示囤幣意願增強"},
+{evidence_id:"c3d4e5f6a7b8",source:"https://cryptopanic.com/api/v1/posts/?currencies=BTC&filter=hot",fetched_at:"2026-08-01T11:47:12Z",content_reference:{positive_pct:62,neutral_pct:28,negative_pct:10,sample_size:47,top_headline:"BlackRock BTC ETF 單日淨流入破 $500M"},related_claim:"新聞情緒偏多，ETF資金流入為主要驅動"},
+{evidence_id:"d4e5f6a7b8c9",source:"https://api.stlouisfed.org/fred/series/observations?series_id=DGS10",fetched_at:"2026-08-01T11:48:30Z",content_reference:{series:"DGS10",latest_value:"4.12%",trend:"declining",dxy_index:"101.3"},related_claim:"總經環境：殖利率回落、美元走弱有利風險資產"},
+{evidence_id:"e5f6a7b8c9d0",source:"https://api.alternative.me/fng/?limit=7",fetched_at:"2026-08-01T11:49:01Z",content_reference:{current_value:72,classification:"Greed",prev_week:65,trend:"rising"},related_claim:"社群情緒升溫但未達極度貪婪"}
+],evidence_download_url:"#",log_download_url:"#"};
 
-let selectedCoins = [];
-let elapsedTimer = null;   // 經過秒數計時器 ID
-let msgTimer = null;       // 輪播文字計時器 ID
+// ====== COIN SELECTOR ======
+(function(){document.querySelectorAll('#coins .coin').forEach(btn=>{btn.addEventListener('click',()=>{const s=btn.textContent.trim();if(btn.getAttribute('aria-pressed')==='true'){btn.setAttribute('aria-pressed','false');selectedCoins=selectedCoins.filter(x=>x!==s)}else{if(selectedCoins.length>=2){const old=selectedCoins.shift();const ob=[...document.querySelectorAll('#coins .coin')].find(b=>b.textContent.trim()===old);if(ob)ob.setAttribute('aria-pressed','false')}selectedCoins.push(s);btn.setAttribute('aria-pressed','true')}})})})();
 
-function initCoinSelector() {
-  // 功能：綁定五個幣種按鈕的點擊事件。
-  // 行為：點擊切換選取狀態（同步更新 aria-pressed 屬性讓樣式生效），
-  //      最多允許選兩個（比較分析題型需要），超過就把最早選的移除（FIFO）。
-  // 同時維護 selectedCoins 陣列。
-  const buttons = document.querySelectorAll("#coins .coin");
+// ====== SUBMIT ======
+document.getElementById('submit').addEventListener('click',async()=>{
+  document.getElementById('error').style.display='none';
+  if(!selectedCoins.length)return showErr('請至少選擇一個幣種。');
+  const q=document.getElementById('question').value.trim();
+  if(!q)return showErr('請輸入分析題目。');
+  startLoading();
+  try{
+    let data;
+    if(DEMO_MODE){await new Promise(r=>setTimeout(r,2000));data=DEMO_DATA}
+    else{const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:[...selectedCoins],question:q})});if(!res.ok){const b=await res.json().catch(()=>({}));throw new Error(b.error||`錯誤 ${res.status}`)}data=await res.json()}
+    renderDashboard(data,{symbols:[...selectedCoins],question:q});
+  }catch(e){showErr(e.message||'無法連線。')}
+});
+if(DEMO_MODE){const b=document.querySelector('#coins .coin');if(b){b.setAttribute('aria-pressed','true');selectedCoins=['BTC']}document.getElementById('question').value='請分析 BTC 近期是否處於高波動蓄勢階段，並從價格、鏈上、新聞多角度提供證據支持你的判斷。'}
 
-  buttons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const coin = btn.textContent.trim();
-      const isPressed = btn.getAttribute("aria-pressed") === "true";
+function startLoading(){document.getElementById('input-section').style.display='none';document.getElementById('dashboard').style.display='none';document.getElementById('error').style.display='none';document.getElementById('loading').style.display='block';document.getElementById('submit').disabled=true;sec=0;mi=0;document.getElementById('elapsed').textContent='00:00';document.getElementById('loading-msg').textContent=MSGS[0];timer=setInterval(()=>{sec++;document.getElementById('elapsed').textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')},1000);msgTimer=setInterval(()=>{mi=(mi+1)%MSGS.length;if(sec<600)document.getElementById('loading-msg').textContent=MSGS[mi]},9000)}
+function showErr(m){clearInterval(timer);clearInterval(msgTimer);timer=null;msgTimer=null;document.getElementById('loading').style.display='none';document.getElementById('input-section').style.display='block';document.getElementById('submit').disabled=false;const el=document.getElementById('error');el.textContent=m;el.style.display='block'}
 
-      if (isPressed) {
-        // 已選取 → 取消選取
-        btn.setAttribute("aria-pressed", "false");
-        selectedCoins = selectedCoins.filter(c => c !== coin);
-      } else {
-        // 未選取 → 嘗試選取
-        if (selectedCoins.length >= 2) {
-          // 超過上限：移除最早選的（FIFO）
-          const removed = selectedCoins.shift();
-          const removedBtn = [...buttons].find(b => b.textContent.trim() === removed);
-          if (removedBtn) removedBtn.setAttribute("aria-pressed", "false");
-        }
-        // 選取新按鈕
-        btn.setAttribute("aria-pressed", "true");
-        selectedCoins.push(coin);
-      }
-    });
-  });
+// ====== RENDER DASHBOARD ======
+function renderDashboard(data,req){
+  clearInterval(timer);clearInterval(msgTimer);timer=null;msgTimer=null;
+  document.getElementById('loading').style.display='none';
+  document.getElementById('submit').disabled=false;
+  const report=data.report_text||'';
+  evidenceList=data.evidence_list||[];
+  // Header
+  document.getElementById('dash-header').style.display='flex';
+  document.getElementById('hdr-run-id').textContent='Run: '+(data.run_id||'--');
+  document.getElementById('hdr-time').textContent=new Date().toISOString().slice(0,19).replace('T',' ')+' UTC';
+  // Hero
+  document.getElementById('hero-topic').textContent=req.symbols.join(' / ')+' 分析報告';
+  document.getElementById('hero-title').textContent=req.question.length>55?req.question.slice(0,52)+'…':req.question;
+  const cm=report.match(/(?:市場判斷|結論)[：:]\s*(.+)/i);
+  document.getElementById('hero-conclusion').textContent=cm?cm[1].slice(0,80):'分析完成 — 詳見下方報告';
+  // Metrics
+  fillMetrics(report);
+  // Confidence gauge
+  renderConfGauge(report);
+  // Radar
+  const scores=calcConfidence(report);
+  drawRadar(scores);
+  fillWarnings(scores,report);
+  // Evidence
+  renderReportWithCards(report);
+  // Downloads
+  if(data.evidence_download_url)document.getElementById('dl-evidence').href=data.evidence_download_url;
+  if(data.log_download_url)document.getElementById('dl-log').href=data.log_download_url;
+  document.getElementById('dashboard').style.display='block';
 }
 
-async function handleSubmit() {
-  // 功能：使用者按下「開始分析」時執行。
+function fillMetrics(t){
+  const pm=t.match(/\$\s*([\d,\.]+)/)||t.match(/價格[^$\d]{0,10}\$?([\d,\.]+)/i);
+  document.getElementById('dc-price').textContent=pm?'$'+pm[1]:'--';
+  const chm=t.match(/([\+\-]?\d+\.?\d*)\s*%/);
+  const chEl=document.getElementById('dc-change');
+  if(chm){const v=parseFloat(chm[1]);chEl.textContent=(v>=0?'+':'')+v.toFixed(2)+'%';chEl.className='dc-value '+(v>=0?'up':'down')}
+  else{chEl.textContent='--';chEl.className='dc-value'}
+}
 
-  // 1. 驗證：至少選一個幣種、題目不可為空
-  if (selectedCoins.length === 0) {
-    showError("請至少選擇一個幣種");
-    return;
-  }
+function renderConfGauge(t){
+  const cfm=t.match(/信心[^\d]{0,6}(\d+)/)||t.match(/confidence[：:]\s*(\d+)/i);
+  const pct=cfm?parseInt(cfm[1]):50;
+  const circ=175.9;
+  const offset=circ-(circ*pct/100);
+  document.getElementById('conf-ring-fg').style.strokeDashoffset=offset;
+  document.getElementById('conf-pct').textContent=pct+'%';
+}
 
-  const question = document.getElementById("question").value.trim();
-  if (!question) {
-    showError("請輸入分析題目");
-    return;
-  }
-
-  // 2. 停用送出按鈕、切換到 loading 狀態
-  const submitBtn = document.getElementById("submit");
-  submitBtn.disabled = true;
-  showLoading();
-
-  // 3. 組出 payload
-  const payload = { symbols: selectedCoins, question: question };
-
-  try {
-    // 4. 呼叫後端 API
-    const data = await callAnalysisApi(payload);
-    // 5. 成功 → 渲染報告
-    renderReport(data);
-  } catch (err) {
-    // 5. 失敗 → 顯示錯誤
-    showError(err.message || "分析過程發生未知錯誤，請稍後再試");
-  } finally {
-    // 6. 無論成功失敗：恢復送出按鈕、清除計時器、隱藏 loading
-    submitBtn.disabled = false;
-    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
-    if (msgTimer) { clearInterval(msgTimer); msgTimer = null; }
-    document.getElementById("loading").style.display = "none";
+// ====== RADAR ======
+function calcConfidence(t){
+  const dims=['價格','鏈上','新聞','總經','社群'];const s=[65,50,55,40,50];
+  dims.forEach((d,i)=>{if(new RegExp(d+'[^。]{0,20}(充[分足]|豐富|大量|完整|強烈|明確)').test(t))s[i]=Math.min(95,s[i]+28);if(new RegExp(d+'[^。]{0,20}(不足|缺乏|有限|無法|缺少)').test(t))s[i]=Math.max(10,s[i]-28)});return s;
+}
+function drawRadar(scores){
+  const cv=document.getElementById('radar-canvas'),ctx=cv.getContext('2d');
+  const cx=140,cy=140,R=100,n=5,labels=['價格走勢','鏈上活躍度','新聞情緒','總經政策','社群熱度'];
+  ctx.clearRect(0,0,280,280);
+  for(let lv=1;lv<=4;lv++){ctx.beginPath();const r=R*lv/4;for(let i=0;i<=n;i++){const a=Math.PI*2*i/n-Math.PI/2;const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.stroke()}
+  for(let i=0;i<n;i++){const a=Math.PI*2*i/n-Math.PI/2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+R*Math.cos(a),cy+R*Math.sin(a));ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.stroke()}
+  ctx.beginPath();for(let i=0;i<=n;i++){const idx=i%n;const a=Math.PI*2*idx/n-Math.PI/2;const v=scores[idx]/100;const x=cx+R*v*Math.cos(a),y=cy+R*v*Math.sin(a);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.fillStyle='rgba(243,112,33,0.3)';ctx.fill();ctx.strokeStyle='rgba(243,112,33,0.85)';ctx.lineWidth=2;ctx.stroke();
+  for(let i=0;i<n;i++){const a=Math.PI*2*i/n-Math.PI/2;const v=scores[i]/100;const x=cx+R*v*Math.cos(a),y=cy+R*v*Math.sin(a);ctx.beginPath();ctx.arc(x,y,scores[i]>75?5:3,0,Math.PI*2);ctx.fillStyle=scores[i]>75?'#f37021':'rgba(243,112,33,0.55)';ctx.fill();const lx=cx+(R+18)*Math.cos(a),ly=cy+(R+18)*Math.sin(a);ctx.font='12px Noto Sans TC';ctx.fillStyle='#a1a1aa';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(labels[i],lx,ly)}
+}
+function fillWarnings(scores,report){
+  const labels=['價格走勢','鏈上活躍度','新聞情緒','總經政策','社群熱度'];
+  const box=document.getElementById('radar-notes');box.innerHTML='';
+  const mx=Math.max(...scores),mn=Math.min(...scores);
+  if(mx-mn>35){const low=labels.filter((_,i)=>scores[i]<40),high=labels.filter((_,i)=>scores[i]>75);if(low.length)box.innerHTML+=`<div class="warn-pill"><span class="wi">&#9888;</span><span>不確定性：「${low.join('、')}」維度資料覆蓋不足。</span></div>`;if(high.length&&low.length)box.innerHTML+=`<div class="warn-pill"><span class="wi">&#9888;</span><span>信號偏斜：「${high.join('、')}」顯著高於其他維度。</span></div>`}
+  if(!box.innerHTML)box.innerHTML='<div class="warn-pill"><span class="wi">&#10003;</span><span>各維度覆蓋均衡，無重大偏斜。</span></div>';
+  // Contradiction panel
+  const contraMatch=report.match(/矛盾信號[：:]([\s\S]*?)(?=\n#|\n\*\*|$)/i);
+  if(contraMatch){
+    const items=contraMatch[1].trim().split(/\n-\s*/).filter(Boolean);
+    if(items.length){let html='<div class="contradiction-panel"><div class="cp-title">⚠️ 矛盾信號</div>';items.forEach(it=>html+=`<div class="cp-item">${it.trim()}</div>`);html+='</div>';box.innerHTML+=html}
   }
 }
 
-async function callAnalysisApi(payload) {
-  // 功能：呼叫後端 Lambda Function URL。
-  // 實作：fetch(API_URL, { method:"POST", headers:{"Content-Type":"application/json"},
-  //                       body: JSON.stringify(payload) })
-  // 注意：分析可能執行 5-10 分鐘，這個 fetch 會等很久，這是正常的。
-  //      （這也是為什麼不用 API Gateway —— 它有 29 秒逾時上限。）
-  // 回傳：後端回傳的 JSON 物件
-  //      { report_text, evidence_download_url, log_download_url, run_id }
-
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    // 嘗試從回應 body 取得更具體的錯誤訊息
-    let errorDetail = "";
-    try {
-      const errBody = await response.json();
-      errorDetail = errBody.error || errBody.message || "";
-    } catch (_) {
-      errorDetail = await response.text().catch(() => "");
+// ====== REPORT WITH TIMELINE CARDS ======
+function renderReportWithCards(reportText){
+  const sections=reportText.split(/\n##\s+/);
+  let html='';
+  sections.forEach(sec=>{
+    if(!sec.trim())return;
+    const lines=sec.split('\n');
+    const title=lines[0].replace(/^#+\s*/,'');
+    // Check if this is the evidence section
+    if(title.includes('關鍵依據')){
+      html+=`<h2 style="margin:1.2rem 0 .8rem;font-size:19px;font-weight:700;color:#fff">${title}</h2>`;
+      // Parse numbered items
+      const items=sec.match(/\d+\.\s+\*\*(.+?)\*\*\s*\[EV-([a-f0-9]+)\][：:]\s*([\s\S]*?)(?=\n\d+\.|\n$|$)/gi);
+      if(items){items.forEach(item=>{
+        const m=item.match(/\d+\.\s+\*\*(.+?)\*\*\s*\[EV-([a-f0-9]+)\][：:]\s*([\s\S]*)/i);
+        if(!m)return;
+        const [,cat,evId,text]=m;
+        const idx=evidenceList.findIndex(e=>e.evidence_id&&e.evidence_id.startsWith(evId));
+        const ev=idx>=0?evidenceList[idx]:null;
+        const icon=getIcon(cat);
+        const signal=getSignal(text);
+        const badges=extractBadges(text);
+        const tip=ev?`${getSourceName(ev.source)} | ${ev.fetched_at||''}`:'點擊查看';
+        html+=`<div class="ev-item" data-idx="${idx>=0?idx:0}">
+          <div class="ev-icon">${icon}</div>
+          <div class="ev-body">
+            <div class="ev-text">${cleanText(text)}${badges}</div>
+            <div class="ev-footer">
+              <span class="cite-btn" data-idx="${idx>=0?idx:0}" data-tip="${tip}"><span class="cite-icon">🔍</span> EV-${evId.slice(0,6)}</span>
+            </div>
+          </div>
+          <span class="signal-arrow ${signal.cls}">${signal.icon}</span>
+        </div>`;
+      })}else{html+=`<div style="font-size:15px;line-height:1.8">${marked.parse(lines.slice(1).join('\n'))}</div>`}
+    }else if(title.includes('信心說明')){
+      html+=`<h2 style="margin:1.2rem 0 .8rem;font-size:19px;font-weight:700;color:#fff">${title}</h2>`;
+      html+=`<div style="font-size:15px;line-height:1.8">${marked.parse(lines.slice(1).join('\n'))}</div>`;
+    }else{
+      html+=`<h2 style="margin:1.2rem 0 .8rem;font-size:19px;font-weight:700;color:#fff">${title}</h2>`;
+      html+=`<div style="font-size:15px;line-height:1.8">${marked.parse(lines.slice(1).join('\n'))}</div>`;
     }
-    throw new Error(
-      errorDetail
-        ? `分析請求失敗 (HTTP ${response.status})：${errorDetail}`
-        : `分析請求失敗 (HTTP ${response.status})`
-    );
+  });
+  document.getElementById('report-col').innerHTML=html;
+  // Bind cite button clicks
+  document.querySelectorAll('.cite-btn').forEach(el=>{el.addEventListener('click',()=>showEvViz(parseInt(el.dataset.idx)||0))});
+  document.querySelectorAll('.ev-item').forEach(el=>{el.addEventListener('click',()=>showEvViz(parseInt(el.dataset.idx)||0))});
+}
+
+function getIcon(cat){
+  if(/價格|技術/.test(cat))return ICONS.price;
+  if(/鏈上/.test(cat))return ICONS.chain;
+  if(/新聞/.test(cat))return ICONS.news;
+  if(/總經/.test(cat))return ICONS.macro;
+  if(/社群|情緒/.test(cat))return ICONS.sentiment;
+  return ICONS.default;
+}
+function getSignal(text){
+  if(/偏多|看漲|增強|上升|有利|流入|向上/.test(text))return{cls:'bullish',icon:'↑'};
+  if(/偏空|看跌|下降|流出|不利|惡化/.test(text))return{cls:'bearish',icon:'↓'};
+  return{cls:'neutral',icon:'→'};
+}
+function extractBadges(text){
+  const badges=[];
+  const nums=text.match(/([\w\u4e00-\u9fff]+)[：:為至]?\s*([\d\.]+%?)/g);
+  if(nums){nums.slice(0,3).forEach(n=>{const m=n.match(/([\w\u4e00-\u9fff]+)[：:為至]?\s*([\d\.]+%?)/);if(m)badges.push(`<span class="data-badge">${m[1]} ${m[2]}</span>`)})}
+  return badges.length?' '+badges.join(' '):'';
+}
+function cleanText(t){return t.replace(/[\d\.]+%/g,m=>`<strong style="color:var(--accent)">${m}</strong>`).replace(/\$[\d,\.]+/g,m=>`<strong style="color:var(--accent)">${m}</strong>`).trim()}
+function getSourceName(url){if(!url)return'--';try{return new URL(url).hostname.replace('api.','')}catch(e){return url.slice(0,30)}}
+
+// ====== EVIDENCE VISUALIZATION (Right Panel) ======
+function showEvViz(i){
+  const panel=document.getElementById('ev-panel');
+  panel.classList.add('show');
+  panel.innerHTML='<div class="ev-loading"><span class="mini-spin"></span><span>載入證據…</span></div>';
+  setTimeout(()=>{
+    if(!evidenceList.length){panel.innerHTML='<p class="ep-hint">尚無證據。</p>';return}
+    const ev=evidenceList[Math.min(i,evidenceList.length-1)];
+    const src=ev.source||'';
+    const srcName=getSourceName(src);
+    const isUrl=src.startsWith('http');
+    const cr=ev.content_reference||{};
+    // Build header
+    let html=`<div class="ev-card"><div class="ec-header"><span class="ec-source-name">${srcName}</span>${isUrl?`<a class="ec-source-link" href="${src}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>查證</a>`:''}</div>`;
+    // Fetched at
+    html+=`<div class="ec-field"><span class="ec-label">抓取時間</span>${ev.fetched_at||'--'}</div>`;
+    // Dynamic viz based on content type
+    html+=renderContentViz(cr,srcName);
+    // Related claim
+    html+=`<div class="ec-field"><span class="ec-label">驗證主張</span>${ev.related_claim||'--'}</div>`;
+    html+='</div>';
+    panel.innerHTML=html;
+    // Render any canvases
+    renderInlineCharts(panel,cr,srcName);
+  },200);
+}
+
+function renderContentViz(cr,srcName){
+  if(typeof cr!=='object')return `<div class="ec-field"><span class="ec-label">內容摘要</span>${cr}</div>`;
+  // Sentiment type (has positive_pct)
+  if(cr.positive_pct!==undefined){
+    return `<div class="ec-field"><span class="ec-label">情緒分佈</span><div class="sentiment-viz"><canvas id="sent-donut" width="80" height="80"></canvas><div class="sv-legend"><span class="sv-pos">● 正面 ${cr.positive_pct}%</span><br><span class="sv-neu">● 中性 ${cr.neutral_pct||0}%</span><br><span class="sv-neg">● 負面 ${cr.negative_pct||0}%</span></div></div>${cr.top_headline?`<div class="sv-headline">"${cr.top_headline}"</div>`:''}</div>`;
   }
-
-  const data = await response.json();
-  return data;
+  // Technical type (has bollinger/rsi/volatility)
+  if(cr.bollinger_bandwidth||cr.volatility_30d||cr.rsi_14){
+    let h='<div class="ec-field"><span class="ec-label">技術指標</span>';
+    if(cr.volatility_30d){h+=`<div class="gauge-viz"><div class="gauge-value">${cr.volatility_30d}</div><div class="gauge-bar"><div class="gauge-fill" style="width:${parseInt(cr.volatility_30d)||50}%"></div></div><div class="gauge-label"><span>低波動</span><span>高波動</span></div></div>`}
+    if(cr.bollinger_bandwidth){h+=`<div class="gauge-viz"><div class="gauge-value">布林帶寬 ${cr.bollinger_bandwidth}</div><div class="gauge-bar"><div class="gauge-fill" style="width:${parseFloat(cr.bollinger_bandwidth)*10||30}%"></div></div><div class="gauge-label"><span>極窄(突破預警)</span><span>寬</span></div></div>`}
+    if(cr.rsi_14){h+=`<div class="gauge-viz"><div class="gauge-value">RSI ${cr.rsi_14}</div><div class="gauge-bar"><div class="gauge-fill" style="width:${parseInt(cr.rsi_14)||50}%"></div></div><div class="gauge-label"><span>超賣 30</span><span>超買 70</span></div></div>`}
+    h+='</div>';return h;
+  }
+  // Chain type
+  if(cr.whale_net_inflow_7d||cr.exchange_balance_change){
+    let h='<div class="ec-field"><span class="ec-label">鏈上數據</span>';
+    Object.entries(cr).forEach(([k,v])=>{h+=`<div style="display:flex;justify-content:space-between;padding:.2rem 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted);font-size:12px">${k}</span><span style="color:var(--accent);font-weight:600;font-size:13px">${v}</span></div>`});
+    h+='</div>';return h;
+  }
+  // Macro type
+  if(cr.series||cr.dxy_index){
+    let h='<div class="ec-field"><span class="ec-label">總經指標</span>';
+    Object.entries(cr).forEach(([k,v])=>{h+=`<div style="display:flex;justify-content:space-between;padding:.2rem 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted);font-size:12px">${k}</span><span style="color:var(--accent);font-weight:600;font-size:13px">${v}</span></div>`});
+    h+='</div>';return h;
+  }
+  // Fear & Greed
+  if(cr.current_value!==undefined&&cr.classification){
+    return `<div class="ec-field"><span class="ec-label">情緒指數</span><div class="gauge-viz"><div class="gauge-value">${cr.current_value} (${cr.classification})</div><div class="gauge-bar"><div class="gauge-fill" style="width:${cr.current_value}%"></div></div><div class="gauge-label"><span>0 極度恐慌</span><span>100 極度貪婪</span></div></div><div style="font-size:12px;color:var(--muted);margin-top:.3rem">上週：${cr.prev_week||'--'} | 趨勢：${cr.trend||'--'}</div></div>`;
+  }
+  // Fallback: pretty key-value
+  let h='<div class="ec-field"><span class="ec-label">內容摘要</span>';
+  Object.entries(cr).forEach(([k,v])=>{h+=`<div style="display:flex;justify-content:space-between;padding:.2rem 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted);font-size:12px">${k}</span><span style="font-size:13px">${v}</span></div>`});
+  h+='</div>';return h;
 }
 
-function showLoading() {
-  // 功能：切換到執行中畫面。
-  // 步驟：隱藏輸入面板與舊結果、顯示 #loading、
-  //      啟動計時器更新 #elapsed 的經過秒數、
-  //      啟動輪播計時器每隔數秒更換 #loading-msg 的文字。
-
-  // 隱藏輸入面板、舊結果、錯誤訊息
-  document.getElementById("input-panel").style.display = "none";
-  document.getElementById("result").style.display = "none";
-  document.getElementById("error").style.display = "none";
-
-  // 顯示 loading 區塊
-  document.getElementById("loading").style.display = "block";
-
-  // 重設顯示文字
-  document.getElementById("elapsed").textContent = "00:00";
-  document.getElementById("loading-msg").textContent = LOADING_MESSAGES[0];
-
-  // 啟動經過秒數計時器（每秒更新一次，格式 MM:SS）
-  let seconds = 0;
-  elapsedTimer = setInterval(() => {
-    seconds++;
-    const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
-    const ss = String(seconds % 60).padStart(2, "0");
-    document.getElementById("elapsed").textContent = mm + ":" + ss;
-  }, 1000);
-
-  // 啟動輪播計時器（每 5 秒切換下一則提示文字）
-  let msgIndex = 0;
-  msgTimer = setInterval(() => {
-    msgIndex = (msgIndex + 1) % LOADING_MESSAGES.length;
-    document.getElementById("loading-msg").textContent = LOADING_MESSAGES[msgIndex];
-  }, 5000);
+function renderInlineCharts(panel,cr,srcName){
+  // Sentiment donut
+  const donut=panel.querySelector('#sent-donut');
+  if(donut&&cr.positive_pct!==undefined){
+    const ctx=donut.getContext('2d');
+    const data=[cr.positive_pct,cr.neutral_pct||0,cr.negative_pct||0];
+    const colors=['#22c55e','#71717a','#ef4444'];
+    let start=-Math.PI/2;
+    data.forEach((d,i)=>{const angle=Math.PI*2*d/100;ctx.beginPath();ctx.moveTo(40,40);ctx.arc(40,40,35,start,start+angle);ctx.fillStyle=colors[i];ctx.fill();start+=angle});
+    ctx.beginPath();ctx.arc(40,40,20,0,Math.PI*2);ctx.fillStyle='#1a1a1f';ctx.fill();
+  }
 }
-
-function renderReport(data) {
-  // 功能：把後端回傳的報告顯示在畫面上。
-  // 步驟：
-  //   1. 用 marked.parse(data.report_text) 把 Markdown 轉成 HTML，
-  //      塞進 #report 的 innerHTML
-  //   2. 把 data.evidence_download_url 設為 #dl-evidence 的 href
-  //   3. 把 data.log_download_url 設為 #dl-log 的 href
-  //   4. 顯示 #result
-  document.getElementById("report").innerHTML = marked.parse(data.report_text);
-  document.getElementById("dl-evidence").href = data.evidence_download_url;
-  document.getElementById("dl-log").href = data.log_download_url;
-  document.getElementById("result").style.display = "block";
-}
-
-function showError(message) {
-  // 功能：顯示錯誤訊息，並恢復畫面到可重新操作的狀態。
-  // 步驟：
-  //   1. 清除計時器（避免 loading 階段殘留的 interval 持續跑）
-  //   2. 隱藏 loading 區塊
-  //   3. 顯示輸入面板（讓使用者可以修正後重試）
-  //   4. 將 message 原文寫入 #error 並顯示
-
-  // 清除可能還在跑的計時器
-  if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
-  if (msgTimer) { clearInterval(msgTimer); msgTimer = null; }
-
-  // 隱藏 loading、顯示輸入面板
-  document.getElementById("loading").style.display = "none";
-  document.getElementById("input-panel").style.display = "block";
-
-  // 顯示錯誤訊息（呼叫端負責提供具體、可行動的文字）
-  const errorEl = document.getElementById("error");
-  errorEl.textContent = message;
-  errorEl.style.display = "block";
-}
-
-initCoinSelector();
-document.getElementById("submit").addEventListener("click", handleSubmit);
 </script>
 </body>
 </html>
