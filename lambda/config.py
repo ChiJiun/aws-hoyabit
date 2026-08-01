@@ -13,7 +13,7 @@ BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
 DATA_BUCKET = os.environ.get("DATA_BUCKET")
 
 # ---- 執行參數 ----
-MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 8))
+MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 15))
 TIME_BUDGET_SECONDS = int(os.environ.get("TIME_BUDGET_SECONDS", 600))
 
 # ---- 外部 API 金鑰 ----
@@ -75,7 +75,7 @@ def load_local_env():
     BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID")
     DATA_BUCKET = os.environ.get("DATA_BUCKET")
 
-    MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 8))
+    MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 15))
     TIME_BUDGET_SECONDS = int(os.environ.get("TIME_BUDGET_SECONDS", 600))
 
     COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY")

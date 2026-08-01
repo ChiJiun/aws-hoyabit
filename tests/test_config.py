@@ -110,7 +110,7 @@ def test_load_local_env_defaults_when_missing(tmp_path, monkeypatch):
 
     # 有預設值的變數
     assert config.AWS_REGION == "us-east-1"
-    assert config.MAX_AGENT_TURNS == 8
+    assert config.MAX_AGENT_TURNS == 15
     assert config.TIME_BUDGET_SECONDS == 600
 
     # 無預設值的變數應為 None

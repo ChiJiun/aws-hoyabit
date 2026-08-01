@@ -188,12 +188,15 @@
 #### 驗收條件
 
 1. THE Report SHALL 包含以下三個章節：市場判斷、關鍵依據、信心說明
-2. WHEN 產出報告時，THE Lambda_Function SHALL 在關鍵依據章節中為每條依據附上對應的 evidence_id
-3. THE Report SHALL 在信心說明章節中包含已知限制、資料不足之處、可能推翻結論的條件
-4. THE Report SHALL 在附錄中包含資料覆蓋率（已取得的資料類別數 ÷ 預期的資料類別總數）
-5. THE Report SHALL 以 Markdown 格式輸出
-6. THE Report SHALL 遵循事實→推論→結論的三層分析結構
-7. WHEN Report 顯示證據來源，THE Lambda_Function SHALL 優先提供新聞原文、官方圖表、交易資料頁或區塊瀏覽器等人類可讀查證連結；實際 API endpoint 仍保留於 evidence_list.json 供技術重現
+2. WHEN Agent_Loop 規劃分析時，THE Agent_Loop SHALL 依分析題目的相關性，從已實作能力中選擇至少 2 個可回答不同子問題的分析維度；已實作能力可包含價格、技術指標、市場結構與流動性、衍生品、鏈上、情緒、預測市場、新聞與公告、總體經濟、DeFi、開發活躍度、機構資料及監管資料
+3. WHEN 產出報告時，THE Lambda_Function SHALL 在關鍵依據章節中為每條依據附上對應的 evidence_id
+4. THE Report SHALL 在信心說明章節中包含已知限制、資料不足之處、可能推翻結論的條件
+5. THE Report SHALL 在附錄中列出實際分析維度、證據筆數、獨立來源數，以及各分析維度的證據與來源明細
+6. WHEN 執行紀錄包含已嘗試但無法取得或執行失敗的分析維度，THE Report SHALL 在附錄中列出對應的分析維度與失敗或無法取得狀態
+7. THE Report SHALL 省略 5/5、4/5 等固定比率、固定五類分母、固定類別覆蓋百分比及維度分數
+8. THE Report SHALL 以 Markdown 格式輸出
+9. THE Report SHALL 遵循事實→推論→結論的三層分析結構
+10. WHEN Report 顯示證據來源，THE Lambda_Function SHALL 優先提供新聞原文、官方圖表、交易資料頁或區塊瀏覽器等人類可讀查證連結；實際 API endpoint 仍保留於 evidence_list.json 供技術重現
 
 ---
 
@@ -204,10 +207,14 @@
 #### 驗收條件
 
 1. THE Report SHALL 不包含投資建議語句（買進、賣出、目標價、建議持有等）
-2. WHEN 資料來源之間存在矛盾訊號，THE Report SHALL 明確說明矛盾內容與取捨依據
-3. WHEN 部分資料來源取得失敗，THE Report SHALL 在信心說明章節中列出缺失的資料類別
-4. THE Lambda_Function SHALL 在交付前執行自我檢查，驗證報告中是否出現投資建議語句
-5. THE Lambda_Function SHALL 在交付前驗證證據來源類別數是否大於等於 3
+2. THE Report SHALL 交叉比較實際分析維度並說明維度之間的一致訊號、背離訊號或證據不足狀態
+3. WHEN Report 識別出跨維度的一致訊號或背離訊號，THE Report SHALL 以事實→推論→結論結構說明分析，並為使用的事實附上 evidence_id
+4. WHEN 資料來源之間存在矛盾訊號，THE Report SHALL 明確說明矛盾內容與取捨依據
+5. WHEN 與分析題目相關的維度遭省略、無法取得或執行失敗，THE Report SHALL 在信心說明章節中說明對應維度、原因及對結論信心的影響
+6. THE Report SHALL 將缺失維度說明限定於與分析題目相關或已嘗試的維度
+7. THE Lambda_Function SHALL 在交付前執行自我檢查，驗證報告中是否出現投資建議語句
+8. THE Lambda_Function SHALL 僅在證據包含至少 3 個不同證據來源類別時將匯出驗證判定為通過
+9. THE Lambda_Function SHALL 將至少 3 個不同證據來源類別的門檻作為匯出驗證條件，而非 Report 的固定分母、覆蓋率或評分
 
 ---
 

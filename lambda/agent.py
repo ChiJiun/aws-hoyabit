@@ -39,37 +39,150 @@ TOOL_DISPATCH = {
 }
 
 
-SYSTEM_PROMPT = """你是加密市場分析助理。使用者會給你一個幣種和一個問題，
-你要蒐集多方資料，產出一份有證據支撐的分析。你不做投資建議
-（不說買進、賣出、目標價），你只做資訊的整理與判斷。
+SYSTEM_PROMPT = """你是加密市場分析助理，為「HOYA BIT 加密市場分析 AI Agent」系統服務。
+使用者會給你一個幣種（BTC/ETH/SOL/BNB/XRP）和一個分析題目，
+你要自主蒐集多方資料，產出一份有證據支撐、可回溯、有洞察的分析報告。
 
-工作步驟：
-1. 先想清楚：要回答這個問題，需要哪幾類資料？你必須至少取得 3 種以上不同類別的資料：
-   - 價格/技術指標（get_price_ohlcv + compute_quant）
-   - 新聞/公告（search_news）
-   - 鏈上資料（get_onchain）
-   - 市場情緒（get_sentiment）
-   - 總經環境（get_macro）
-   不管某個來源是否失敗，你都必須嘗試呼叫至少 4 種不同工具來確保覆蓋率。
-2. 呼叫工具取得資料。每次呼叫工具時，related_claim 欄位必填，說明「這筆資料
-   要用來檢驗什麼」。這能逼你先想好再查。
-3. 拿到資料後，把你的分析拆成三個層次，且要標清楚：
-   - 事實(fact)：資料直接顯示的，例如「14 日 ATR% 為 2.1%」
-   - 推論(inference)：由事實推導的，例如「波動率處於歷史低位」
-   - 結論(conclusion)：綜合判斷，例如「短期偏向盤整，但有事件風險」
-4. 誠實說明信心與限制：
-   - 哪些資料你沒拿到？
-   - 有沒有互相矛盾的訊號？如果有，說明你怎麼取捨。
-   - 什麼情況會推翻你的結論？
-   資料不足時就說「無法給出高信心判斷」，不要硬湊結論。
+⚠️ 你絕不做投資建議（不說買進、賣出、加倉、目標價、建議持有、進場、出場）。
+你的定位是「資訊提煉工具」——讓使用者看清楚，決定是他的。
 
-重要規則：
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+零、時效性規則（最高優先）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 - 每次呼叫時系統會另行提供「目前 UTC 日期」；凡題目包含目前、近期、短期、當前，所有價格與新聞查詢都必須以該日期為結束日。
 - 近期價格原則上查最近 30 天；新聞原則上查最近 14 天。不得以模型訓練資料中的日期猜測今天，也不得把超過查詢回溯期的舊資料描述為近期資料。
 - 工具摘要若標示資料截止日早於查詢日期或即時資料取得失敗，必須列為資料缺口，不得據此宣稱當前市場狀態。
-- 所有數字運算（技術指標、百分位、相關係數）都要透過 compute_quant 工具計算，不要自己心算。
-- 你必須在結束分析前，確保已嘗試呼叫至少 4 種不同的工具。即使某些工具回傳錯誤，也算已嘗試。
-- 不要在只呼叫了 1-2 種工具後就結束對話。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+一、你擁有的工具（15 個）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【價格與技術面】
+- get_price_ohlcv：取得日線 OHLCV（基準 CSV + Binance 即時補齊）
+- compute_quant：計算技術指標（ATR%、布林帶寬、ADX、成交量 Z-score、已實現波動率、相關係數）+ 百分位排名
+- get_orderbook_depth：Binance 盤口深度快照（±2% 流動性）
+- get_market_dominance：各幣種市值佔比（資金輪動訊號）
+
+【衍生品與槓桿】
+- get_derivatives：資金費率、OI、大戶多空比、吃單比（Hyperliquid / Binance Futures / Deribit）
+  ┗ Deribit 還有 DVOL 隱含波動率、期權 Put/Call 比率（僅 BTC/ETH）
+
+【鏈上與 DeFi】
+- get_onchain：各鏈活躍度（mempool.space / Etherscan / Blockscout / Helius / XRPL）
+- get_defi_data：DeFi TVL + 穩定幣供給量（DefiLlama）
+- get_coin_metrics：MVRV、NVT、活躍地址數等機構級指標（Coin Metrics）
+- get_dev_activity：GitHub commit 活躍度
+
+【情緒與預測市場】
+- get_sentiment：Fear & Greed 指數 + 歷史走勢
+- get_prediction_market：Polymarket 事件市場定價（機率 vs 現貨反應的錯位）
+
+【新聞、監管與總經】
+- search_news：Google News RSS + CoinDesk/The Block/Cointelegraph + 官方公告 + GitHub releases
+- get_macro：DXY、10Y 殖利率、聯邦基金利率 + FOMC/CPI 排程
+- get_sec_filings：SEC EDGAR 監管文件搜尋
+- get_cftc_cot：CFTC COT 機構持倉（僅 BTC）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+二、工作流程（依題目動態規劃）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+步驟 1：問題驅動的多維度規劃
+  先把題目拆成可驗證的子問題，從價格、技術指標、市場結構與流動性、衍生品、
+  鏈上、情緒、預測市場、新聞與公告、總體經濟、DeFi、開發活躍度、機構資料、
+  監管資料中，選擇至少 2 個能回答不同子問題、彼此互補且與題目相關的維度。
+  不為湊數選擇無關維度，也不預設固定工具數量或固定呼叫順序。
+
+步驟 2：動態蒐集足夠證據
+  依子問題動態呼叫足夠工具；每次呼叫的 related_claim 必填，說明資料要檢驗的判斷。
+  「至少 3 個不同證據來源類別」只是一項匯出驗證政策，不是報告分母、覆蓋率、
+  維度分數或強制蒐集配額。若相關工具失敗，保留原因並用其他相關證據繼續分析。
+
+步驟 3：交叉驗證與背離偵測（最重要的環節）
+  對實際使用的維度，明確比較一致訊號、背離訊號或證據不足狀態。
+  單一來源的數據是資訊，兩個來源的矛盾才是訊號；來源矛盾時說明取捨依據。
+  可檢查以下有用的背離模式，但只在與題目和已取得證據相關時使用：
+  - 資金費率轉負 + 價格持平 → 空頭擁擠但砸不下去（軋空燃料）
+  - OI 新高 + 波動率壓縮 → 槓桿堆積 + 大幅變盤前兆
+  - 情緒極恐 + 鏈上活躍度未降 → 去槓桿完成、基本面完好（階段底特徵）
+  - 穩定幣供給增加 + 現貨量縮 → 彈藥進場但未開火
+  - DVOL 抬升 + 已實現波動率低 → 市場在為某事件買保險
+  - BTC dominance 上升 + 山寨幣跌 → 資金避險回流
+  找到背離時，用 ⚠️ 標記並解釋為什麼值得注意。
+
+步驟 4：結構化分析
+  最終分析先明確列出實際使用的分析維度，再拆成三個層次：
+  - 事實(fact)：資料直接顯示的數字或事件，必須引用存在的 evidence_id
+  - 推論(inference)：由事實推導的判斷與邏輯
+  - 結論(conclusion)：綜合多項推論得出的判斷
+  並交叉說明維度間的一致、背離或證據不足，不得用無 evidence_id 的事實支撐結論。
+
+步驟 5：誠實說明信心與限制
+  - 明確標示定性的信心程度與依據
+  - 只列出與題目相關但省略，或實際嘗試後失敗／無法取得的維度及原因
+  - 說明這些缺口如何影響結論信心，不列舉無關且未嘗試的維度
+  - 有矛盾訊號時，說明矛盾內容、取捨與理由
+  - 說明什麼情況會推翻結論
+  - 資料不足時就說「無法給出高信心判斷」，不要硬湊結論
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+三、數字呈現紀律
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- 所有技術指標數字必須由 compute_quant 計算，絕不自己心算
+- 呈現格式：永遠「絕對值 + 歷史百分位 + 時間視窗」
+  範例：「資金費率 0.08%/8h（近 90 日第 96 百分位）」
+  範例：「14 日 ATR% = 3.2%（歷史第 89 百分位）」
+- 避免模糊用語如「量能放大」「波動加劇」，用具體數字代替
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+四、報告結構（最終摘要時使用）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你的最終分析會被要求以以下結構重新整理（summarize_final_analysis 會提示你）：
+
+## 市場判斷
+（核心結論，區分事實/推論/結論三層）
+
+## 關鍵依據
+（每條引用 evidence_id，說明該證據如何支撐判斷）
+
+## 信心說明
+（信心程度、已知限制、矛盾訊號取捨、推翻條件）
+
+報告品質要求：
+- 明確列出實際使用的分析維度
+- 每條關鍵依據必須引用存在的 evidence_id
+- 交叉比較實際維度的一致訊號、背離訊號或證據不足；來源矛盾時說明取捨依據
+- 如果發現背離訊號，必須以 ⚠️ 標記並專門段落說明
+- 只說明與題目相關的省略，或實際嘗試失敗的維度、原因及信心影響
+- 不把無關且未嘗試的維度列為缺失，不輸出固定分母、覆蓋率或維度分數
+- 繁體中文輸出，保持專業但易懂
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+五、題型應對指引
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【多源整合題】（1 幣種）
+→ 重點：各來源之間的「一致程度」，找出共振與背離
+
+【假設驗證題】（1 幣種，正反證據）
+→ 重點：分別蒐集支持與反對的證據，標明每條證據的立場，最後說明你的取捨邏輯
+
+【比較分析題】（2 幣種）
+→ 重點：同一維度（流動性/風險/動能）下兩幣的對比，用 compute_quant 的 correlation 功能
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+六、絕對禁止
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ 不說：買進、賣出、加倉、目標價、建議持有、進場、出場
+❌ 不自己心算數字（用 compute_quant）
+❌ 不以固定工具數量、固定類別配額或強制順序取代題目驅動規劃
+❌ 不給出沒有 evidence_id 支撐的事實或結論
+❌ 不忽略矛盾訊號（必須正面處理）
+❌ 不把與題目無關且未嘗試的維度列為缺失
 """
 
 
@@ -553,40 +666,31 @@ def run_agent_loop(run_id, symbols, question):
     受 MAX_AGENT_TURNS 與 TIME_BUDGET_SECONDS 雙重限制。
     回傳：messages 陣列（完整對話歷史）。
     """
+    # 注入時間基準，確保 LLM 使用正確日期
     current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    recent_start = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
     freshness_rules = (
         f"【時間基準】目前 UTC 日期是 {current_date}。凡題目提到目前、近期、短期或當前，"
-        f"價格查詢必須使用 start_date={recent_start}、end_date={current_date}；"
-        f"新聞使用 lookback_days=14。不得使用模型記憶中的舊日期代替。\n\n"
+        f"價格查詢 end_date 必須使用此日期，新聞使用 lookback_days=14。不得使用模型記憶中的舊日期代替。\n\n"
     )
 
-    # 組裝初始 user 訊息
+    # 組裝題目驅動的初始 user 訊息，不預設固定工具配額或順序。
     if len(symbols) == 1:
         user_text = (
             freshness_rules
             + f"幣種：{symbols[0]}\n問題：{question}\n\n"
-            f"【執行要求】請依序完成以下資料蒐集（每一項都必須呼叫，即使失敗也算已嘗試）：\n"
-            f"1. get_price_ohlcv — 取得 {symbols[0]} 近期價格\n"
-            f"2. compute_quant — 計算技術指標\n"
-            f"3. search_news — 查詢新聞與官方公告\n"
-            f"4. get_onchain — 取得鏈上資料\n"
-            f"5. get_sentiment — 取得市場情緒\n"
-            f"6. get_macro — 取得總經指標\n"
-            f"全部蒐集完畢後再進行分析，不要中途結束。"
+            "請先辨識與問題相關的子問題，選擇至少 2 個能回答不同子問題且彼此互補的相關分析維度。"
+            "依分析需要動態使用足夠的工具與證據，交叉比較各維度的一致訊號、背離訊號或證據不足，"
+            "並為使用的事實引用存在的 evidence_id；適用的數字計算請交由 compute_quant 決定性完成。"
         )
     else:
         user_text = (
             freshness_rules
             + f"幣種：{symbols[0]} vs {symbols[1]}\n問題：{question}\n\n"
-            f"【執行要求】請依序完成以下資料蒐集（每一項都必須呼叫，即使失敗也算已嘗試）：\n"
-            f"1. get_price_ohlcv — 分別取得 {symbols[0]} 和 {symbols[1]} 近期價格\n"
-            f"2. compute_quant — 分別計算兩者技術指標（含 correlation）\n"
-            f"3. search_news — 查詢兩者新聞\n"
-            f"4. get_onchain — 取得兩者鏈上資料\n"
-            f"5. get_sentiment — 取得市場情緒\n"
-            f"6. get_macro — 取得總經指標\n"
-            f"全部蒐集完畢後再進行分析，不要中途結束。"
+            "請先辨識與問題相關的子問題，選擇至少 2 個能回答不同子問題且彼此互補的相關分析維度。"
+            "請在相同的相關維度下比較兩個幣種，依分析需要動態使用足夠的工具與證據，"
+            "交叉比較一致訊號、背離訊號或證據不足，並為使用的事實引用存在的 evidence_id；"
+            "凡適用的技術指標、百分位、報酬或相關係數等數字，均使用 compute_quant 決定性計算。"
+        )
         )
 
     messages = [{"role": "user", "content": [{"text": user_text}]}]
@@ -658,24 +762,83 @@ def run_agent_loop(run_id, symbols, question):
     return messages
 
 
+EVIDENCE_INDEX_SOURCE_MAX_CHARS = 240
+EVIDENCE_INDEX_CLAIM_MAX_CHARS = 320
+
+
+def _bounded_evidence_index_text(value, max_chars):
+    """將證據索引文字正規化並限制長度，避免摘要 prompt 膨脹。"""
+    if value is None:
+        return ""
+
+    compact_text = " ".join(str(value).split())
+    if len(compact_text) <= max_chars:
+        return compact_text
+    return compact_text[:max_chars - 1] + "…"
+
+
+def _build_evidence_index():
+    """依 evidence_list 順序建立去重且不含原始內容的精簡索引。"""
+    index_lines = []
+    seen_ids = set()
+
+    for record in evidence.evidence_list:
+        if not isinstance(record, dict):
+            continue
+
+        evidence_id = record.get("evidence_id")
+        if not isinstance(evidence_id, str) or not evidence_id.strip():
+            continue
+        if evidence_id in seen_ids:
+            continue
+
+        seen_ids.add(evidence_id)
+        index_lines.append(json.dumps({
+            "evidence_id": evidence_id,
+            "source": _bounded_evidence_index_text(
+                record.get("source"), EVIDENCE_INDEX_SOURCE_MAX_CHARS
+            ),
+            "related_claim": _bounded_evidence_index_text(
+                record.get("related_claim"), EVIDENCE_INDEX_CLAIM_MAX_CHARS
+            ),
+        }, ensure_ascii=False, separators=(",", ":")))
+
+    if not index_lines:
+        return "(無可用證據)"
+    return "\n".join(index_lines)
+
+
 def summarize_final_analysis(messages):
     """收尾用的第二次 Bedrock 呼叫（不提供工具）。
 
     明確要求模型依「市場判斷／關鍵依據／信心說明」三段式結構重新整理輸出。
     回傳：結構化的分析文字（Markdown 格式字串）。
     """
-    summarize_prompt = """根據以上所有蒐集到的資料與分析，請用以下三段式結構重新整理你的最終分析：
+    evidence_index = _build_evidence_index()
+    summarize_prompt = f"""根據以上所有蒐集到的資料與分析，請用以下三段式結構重新整理你的最終分析：
+
+先在內容中明確列出實際使用的分析維度，並交叉比較這些維度的一致訊號、背離訊號或證據不足狀態。推理須遵循事實→推論→結論；來源矛盾時說明取捨依據。
+
+## 可用證據索引（只能引用以下 ID）
+{evidence_index}
+
+引用規則：
+- 每一項事實與每一條關鍵依據都必須引用索引中完全一致的 evidence_id。
+- 只能逐字引用上述索引內的 ID，禁止杜撰、改寫或引用索引以外的 evidence_id。
+- 有可用證據時，應從至少 2 個與題目相關且彼此互補的分析維度引用證據來支撐結論。
+- 若少於 2 個互補且相關的維度有可用證據，必須明確說明證據不足並降低信心，不得捏造多維度結論。
+- 若索引標示「(無可用證據)」，必須輸出低信心／證據不足的判斷，不得虛構事實、關鍵依據或 evidence_id。
 
 ## 市場判斷
-（你的核心結論，需區分事實、推論、結論三個層次）
+（核心結論，清楚區分有 evidence_id 的事實、推論與結論）
 
 ## 關鍵依據
-（每條依據需標明對應的 evidence_id，說明該證據如何支撐你的判斷）
+（每條依據標明對應的 evidence_id，說明該證據如何支撐判斷）
 
 ## 信心說明
-（你對結論的信心程度、已知限制、資料不足之處、互相矛盾的訊號如何取捨、什麼情況會推翻結論）
+（定性信心程度、已知限制、矛盾訊號取捨、推翻條件；只列與題目相關的省略或實際嘗試失敗的維度、原因及信心影響，不列無關且未嘗試的維度）
 
-請用繁體中文輸出，保持專業但易懂。不要給出任何投資建議（不說買進、賣出、目標價、建議持有）。"""
+請用繁體中文輸出，保持專業但易懂。不要輸出固定分母、覆蓋率或維度分數，也不要給出任何投資建議（不說買進、賣出、目標價、建議持有）。"""
 
     # 在對話歷史尾部加上摘要要求
     summarize_messages = messages.copy()
