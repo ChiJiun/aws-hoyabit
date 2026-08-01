@@ -12,7 +12,9 @@ from datetime import datetime, timezone
 
 import requests
 
+import config
 import evidence
+from tools.quality import make_anomaly_flag
 
 _API_BASE = "https://api.alternative.me/fng/"
 _TIMEOUT = 30
@@ -109,12 +111,68 @@ def get_sentiment(related_claim, lookback_days=30):
                  f"trend={value_change:+d} over {lookback_days}d",
         )
 
-        return {
+        # --- A6 異常偵測：F&G 極端值 + 7日急變 ---
+        anomaly_flags = []
+        thresholds = getattr(config, "ANOMALY_THRESHOLDS", {})
+        fg_low = thresholds.get("fg_extreme_low", 20)
+        fg_high = thresholds.get("fg_extreme_high", 80)
+        fg_rapid_change = thresholds.get("fg_rapid_change_7d", 30)
+
+        if current_value <= fg_low:
+            anomaly_flags.append(make_anomaly_flag(
+                signal_id="A6_extreme_fear",
+                name="情緒極端恐慌",
+                severity="significant" if current_value <= 10 else "notable",
+                direction="bearish",
+                value=current_value,
+                unit="index",
+                threshold=f"≤ {fg_low}",
+                window=f"{lookback_days}d lookback",
+                as_of=current_date,
+                message=f"Fear & Greed Index {current_value}（{current_classification}），處於極端恐慌區間",
+            ))
+        elif current_value >= fg_high:
+            anomaly_flags.append(make_anomaly_flag(
+                signal_id="A6_extreme_greed",
+                name="情緒極端貪婪",
+                severity="significant" if current_value >= 90 else "notable",
+                direction="bullish",
+                value=current_value,
+                unit="index",
+                threshold=f"≥ {fg_high}",
+                window=f"{lookback_days}d lookback",
+                as_of=current_date,
+                message=f"Fear & Greed Index {current_value}（{current_classification}），處於極端貪婪區間",
+            ))
+
+        # 7日急變檢查（需要至少 7 筆資料）
+        if len(entries) >= 7:
+            seven_day_ago_value = int(entries[6].get("value", 0))
+            change_7d = current_value - seven_day_ago_value
+            if abs(change_7d) >= fg_rapid_change:
+                direction = "bullish" if change_7d > 0 else "bearish"
+                anomaly_flags.append(make_anomaly_flag(
+                    signal_id="A6_rapid_shift",
+                    name="情緒 7 日急變",
+                    severity="notable",
+                    direction=direction,
+                    value=change_7d,
+                    unit="points/7d",
+                    threshold=f"|Δ7d| ≥ {fg_rapid_change}",
+                    window="7d",
+                    as_of=current_date,
+                    message=f"Fear & Greed 7 日變化 {change_7d:+d} 點（{seven_day_ago_value} → {current_value}），情緒快速轉向",
+                ))
+
+        result = {
             "raw": raw_data,
             "source": source_url,
             "content_reference": content_reference,
             "summary": summary,
         }
+        if anomaly_flags:
+            result["anomaly_flags"] = anomaly_flags
+        return result
 
     except Exception as e:
         elapsed_ms = int((time.time() - start_time) * 1000)

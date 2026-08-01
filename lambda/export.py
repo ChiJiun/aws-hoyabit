@@ -45,16 +45,25 @@ def export_evidence_list(evidence_list, as_csv=False):
                 ])
             return output.getvalue()
         else:
-            # JSON 格式輸出：每筆保留五個欄位供追溯
+            # JSON 格式：保留命題必要五欄位，並輸出可回溯品質與封存欄位。
             exported = []
+            optional_fields = [
+                "schema_version", "tool_name", "source_url", "data_quality",
+                "anomaly_flags", "raw_payload_path", "raw_payload_sha256",
+                "archive_status", "archive_error",
+            ]
             for record in evidence_list:
-                exported.append({
+                item = {
                     "evidence_id": record.get("evidence_id", ""),
                     "source": record.get("source", ""),
                     "fetched_at": record.get("fetched_at", ""),
                     "content_reference": record.get("content_reference", {}),
                     "related_claim": record.get("related_claim", ""),
-                })
+                }
+                for field in optional_fields:
+                    if field in record:
+                        item[field] = record.get(field)
+                exported.append(item)
             return json.dumps(exported, ensure_ascii=False, indent=2)
     except Exception:
         # 永不讓未處理例外逸出
@@ -85,13 +94,39 @@ def export_execution_log(execution_log):
         return ""
 
 
-def validate_before_export(evidence_list, analysis_text):
+def classify_source_category(source):
+    """根據 source 字串判斷該證據屬於哪個來源類別。
+
+    回傳類別名稱字串（price / news / onchain / sentiment / macro / quant /
+    derivatives / defi / prediction），若無法分類則回傳 None。
+    此函式可供 export 驗證和其他模組共用。
+    """
+    _CATEGORY_KEYWORDS = {
+        "price": ["binance", "coingecko", "klines", "ohlcv", "price", "orderbook", "depth"],
+        "news": ["news", "rss", "github", "coindesk", "theblock", "cointelegraph"],
+        "onchain": ["mempool", "etherscan", "blockscout", "helius", "xrpl", "onchain"],
+        "sentiment": ["alternative.me", "fear", "greed", "sentiment"],
+        "macro": ["fred", "macro", "stlouisfed"],
+        "quant": ["quant", "indicator", "technical", "compute_quant"],
+        "derivatives": ["hyperliquid", "deribit", "futures", "funding", "derivative"],
+        "defi": ["llama", "defi", "tvl", "stablecoin"],
+        "prediction": ["polymarket", "prediction", "gamma-api"],
+    }
+    source_lower = str(source).lower() if source else ""
+    for category, keywords in _CATEGORY_KEYWORDS.items():
+        if any(kw in source_lower for kw in keywords):
+            return category
+    return None
+
+
+def validate_before_export(evidence_list, analysis_text, analyzed_evidence_ids=None):
     # 功能：交付前的自我檢查，把命題的評分觀察點寫成程式化驗證。
     # 檢查項目：
     #   1. 每筆證據的四個必填欄位是否齊備
     #   2. 資料來源類別數是否 >= 3（命題會看「來源類型是否多樣」）
     #   3. 是否有付費來源被當成唯一依據
     #   4. 報告中是否出現投資建議語句（買進／賣出／目標價）
+    #   5. 孤兒 evidence_id 檢查（分析引用但不存在於 evidence_list 的 ID）
     # 回傳：(是否全數通過, 未通過項目的清單)
     #      未通過不阻止輸出，而是把警示寫進報告的限制段落。
     try:
@@ -104,23 +139,12 @@ def validate_before_export(evidence_list, analysis_text):
             if missing:
                 failures.append(f"證據 #{i+1} 缺少欄位：{', '.join(missing)}")
 
-        # 步驟 2：來源類別數 >= 3
-        # 根據 source 欄位的 URL 或工具名稱判斷類別
-        category_keywords = {
-            "price": ["binance", "coingecko", "klines", "ohlcv", "price"],
-            "news": ["cryptopanic", "news", "rss", "github"],
-            "onchain": ["mempool", "etherscan", "blockscout", "helius", "xrpl", "onchain"],
-            "sentiment": ["alternative.me", "fear", "greed", "sentiment"],
-            "macro": ["fred", "macro", "stlouisfed"],
-            "quant": ["quant", "indicator", "technical"],
-        }
+        # 步驟 2：來源類別數 >= 3（使用獨立的 classify_source_category）
         found_categories = set()
         for record in evidence_list:
-            source_lower = str(record.get("source", "")).lower()
-            for category, keywords in category_keywords.items():
-                if any(kw in source_lower for kw in keywords):
-                    found_categories.add(category)
-                    break
+            cat = classify_source_category(record.get("source", ""))
+            if cat:
+                found_categories.add(cat)
         if len(found_categories) < 3:
             failures.append(
                 f"來源類別數不足：僅有 {len(found_categories)} 類（需 >= 3）"
@@ -133,6 +157,7 @@ def validate_before_export(evidence_list, analysis_text):
         free_keywords = [
             "binance", "mempool", "blockscout", "xrpl",
             "alternative.me", "quant", "indicator",
+            "hyperliquid", "deribit", "polymarket", "llama",
         ]
         has_paid = False
         has_free = False
@@ -156,6 +181,19 @@ def validate_before_export(evidence_list, analysis_text):
             failures.append(
                 f"報告含投資建議語句：{'、'.join(found_phrases)}"
             )
+
+        # 步驟 5：孤兒 evidence_id 檢查
+        if analyzed_evidence_ids:
+            known_ids = {
+                record.get("evidence_id") for record in evidence_list
+                if record.get("evidence_id")
+            }
+            orphans = [eid for eid in analyzed_evidence_ids if eid not in known_ids]
+            if orphans:
+                failures.append(
+                    f"孤兒 evidence_id（分析引用但不存在於證據清單）：{', '.join(orphans[:5])}"
+                    + (f"…等共 {len(orphans)} 筆" if len(orphans) > 5 else "")
+                )
 
         # 回傳：(全數通過, 未通過項目清單)
         all_passed = len(failures) == 0

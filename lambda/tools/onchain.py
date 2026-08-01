@@ -11,7 +11,9 @@ from datetime import datetime, timezone
 
 import requests
 
+import config
 import evidence
+from tools.quality import make_anomaly_flag
 
 # mempool.space 基本設定
 _MEMPOOL_BASE = "https://mempool.space/api"
@@ -20,6 +22,74 @@ _TIMEOUT = 30
 
 # 支援的 BTC 鏈上指標
 _SUPPORTED_BTC_METRICS = {"tx_count", "mempool_size", "fees", "hashrate", "difficulty_adjustment"}
+
+
+def _detect_activity_deviation(result, symbol):
+    """A9: 檢測鏈上活躍度偏離 30 日均值 ±30%。
+
+    從各鏈回傳的 raw 結構中嘗試提取交易量/活躍度指標，
+    若有 current vs baseline 的比較資訊則計算偏離百分比。
+    僅在資料充分時產生 flag，資料不足則靜默略過（寧缺勿濫）。
+    """
+    flags = []
+    thresholds = getattr(config, "ANOMALY_THRESHOLDS", {})
+    deviation_pct = thresholds.get("onchain_activity_deviation_pct", 30.0)
+
+    raw = result.get("raw", {})
+    if not isinstance(raw, dict):
+        return flags
+
+    # 各鏈的活躍度指標提取策略
+    current_value = None
+    baseline_value = None
+    metric_name = "tx_count"
+
+    if symbol == "BTC":
+        # BTC: raw["tx_count"]["avg_tx_per_block"] vs 歷史平均（若有）
+        tx_data = raw.get("tx_count", {})
+        if isinstance(tx_data, dict) and "avg_tx_per_block" in tx_data:
+            current_value = tx_data.get("avg_tx_per_block")
+            # mempool 沒有提供 30 日基準，暫無法計算偏離
+    elif symbol in ("ETH", "BNB"):
+        # EVM: raw["tx_count"] 可能有 recent_total_transactions
+        tx_data = raw.get("tx_count", {})
+        if isinstance(tx_data, dict):
+            current_value = tx_data.get("recent_total_transactions")
+            baseline_value = tx_data.get("baseline_daily_avg")
+            metric_name = "daily_transactions"
+    elif symbol == "SOL":
+        tx_data = raw.get("tx_count", {})
+        if isinstance(tx_data, dict):
+            current_value = tx_data.get("recent_total_transactions")
+            baseline_value = tx_data.get("baseline_daily_avg")
+            metric_name = "daily_transactions"
+    elif symbol == "XRP":
+        tx_data = raw.get("tx_count", {})
+        if isinstance(tx_data, dict):
+            current_value = tx_data.get("recent_total_transactions")
+            baseline_value = tx_data.get("baseline_daily_avg")
+            metric_name = "daily_transactions"
+
+    # 計算偏離
+    if current_value and baseline_value and baseline_value > 0:
+        deviation = ((current_value - baseline_value) / baseline_value) * 100
+        if abs(deviation) >= deviation_pct:
+            direction = "bullish" if deviation > 0 else "bearish"
+            flags.append(make_anomaly_flag(
+                signal_id="A9_onchain_activity_deviation",
+                name="鏈上活躍度偏離",
+                severity="significant" if abs(deviation) >= 50.0 else "notable",
+                direction=direction,
+                value=round(deviation, 1),
+                unit="% vs 30d avg",
+                threshold=f"|deviation| ≥ {deviation_pct}%",
+                window="vs 30d baseline",
+                as_of=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                message=f"{symbol} 鏈上{metric_name}偏離 30 日均值 {deviation:+.1f}%"
+                        f"（當前 {current_value:,.0f} vs 基準 {baseline_value:,.0f}）",
+            ))
+
+    return flags
 
 
 def get_onchain(symbol, metrics, lookback_days, related_claim):
@@ -47,21 +117,30 @@ def get_onchain(symbol, metrics, lookback_days, related_claim):
 
         match sym:
             case "BTC":
-                return fetch_btc_onchain(metrics, lookback_days)
+                result = fetch_btc_onchain(metrics, lookback_days)
             case "ETH":
-                return fetch_evm_onchain("ethereum", metrics, lookback_days)
+                result = fetch_evm_onchain("ethereum", metrics, lookback_days)
             case "BNB":
-                return fetch_evm_onchain("bsc", metrics, lookback_days)
+                result = fetch_evm_onchain("bsc", metrics, lookback_days)
             case "SOL":
-                return fetch_sol_onchain(metrics, lookback_days)
+                result = fetch_sol_onchain(metrics, lookback_days)
             case "XRP":
-                return fetch_xrp_onchain(metrics, lookback_days)
+                result = fetch_xrp_onchain(metrics, lookback_days)
             case _:
                 return {
                     "error": f"[get_onchain] Unsupported symbol: {symbol}",
                     "source": "",
                     "content_reference": {},
                 }
+
+        # --- A9 異常偵測：鏈上活躍度偏離 ---
+        if "error" not in result:
+            a9_flags = _detect_activity_deviation(result, sym)
+            if a9_flags:
+                existing = result.get("anomaly_flags", [])
+                result["anomaly_flags"] = existing + a9_flags
+
+        return result
     except Exception as e:
         return {
             "error": f"[get_onchain] {type(e).__name__}: {str(e)}",

@@ -6,19 +6,19 @@
 
 ## 任務
 
-- [ ] 1. 完成多維報告核心
-  - [ ] 1.1 實作決定性的 13 維分類與 canonical provider 正規化
+- [x] 1. 完成多維報告核心
+  - [x] 1.1 實作決定性的 13 維分類與 canonical provider 正規化
     - 依允許的 capability、結構化 `content_reference`、provider 與工具預設值，以固定優先序選唯一 primary dimension；無法可靠分類時保留 `unclassified`，不得硬歸類。
     - 將同一 provider 的 URL endpoint、hostname／產品別名與結構化 provider 去重，不可解析來源不得虛構。
     - _Requirements: Main R12_
 
-  - [ ] 1.2 建立引用衍生的分析摘要、失敗嘗試與相關省略
+  - [x] 1.2 建立引用衍生的分析摘要、失敗嘗試與相關省略
     - 僅以實際引用 ID 與合法唯一 Evidence Record 的交集產生 Analysis Dimension、Cited Evidence Count、Canonical Independent Source Count 及逐維 evidence/provider 明細。
     - 只保留 `error`／`unavailable`／`timeout` 等已知失敗與明確 Question-Relevant Omission，穩定去重；不得把未使用的 13 維自動列為缺失。
     - 摘要不得產生固定分母、比例、百分比、門檻達成率或 dimension/source score。
     - _Requirements: Main R12, Main R13_
 
-  - [ ] 1.3 對齊 C4 報告介面並完成確定性 Markdown 渲染
+  - [x] 1.3 對齊 C4 報告介面並完成確定性 Markdown 渲染
     - 維持 `render_report(analysis_text, evidence_list, missing_sources, coverage)`，以純離線、相同輸入相同輸出的方式保證市場判斷／關鍵依據／信心說明與附錄。
     - 附錄呈現實際維度、引用證據數、canonical provider 數、逐維明細、失敗嘗試、相關省略及完整 C2 證據表；不得輸出 `x/5`、`x/3`、固定覆蓋百分比或分數。
     - _Requirements: Main R12, Main R13_
@@ -32,7 +32,7 @@
     - 已從 `lambda/export.py` 與 JSONL smoke test 驗證。
     - _Requirements: Main R15_
 
-  - [ ] 2.3 隔離 Source Category 匯出門檻並補齊 validator
+  - [x] 2.3 隔離 Source Category 匯出門檻並補齊 validator
     - 以獨立 `classify_source_category` 規則檢查唯一 Source Category `>= 3`，並檢查 C2 欄位、孤兒 `evidence_id`、中英文禁語及付費來源唯一依據。
     - `validate_before_export` 只回傳 boolean 與離散 failure reasons；不得把類別門檻、canonical provider 數或任何比例／百分比／分數送入 Report metadata。
     - _Requirements: Main R12, Main R13_
@@ -117,3 +117,13 @@
   ]
 }
 ```
+
+## 管線與呈現規劃增補(docs/pipeline-presentation-plan.md 4.1)
+- [ ] 12. build_report_data():組裝 C7 JSON(verdict/dimensions/signals/series/coverage/watchlist + 題型專屬區塊)
+- [ ] 13. md 模板增補:五維度 emoji 狀態表;comparison 並排表;hypothesis 支持/反對雙欄段
+- [ ] 14. 一致性檢查:report_data 與 report.md 的結論/信心/訊號數量一致(單元測試)
+- [ ] 15. 降級:build_report_data 失敗時回傳 None 並記 log,不阻斷匯出
+
+
+- [ ] 16. C7 驗證與輸出:接 core validator、驗證 evidence 外鍵/series/題型條件,成功保存 report_data.json 並附於 C5
+- [ ] 17. 三題型與降級測試:golden fixtures、C7/Markdown 一致性、coverage null/59/60 邊界、builder/validator/storage 失敗仍交付原三檔

@@ -99,7 +99,7 @@
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：6.1、6.2、6.3、6.4、6.5、6.6、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ] 3.4 撰寫 price.py 的單元測試
+  - [x] 3.4 撰寫 price.py 的單元測試
     - 測試基準 CSV 讀取與日期篩選
     - 測試 check_data_seam 在價差過大時的警告
     - 測試 API 失敗時回傳 error dict
@@ -120,7 +120,7 @@
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：7.1、7.2、7.3、7.4、7.5、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ] 4.3 撰寫 news.py 的單元測試
+  - [x] 4.3 撰寫 news.py 的單元測試
     - Mock RSS 回應，驗證結果解析
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
@@ -152,7 +152,7 @@
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：8.1、8.2、8.3、8.4、8.5、8.6、8.7、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ] 5.6 撰寫 onchain.py 的單元測試
+  - [x] 5.6 撰寫 onchain.py 的單元測試
     - Mock 各鏈 API 回應，驗證幣種分派正確性
     - 測試所有 5 條鏈的 API 失敗時回傳 error dict
     - **Property 5: 工具分派正確性**
@@ -168,7 +168,7 @@
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：9.1、9.2、9.3、20.1、20.2、20.3_ | _Property 12、13_
 
-  - [ ] 6.2 撰寫 sentiment.py 的單元測試
+  - [x] 6.2 撰寫 sentiment.py 的單元測試
     - Mock API 回應，驗證 content_reference 包含完整資訊
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
@@ -439,3 +439,15 @@
   ]
 }
 ```
+
+## 17. Pipeline Presentation 跨模組整合（R2/R3/R15–R17/R20）
+
+- [ ] 17.1 凍結 C7 v1.0 schema 與 validator，建立 single/hypothesis/comparison 三份 golden fixtures
+- [ ] 17.2 串接題型判別、Phase A bounded prefetch、Phase B 補洞與 <20% 強制收斂
+- [ ] 17.3 產出同源 report.md + report_data.json，驗證 verdict/信心/訊號/evidence 一致
+- [ ] 17.4 前端串接三版面、Chart.js、查證摺疊、na/低資料可用率樣式與純 Markdown fallback
+- [ ] 17.5 工具供應近 90 日 price/relative-strength/funding/supply series，完整序列不進 LLM summary
+- [ ] 17.6 E2E:三題型各一案 + Phase A 部分失敗 + C7 組裝失敗 + Chart.js 失敗；原三交付物與下載連結始終可用
+- [ ] 17.7 Demo 演練:工具時間軸→結論卡→訊號→查證→Evidence 下載，全程 <15 分鐘且不出現投資建議
+
+依賴順序：17.1 → 17.5 → 17.2 → 17.3 → 17.4 → 17.6 → 17.7。
