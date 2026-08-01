@@ -16,6 +16,14 @@ DATA_BUCKET = os.environ.get("DATA_BUCKET")
 MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 8))
 TIME_BUDGET_SECONDS = int(os.environ.get("TIME_BUDGET_SECONDS", 600))
 
+# ---- 多階段架構時間預算（佔 TIME_BUDGET_SECONDS 的比例）----
+PLANNER_BUDGET_PCT = float(os.environ.get("PLANNER_BUDGET_PCT", "0.05"))
+RESEARCH_BUDGET_PCT = float(os.environ.get("RESEARCH_BUDGET_PCT", "0.55"))
+VALIDATION_BUDGET_PCT = float(os.environ.get("VALIDATION_BUDGET_PCT", "0.15"))
+SYNTHESIS_BUDGET_PCT = float(os.environ.get("SYNTHESIS_BUDGET_PCT", "0.20"))
+MAX_SUB_AGENTS = int(os.environ.get("MAX_SUB_AGENTS", 3))
+MAX_SUB_AGENT_TURNS = int(os.environ.get("MAX_SUB_AGENT_TURNS", 6))
+
 # ---- 外部 API 金鑰 ----
 COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY")
 ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY")
@@ -65,6 +73,9 @@ def load_local_env():
     # 重新從 os.environ 刷新所有模組級變數
     global AWS_REGION, BEDROCK_MODEL_ID, DATA_BUCKET
     global MAX_AGENT_TURNS, TIME_BUDGET_SECONDS
+    global PLANNER_BUDGET_PCT, RESEARCH_BUDGET_PCT
+    global VALIDATION_BUDGET_PCT, SYNTHESIS_BUDGET_PCT
+    global MAX_SUB_AGENTS, MAX_SUB_AGENT_TURNS
     global COINGECKO_API_KEY, ETHERSCAN_API_KEY
     global HELIUS_API_KEY, FRED_API_KEY
     global CMC_API_KEY, COINGLASS_API_KEY
@@ -77,6 +88,13 @@ def load_local_env():
 
     MAX_AGENT_TURNS = int(os.environ.get("MAX_AGENT_TURNS", 8))
     TIME_BUDGET_SECONDS = int(os.environ.get("TIME_BUDGET_SECONDS", 600))
+
+    PLANNER_BUDGET_PCT = float(os.environ.get("PLANNER_BUDGET_PCT", "0.05"))
+    RESEARCH_BUDGET_PCT = float(os.environ.get("RESEARCH_BUDGET_PCT", "0.55"))
+    VALIDATION_BUDGET_PCT = float(os.environ.get("VALIDATION_BUDGET_PCT", "0.15"))
+    SYNTHESIS_BUDGET_PCT = float(os.environ.get("SYNTHESIS_BUDGET_PCT", "0.20"))
+    MAX_SUB_AGENTS = int(os.environ.get("MAX_SUB_AGENTS", 3))
+    MAX_SUB_AGENT_TURNS = int(os.environ.get("MAX_SUB_AGENT_TURNS", 6))
 
     COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY")
     ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY")

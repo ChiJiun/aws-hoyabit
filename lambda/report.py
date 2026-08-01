@@ -1,51 +1,43 @@
 """
-report.py — 報告渲染
+report.py — 決定性 Renderer（第 4.5 節）
 
-把模型的分析內容套進固定的 Markdown 模板。渲染由程式負責、不交給模型，
-這樣可以保證命題要求的三個章節一定存在。
+接收 ReportModel JSON 結構，用程式保證固定的三章節 + 附錄格式。
+不再依賴正規表示式從自由 Markdown 中拆章。
+前端只看到最終 Markdown 字串，不接觸 ReportModel 內部結構。
 """
 
 
-def render_report(run_id, question, analysis_text, evidence_list, missing_sources=None):
-    # 功能：產出最終的 Markdown 分析報告。
-    # 模板結構（對應命題「分析報告至少需包含」的三項要求）：
-    #   1. 結論／市場判斷
-    #   2. 關鍵依據        —— 每條附對應的 evidence_id，說明該證據如何支撐判斷
-    #   3. 信心說明        —— 判斷信心、已知限制、資料不足之處、可能推翻結論的條件
-    #   附錄：資料覆蓋率   —— 成功取得的資料類別 ÷ 原本計畫的資料類別
-    #   附錄：完整證據清單
-    # 參數 missing_sources：本次執行未能取得的資料類別，會寫進限制段落。
-    # 實作：用 f-string 拼接字串即可，不需要額外的模板套件。
-    # 回傳：完整的 Markdown 字串
+def render_report(run_id, question, report_model, evidence_list, missing_sources=None):
+    """從 ReportModel dict 渲染出完整 Markdown 報告。
+
+    參數：
+        run_id: 執行 ID
+        question: 使用者原始問題
+        report_model: Synthesis Agent 產出的 ReportModel dict
+        evidence_list: 全域 evidence_list
+        missing_sources: 缺少的資料類別清單
+
+    回傳：完整 Markdown 字串（三章節保證存在）
+    """
     try:
-        # 步驟：安全處理輸入參數預設值
-        analysis_text = analysis_text or ""
+        report_model = report_model or {}
         evidence_list = evidence_list or []
         missing_sources = missing_sources or []
 
-        # 步驟：解析 analysis_text，嘗試從中分離三段內容
-        judgment_content, evidence_content, confidence_content = _parse_analysis_sections(analysis_text)
+        # 從 ReportModel 各欄位渲染各章節
+        judgment_section = _render_judgment(report_model)
+        evidence_section = _render_key_evidence(report_model, evidence_list)
+        confidence_section = _render_confidence(report_model, missing_sources)
 
-        # 步驟：為關鍵依據段落附加 evidence_id 引用
-        evidence_refs = _build_evidence_references(evidence_list)
-        if evidence_refs:
-            evidence_content = evidence_content + "\n\n" + evidence_refs if evidence_content else evidence_refs
-
-        # 步驟：組裝 missing_sources 限制段落
-        limitation_paragraph = ""
-        if missing_sources:
-            sources_str = "、".join(missing_sources)
-            limitation_paragraph = f"\n\n> ⚠️ **資料不足警示**：本次分析未能取得以下資料類別：{sources_str}。相關結論可能因資料缺失而存在偏差。"
-
-        # 步驟：計算覆蓋率供附錄使用
+        # 計算覆蓋率
         coverage_pct, obtained_categories, missing_categories = calculate_coverage(evidence_list)
         obtained_str = "、".join(obtained_categories) if obtained_categories else "（無）"
         missing_cat_str = "、".join(missing_categories) if missing_categories else "（無）"
 
-        # 步驟：建立完整證據表
+        # 完整證據表
         evidence_table = build_evidence_table(evidence_list)
 
-        # 步驟：用 f-string 模板保證三章節標題一定存在
+        # 用 f-string 模板保證三章節標題一定存在
         report = f"""# 加密市場分析報告
 
 > **分析問題**：{question}
@@ -55,19 +47,19 @@ def render_report(run_id, question, analysis_text, evidence_list, missing_source
 
 ## 市場判斷
 
-{judgment_content}
+{judgment_section}
 
 ---
 
 ## 關鍵依據
 
-{evidence_content}
+{evidence_section}
 
 ---
 
 ## 信心說明
 
-{confidence_content}{limitation_paragraph}
+{confidence_section}
 
 ---
 
@@ -83,11 +75,10 @@ def render_report(run_id, question, analysis_text, evidence_list, missing_source
 
 {evidence_table}
 """
-        # 回傳：完整 Markdown 字串
         return report
 
     except Exception:
-        # 步驟：任何例外仍回傳最低限度的報告，保證三章節標題存在
+        # 任何例外仍回傳最低限度的報告，保證三章節標題存在
         return (
             f"# 加密市場分析報告\n\n"
             f"> **執行編號**：{run_id}\n\n"
@@ -97,79 +88,177 @@ def render_report(run_id, question, analysis_text, evidence_list, missing_source
         )
 
 
-def _parse_analysis_sections(analysis_text):
-    # 功能：從 LLM 產出的 analysis_text 中分離三段內容。
-    #       若包含「市場判斷」「關鍵依據」「信心說明」標記則各自提取；
-    #       否則整段放入市場判斷。
-    # 回傳：(judgment, evidence, confidence) 三個字串
+def _render_judgment(report_model):
+    """從 ReportModel 渲染市場判斷章節。"""
+    parts = []
 
-    # 步驟：定義章節標記（支援有無 # 或 ## 前綴）
-    import re
+    # 市場狀態概述
+    market_state = report_model.get("market_state", {})
+    regime = market_state.get("regime", "無法判斷")
+    confidence = market_state.get("confidence", "low")
+    time_horizon = market_state.get("time_horizon", "")
 
-    markers = ["市場判斷", "關鍵依據", "信心說明"]
-    pattern = r"(?:^|\n)\s*#*\s*(?:" + "|".join(markers) + r")\s*\n"
+    confidence_label = {"low": "低", "medium": "中", "high": "高"}.get(confidence, confidence)
+    parts.append(f"**市場狀態**：{regime}")
+    parts.append(f"**分析信心**：{confidence_label}　｜　**時間範圍**：{time_horizon}")
+    parts.append("")
 
-    if not re.search(pattern, analysis_text):
-        # 步驟：analysis_text 沒有章節標記，整段視為市場判斷
-        return (analysis_text.strip(), "", "")
+    # 關鍵發現（分層：fact → inference → conclusion）
+    key_findings = report_model.get("key_findings", [])
+    if key_findings:
+        # 按 layer 分組
+        facts = [f for f in key_findings if f.get("layer") == "fact"]
+        inferences = [f for f in key_findings if f.get("layer") == "inference"]
+        conclusions = [f for f in key_findings if f.get("layer") == "conclusion"]
 
-    # 步驟：依序切割各章節
-    sections = {"市場判斷": "", "關鍵依據": "", "信心說明": ""}
-    # 用更精準的正則找出各章節起始位置
-    section_positions = []
-    for marker in markers:
-        match = re.search(r"(?:^|\n)\s*#*\s*" + marker + r"\s*\n", analysis_text)
-        if match:
-            section_positions.append((match.start(), match.end(), marker))
+        if facts:
+            parts.append("### 事實觀察")
+            for f in facts:
+                eids = ", ".join(f.get("evidence_ids", [])) if f.get("evidence_ids") else ""
+                eid_ref = f" `[{eids}]`" if eids else ""
+                parts.append(f"- {f.get('statement', '')}{eid_ref}")
+            parts.append("")
 
-    # 按位置排序
-    section_positions.sort(key=lambda x: x[0])
+        if inferences:
+            parts.append("### 推論")
+            for f in inferences:
+                eids = ", ".join(f.get("evidence_ids", [])) if f.get("evidence_ids") else ""
+                eid_ref = f" `[{eids}]`" if eids else ""
+                parts.append(f"- {f.get('statement', '')}{eid_ref}")
+            parts.append("")
 
-    for i, (start, end, marker) in enumerate(section_positions):
-        # 該段內容從 end 到下一段 start（或文末）
-        next_start = section_positions[i + 1][0] if i + 1 < len(section_positions) else len(analysis_text)
-        sections[marker] = analysis_text[end:next_start].strip()
+        if conclusions:
+            parts.append("### 結論")
+            for f in conclusions:
+                eids = ", ".join(f.get("evidence_ids", [])) if f.get("evidence_ids") else ""
+                eid_ref = f" `[{eids}]`" if eids else ""
+                parts.append(f"- {f.get('statement', '')}{eid_ref}")
+            parts.append("")
 
-    # 若有在第一個章節前的文字，併入市場判斷
-    if section_positions:
-        prefix = analysis_text[:section_positions[0][0]].strip()
-        if prefix:
-            sections["市場判斷"] = prefix + "\n\n" + sections["市場判斷"] if sections["市場判斷"] else prefix
+    # 觸發因子
+    catalysts = report_model.get("catalysts", [])
+    if catalysts:
+        parts.append("### 潛在觸發因子")
+        for c in catalysts:
+            parts.append(f"- {c}")
+        parts.append("")
 
-    return (sections["市場判斷"], sections["關鍵依據"], sections["信心說明"])
+    return "\n".join(parts) if parts else "（無法產出市場判斷）"
 
 
-def _build_evidence_references(evidence_list):
-    # 功能：為關鍵依據章節產生每條證據的引用列表。
-    # 回傳：Markdown 列表字串，每行 `- [evidence_id] source: related_claim`
-    if not evidence_list:
-        return ""
+def _render_key_evidence(report_model, evidence_list):
+    """從 ReportModel 渲染關鍵依據章節。"""
+    parts = []
 
-    lines = []
-    for record in evidence_list:
-        eid = record.get("evidence_id", "N/A")
-        source = record.get("source", "未知來源")
-        claim = record.get("related_claim", "")
-        lines.append(f"- **[{eid}]** {source}：{claim}")
+    # 支持訊號
+    supporting = report_model.get("supporting_signals", [])
+    if supporting:
+        parts.append("### 支持訊號")
+        for s in supporting:
+            direction = s.get("direction", "neutral")
+            desc = s.get("description", "")
+            eids = ", ".join(s.get("evidence_ids", [])) if s.get("evidence_ids") else ""
+            eid_ref = f" `[{eids}]`" if eids else ""
+            icon = {"bullish": "📈", "bearish": "📉", "neutral": "➡️"}.get(direction, "")
+            parts.append(f"- {icon} {desc}{eid_ref}")
+        parts.append("")
 
-    return "\n".join(lines)
+    # 矛盾訊號
+    contradicting = report_model.get("contradicting_signals", [])
+    if contradicting:
+        parts.append("### 矛盾訊號")
+        for s in contradicting:
+            direction = s.get("direction", "neutral")
+            desc = s.get("description", "")
+            resolution = s.get("resolution", "")
+            eids = ", ".join(s.get("evidence_ids", [])) if s.get("evidence_ids") else ""
+            eid_ref = f" `[{eids}]`" if eids else ""
+            icon = {"bullish": "📈", "bearish": "📉", "neutral": "➡️"}.get(direction, "")
+            line = f"- {icon} {desc}{eid_ref}"
+            if resolution:
+                line += f"\n  - 取捨依據：{resolution}"
+            parts.append(line)
+        parts.append("")
+
+    # 證據引用清單
+    evidence_ids_used = report_model.get("evidence_ids", [])
+    if evidence_ids_used and evidence_list:
+        parts.append("### 引用證據對照")
+        eid_map = {r.get("evidence_id"): r for r in evidence_list}
+        for eid in evidence_ids_used:
+            record = eid_map.get(eid, {})
+            source = record.get("source", "未知來源")
+            claim = record.get("related_claim", "")
+            parts.append(f"- **[{eid[:12]}...]** {source}：{claim}")
+        parts.append("")
+
+    if not parts:
+        parts.append("（本次分析未能產出結構化的關鍵依據）")
+
+    return "\n".join(parts)
+
+
+def _render_confidence(report_model, missing_sources):
+    """從 ReportModel 渲染信心說明章節。"""
+    parts = []
+
+    market_state = report_model.get("market_state", {})
+    confidence = market_state.get("confidence", "low")
+    confidence_label = {"low": "低", "medium": "中", "high": "高"}.get(confidence, confidence)
+    parts.append(f"**整體信心程度**：{confidence_label}")
+    parts.append("")
+
+    # 風險因子
+    risks = report_model.get("risks", [])
+    if risks:
+        parts.append("### 主要風險")
+        for r in risks:
+            parts.append(f"- {r}")
+        parts.append("")
+
+    # 推翻條件
+    invalidation = report_model.get("invalidation_conditions", [])
+    if invalidation:
+        parts.append("### 推翻條件")
+        for i in invalidation:
+            parts.append(f"- {i}")
+        parts.append("")
+
+    # 關注事項
+    watch_items = report_model.get("watch_items", [])
+    if watch_items:
+        parts.append("### 短期關注事項")
+        for w in watch_items:
+            parts.append(f"- {w}")
+        parts.append("")
+
+    # 限制說明
+    limitations = report_model.get("limitations", [])
+    if limitations or missing_sources:
+        parts.append("### 已知限制")
+        for l in limitations:
+            parts.append(f"- {l}")
+        if missing_sources:
+            sources_str = "、".join(missing_sources)
+            parts.append(f"- 未能取得的資料類別：{sources_str}")
+        parts.append("")
+
+    if not parts:
+        parts.append("（無法產出信心說明）")
+
+    return "\n".join(parts)
 
 
 def build_evidence_table(evidence_list):
-    # 功能：把證據清單轉成 Markdown 表格，附加在報告附錄。
-    # 欄位：evidence_id、來源、取得時間、對應判斷。
-    # 回傳：Markdown 表格字串
+    """把證據清單轉成 Markdown 表格，附加在報告附錄。"""
     try:
-        # 步驟：處理空值或空清單
         if not evidence_list:
             return ""
 
-        # 步驟：建立表頭
         header = "| evidence_id | 來源 | 取得時間 | 對應判斷 |"
         separator = "|-------------|------|----------|----------|"
         rows = [header, separator]
 
-        # 步驟：逐筆證據產生表格列
         for record in evidence_list:
             eid = _escape_pipe(str(record.get("evidence_id", "")))
             source = _escape_pipe(str(record.get("source", "")))
@@ -177,26 +266,21 @@ def build_evidence_table(evidence_list):
             related_claim = _escape_pipe(str(record.get("related_claim", "")))
             rows.append(f"| {eid} | {source} | {fetched_at} | {related_claim} |")
 
-        # 回傳：完整 Markdown 表格字串
         return "\n".join(rows)
     except Exception:
-        # 步驟：任何例外回傳空字串，不讓未處理的例外逸出
         return ""
 
 
 def _escape_pipe(value):
-    # 功能：跳脫 Markdown 表格中的管線字元，避免破壞表格結構。
-    # 回傳：跳脫後的字串
+    """跳脫 Markdown 表格中的管線字元。"""
     return value.replace("|", "\\|")
 
 
 def calculate_coverage(evidence_list):
-    # 功能：計算資料覆蓋率，作為報告中信心等級的客觀依據。
-    # 實作：統計 evidence_list 中出現了幾種不同的資料類別
-    #      （價格、新聞、鏈上、情緒、總經），除以預期的類別總數。
-    # 回傳：(覆蓋率百分比, 已取得的類別清單, 缺少的類別清單)
+    """計算資料覆蓋率。
 
-    # 五種預期類別及其關鍵字對應
+    回傳：(覆蓋率百分比, 已取得的類別清單, 缺少的類別清單)
+    """
     category_keywords = {
         "價格": ["binance", "coingecko", "klines", "ohlcv", "price", "baseline", "local_pandas"],
         "新聞": ["cryptopanic", "news", "rss", "github"],
@@ -205,7 +289,6 @@ def calculate_coverage(evidence_list):
         "總經": ["fred", "macro", "stlouisfed"],
     }
 
-    # 步驟：掃描每筆證據的 source 欄位，比對關鍵字歸類
     found_categories = set()
     for record in (evidence_list or []):
         source_lower = str(record.get("source", "")).lower()
@@ -213,11 +296,9 @@ def calculate_coverage(evidence_list):
             if any(kw in source_lower for kw in keywords):
                 found_categories.add(category)
 
-    # 步驟：計算覆蓋率
     all_categories = list(category_keywords.keys())
     obtained = sorted(found_categories)
     missing = sorted(set(all_categories) - found_categories)
     coverage_pct = (len(obtained) / len(all_categories)) * 100
 
-    # 回傳：(覆蓋率百分比, 已取得類別清單, 缺少類別清單)
     return (coverage_pct, obtained, missing)
