@@ -14,6 +14,7 @@ inclusion: always
 ```
 失敗:`{"error": "<可讀的錯誤說明>"}`
 規則:絕不拋出未處理例外;summary 控制在 ~500 tokens 內;每個工具的 inputSchema 必含必填參數 `related_claim`。
+選用欄位 `anomaly_flags: list[dict]`:工具自行偵測的單源異常(見 docs/anomaly-signal-plan.md 表 A),每項含 {signal, direction, value, percentile, threshold};無異常時為空列表。向後相容,消費端不得假設必存在。
 
 ## C2. Evidence API(lambda/evidence.py 提供)
 ```python
@@ -44,4 +45,4 @@ agent.py 產出 `analysis_text: str`(已含事實→推論→結論結構);repor
 請求格式:`POST {"symbols": ["BTC"] 或 ["BTC","ETH"], "question": "<非空字串>"}`
 
 ## C6. 環境變數(config.py 統一讀取,他處不得直接 os.environ)
-AWS_REGION、BEDROCK_MODEL_ID、DATA_BUCKET、BASELINE_END_DATE、MAX_AGENT_TURNS、TIME_BUDGET_SECONDS、各資料源 API 金鑰(COINGECKO_API_KEY、CRYPTOPANIC_API_KEY、ETHERSCAN_API_KEY、HELIUS_API_KEY、FRED_API_KEY)
+AWS_REGION、BEDROCK_MODEL_ID、DATA_BUCKET、BASELINE_END_DATE、MAX_AGENT_TURNS、TIME_BUDGET_SECONDS、各資料源 API 金鑰(COINGECKO_API_KEY、ETHERSCAN_API_KEY、HELIUS_API_KEY、FRED_API_KEY)

@@ -115,7 +115,7 @@
 
 #### 驗收條件
 
-1. WHEN Agent 呼叫 search_news 工具，THE Data_Tool SHALL 從 CryptoPanic API 查詢指定幣種的近期新聞
+1. WHEN Agent 呼叫 search_news 工具，THE Data_Tool SHALL 從 Google News RSS 與媒體 RSS 白名單查詢指定幣種的近期新聞(免費來源)
 2. THE Data_Tool SHALL 從各專案官方部落格與 GitHub releases 取得一手官方公告
 3. WHEN 彙整新聞結果時，THE Data_Tool SHALL 標註來自同一來源家族的重複報導，避免模型誤判為多源共識
 4. THE Data_Tool SHALL 在 content_reference 中包含新聞標題、發布時間、原文網址、引用片段

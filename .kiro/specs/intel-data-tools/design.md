@@ -6,7 +6,7 @@
 
 ## news.py
 - `search_news(symbol, lookback_days, related_claim)`
-- CryptoPanic(currencies 參數)+ fetch_official_announcements(依幣種分派:bitcoin.org / blog.ethereum.org / solana.com / bnbchain.org / ripple.com + GitHub releases)
+- Google News RSS(q="<幣種名> crypto",when:7d)+ 媒體 RSS 白名單 + fetch_official_announcements(依幣種分派:bitcoin.org / blog.ethereum.org / solana.com / bnbchain.org / ripple.com + GitHub releases)
 - 同源標註:以 domain 分組,同組多篇標 same_family=true
 
 ## onchain.py

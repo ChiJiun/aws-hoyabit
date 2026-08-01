@@ -114,14 +114,14 @@
     - _需求：7.2_
 
   - [x] 4.2 實作 search_news 主函式
-    - 呼叫 CryptoPanic API（帶 currencies 參數）取得幣種新聞
+    - 呼叫 Google News RSS(關鍵字含幣種)與媒體 RSS 白名單取得幣種新聞
     - 合併 fetch_official_announcements 結果
     - 標註同一來源家族的重複報導
     - 回傳統一格式 dict；失敗時回傳 error dict
     - _需求：7.1、7.2、7.3、7.4、7.5、20.1、20.2、20.3_ | _Property 12、13_
 
   - [ ] 4.3 撰寫 news.py 的單元測試
-    - Mock CryptoPanic API 回應，驗證結果解析
+    - Mock RSS 回應，驗證結果解析
     - 測試 API 失敗時回傳 error dict
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 7.1、7.5**
@@ -174,13 +174,13 @@
     - **Property 12: 工具永不拋錯**
     - **驗證: 需求 9.1、9.3**
 
-- [ ] 7. 總體經濟工具（tools/macro.py）
+- [x] 7. 總體經濟工具（tools/macro.py）
 
-  - [ ] 7.1 實作 fetch_upcoming_events 函式
+  - [x] 7.1 實作 fetch_upcoming_events 函式
     - 取得未來已排定的重要總經事件（FOMC、CPI 公布日等）
     - _需求：10.1_
 
-  - [ ] 7.2 實作 get_macro 主函式
+  - [x] 7.2 實作 get_macro 主函式
     - 呼叫 FRED API 取得指定總經指標（DXY、10Y 殖利率、聯邦基金利率）
     - 整合 fetch_upcoming_events 結果
     - content_reference 包含 FRED series ID、查詢時間範圍、數值序列摘要

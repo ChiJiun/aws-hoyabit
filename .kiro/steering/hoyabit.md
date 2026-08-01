@@ -29,7 +29,7 @@ lambda/                    # 部署到 Lambda 的程式碼（進入點）
 ├── storage.py             # S3 讀寫 / 本機 fallback
 └── tools/                 # 六個資料蒐集工具
     ├── price.py           # OHLCV 價格（基準 CSV + Binance/CoinGecko）
-    ├── news.py            # 新聞（CryptoPanic + 官方 RSS/GitHub）
+    ├── news.py            # 新聞（Google News RSS + 媒體 RSS + 官方 RSS/GitHub，全免費）
     ├── onchain.py         # 鏈上資料（依幣種分派五種來源）
     ├── quant.py           # 技術指標計算（純本地，無外部 API）
     ├── sentiment.py       # 情緒指數（alternative.me Fear & Greed）
@@ -107,7 +107,7 @@ scripts/                   # 部署腳本
 |------|------|------|
 | Binance 公開 API | 即時 OHLCV 補齊 | 不需要 |
 | CoinGecko | 備用價格來源 | COINGECKO_API_KEY |
-| CryptoPanic | 新聞 | CRYPTOPANIC_API_KEY |
+| Google News / 媒體 RSS | 新聞 | 免鑰 |
 | mempool.space | BTC 鏈上 | 不需要 |
 | Etherscan API V2 | ETH 鏈上 | ETHERSCAN_API_KEY |
 | Blockscout | BNB 鏈上 | 不需要 |

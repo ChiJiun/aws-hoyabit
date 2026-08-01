@@ -11,3 +11,7 @@
 - [ ] 7. price.py:get_price_ohlcv 主函式(baseline→補齊→拼接→篩選;CoinGecko 備援)(R6.1–6.6, R20)
 - [ ] 8. 測試:P12/P14/P15 + 接縫警告 + 五幣種煙霧測試
 - [ ] 9. 檢查點:與 agent-orchestrator 對齊 toolSpec 參數命名
+
+## 異常訊號擴充(docs/anomaly-signal-plan.md 表 A1–A5)
+- [ ] 10. quant.py:detect_price_anomalies(量能 Z-score、帶寬壓縮/爆發、ATR 極端、ADX 極端、報酬率極端),門檻讀 config.ANOMALY_THRESHOLDS,結果放入回傳的 anomaly_flags
+- [ ] 11. 測試:各門檻邊界案例 + 無異常時 anomaly_flags 為空列表

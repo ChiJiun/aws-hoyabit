@@ -80,7 +80,6 @@ sequenceDiagram
 | `MAX_AGENT_TURNS` | Agent 迴圈最大輪次 | `8` |
 | `TIME_BUDGET_SECONDS` | 執行時間預算（秒） | `600` |
 | `COINGECKO_API_KEY` | CoinGecko API 金鑰 | — |
-| `CRYPTOPANIC_API_KEY` | CryptoPanic API 金鑰 | — |
 | `ETHERSCAN_API_KEY` | Etherscan API 金鑰 | — |
 | `HELIUS_API_KEY` | Helius API 金鑰 | — |
 | `FRED_API_KEY` | FRED API 金鑰 | — |
@@ -333,7 +332,7 @@ def generate_download_link(key: str, expires_in: int = 3600) -> str
 | 工具 | 檔案 | 外部來源 | 金鑰需求 |
 |------|------|----------|----------|
 | `get_price_ohlcv` | `tools/price.py` | Baseline CSV + Binance + CoinGecko | CoinGecko |
-| `search_news` | `tools/news.py` | CryptoPanic + 官方 RSS/GitHub | CryptoPanic |
+| `search_news` | `tools/news.py` | Google News RSS + 媒體 RSS + 官方 RSS/GitHub | 免鑰 |
 | `get_onchain` | `tools/onchain.py` | mempool/Etherscan/Blockscout/Helius/XRPL | Etherscan, Helius |
 | `compute_quant` | `tools/quant.py` | 無（本地 pandas 計算） | — |
 | `get_sentiment` | `tools/sentiment.py` | alternative.me Fear & Greed | — |

@@ -14,3 +14,7 @@
 - [x] 10. tests/test_local_run.py:5 幣種 × 3 題型組合 + 總表輸出(R21.3)
 - [x] 11. 單元測試:P1/P2/P3/P5/P6(mock Bedrock)
 - [ ] 12. 檢查點:計時演練 — 完整執行需 < 12 分鐘(留 3 分鐘緩衝)
+
+## 異常訊號擴充(docs/anomaly-signal-plan.md 表 B、C)
+- [ ] 13. SYSTEM_PROMPT:加入跨源背離檢查清單 B1–B6,要求逐項回答 有/無/資料不足,判定必引用兩側 evidence_id
+- [ ] 14. SYSTEM_PROMPT:訊號分級規則(🔴/🟡/⚪)與「異常訊號 ≠ 交易建議」措辭紀律

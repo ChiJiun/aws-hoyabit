@@ -1,5 +1,6 @@
 # ---- 核心依賴 ----
-boto3>=1.34.0          # AWS SDK：呼叫 Bedrock、讀寫 S3
+boto3>=1.35.0          # AWS SDK：呼叫 Bedrock Converse API、讀寫 S3（Converse API 需要 >=1.34.75）
+botocore>=1.35.0       # boto3 底層，需同步升級
 requests>=2.31.0       # 呼叫外部資料 API（新聞、鏈上、情緒、總經）
 pandas>=2.0.0          # 讀取基準 CSV、計算技術指標
 numpy>=1.24.0          # pandas 的依賴，技術指標運算用
