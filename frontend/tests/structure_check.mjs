@@ -39,7 +39,13 @@ check(count('<h1') === 1, `恰有一個 h1（實際 ${count('<h1')}）`);
 
 console.log('\n--- 品牌與版面 ---');
 check(count('class="brandbar"') === 1, '品牌列存在');
-check(count('class="logo-mark"') === 1, 'logo 圖標存在');
+check(count('logo-mark') >= 2, 'logo 圖標存在（含可替換的 img 與內建 svg）');
+check(count('id="logo-img"') === 1 && count('id="logo-fallback"') === 1,
+  'logo 具備官方素材與內建替代兩種來源');
+check(count('id="mascot-img"') === 1 && count('id="mascot-fallback"') === 1,
+  '吉祥物具備官方素材與內建替代兩種來源');
+check(html.includes("assets/logo.svg"), '會嘗試載入 assets/logo.svg');
+check(html.includes("assets/mascot"), '會嘗試載入 assets/mascot');
 check(html.includes('HOYA<b>BIT</b>'), 'logo 文字為 HOYABIT');
 check(html.includes('aria-label="HOYA BIT 標誌"'), 'logo 有無障礙標籤');
 check(count('class="hero"') === 1, 'hero 版面存在');

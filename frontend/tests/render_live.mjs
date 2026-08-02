@@ -66,8 +66,12 @@ function makeEl() {
     querySelector: () => null, querySelectorAll: () => [], closest: () => null, focus() { }
   };
 }
+class ImageStub {
+  set src(v) { if (typeof this.onerror === 'function') this.onerror(); }
+}
 const cache = new Map();
 const g = {
+  Image: ImageStub,
   document: {
     getElementById(id) { if (!cache.has(id)) cache.set(id, makeEl()); return cache.get(id); },
     querySelector: () => null, querySelectorAll: () => []

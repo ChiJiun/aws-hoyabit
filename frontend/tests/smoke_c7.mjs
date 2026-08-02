@@ -56,7 +56,13 @@ const documentStub = {
   querySelectorAll: () => []
 };
 
+// 品牌素材偵測用；在 Node 中一律視為找不到檔案，走內建替代圖形
+class ImageStub {
+  set src(v) { if (typeof this.onerror === 'function') this.onerror(); }
+}
+
 const sandboxGlobals = {
+  Image: ImageStub,
   document: documentStub,
   location: { hostname: 'localhost', origin: 'http://localhost:8080', protocol: 'http:', href: 'http://localhost:8080/' },
   window: { scrollTo() { }, matchMedia: () => ({ matches: false }) },
@@ -415,6 +421,27 @@ console.log('\n[17] 跨來源組合圖表');
   const onlyPrice = api.chartPlan({ series: { price: series.price } });
   assert(onlyPrice.length === 1 && onlyPrice[0].id === 's-price', '只有價格時渲染單一價格圖');
   assert(api.chartPlan({ series: {} }).length === 0, '無 series 時無圖表計畫');
+
+  // 總經序列（FRED observations）必須被納入圖表
+  const macro = {
+    price: series.price,
+    treasury_10y: { MARKET: [['2026-07-01', 4.4], ['2026-07-02', 4.5], ['2026-07-03', 4.6]] },
+    dxy: { MARKET: [['2026-07-01', 118], ['2026-07-02', 119], ['2026-07-03', 120]] },
+    fed_funds_rate: { MARKET: [['2026-07-01', 3.6], ['2026-07-02', 3.6], ['2026-07-03', 3.6]] }
+  };
+  const mp = api.chartPlan({ series: macro });
+  const mids = mp.map(p => p.id);
+  assert(mids.includes('combo-pm'), '價格與殖利率組成總經壓力圖');
+  assert(mids.includes('combo-macro'), '其餘總經指標合併為一張圖');
+  const usedKeys = new Set(mp.flatMap(p => p.layers.map(l => l.key)));
+  assert(Object.keys(macro).every(k => usedKeys.has(k)), '所有總經序列都被納入圖表，無遺漏');
+  assert(!mids.includes('s-treasury_10y'), '已併入組合圖的總經序列不重複出圖');
+
+  // 每個 series 都要有對應標題，避免圖表顯示原始鍵名
+  ['treasury_10y', 'dxy', 'fed_funds_rate', 'price', 'volume', 'fear_greed'].forEach(k => {
+    assert(/[\u4e00-\u9fff]/.test((api.chartPlan({ series: { [k]: { X: [['2026-07-01', 1], ['2026-07-02', 2]] } } })[0] || {}).title || ''),
+      `${k} 有中文標題`);
+  });
 }
 
 /* ===================== 18. 金寶載入動畫 ===================== */
@@ -426,6 +453,14 @@ console.log('\n[18] 金寶載入畫面');
   assert(/@keyframes hop/.test(html) && /@keyframes stride/.test(html), '含彈跳與跨步動畫');
   assert(html.includes('#ff8c3d') || html.includes('#ff9a4f'), '使用橘色毛色');
   assert(html.includes('#1b1b1f'), '使用黑色條紋');
+  // 四足動物應有四條腿
+  const legs = ['near-front', 'near-back', 'far-front', 'far-back'];
+  legs.forEach(l => assert(html.includes(`leg ${l}`), `具備 ${l} 腿`));
+  assert((html.match(/class="leg /g) || []).length === 4, '恰好四條腿');
+  assert(/\.leg\.near-front,\.leg\.far-back/.test(html), '採對角步態（同側前後腿不同步）');
+  // 可替換為官方素材
+  assert(html.includes('id="mascot-img"'), '吉祥物可替換為官方素材');
+  assert(html.includes('id="mascot-fallback"'), '無官方素材時使用內建圖形');
   // 計時器移到右上角
   assert(html.includes('class="load-timer"'), '載入畫面含計時器');
   assert(/\.load-timer\{position:absolute;top:[^;]+;right:/.test(html), '計時器定位於右上角');

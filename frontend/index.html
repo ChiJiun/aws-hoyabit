@@ -65,7 +65,9 @@ section{margin-bottom:1.75rem;scroll-margin-top:100px}
 /* 品牌列 */
 .brandbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.15rem 2.25rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .logo{display:flex;align-items:center;gap:.7rem}
-.logo-mark{width:38px;height:38px;flex-shrink:0}
+.logo-mark{width:38px;height:38px;flex-shrink:0;object-fit:contain}
+/* 官方標誌通常是橫式，換入後放寬讓它不被壓縮 */
+img.logo-mark{width:auto;max-width:190px;height:34px}
 .logo-text{display:flex;flex-direction:column;line-height:1.15}
 .logo-text .lt-main{font-size:19px;font-weight:700;letter-spacing:-.005em;color:#fff}
 .logo-text .lt-main b{color:var(--accent);font-weight:700}
@@ -137,10 +139,13 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .mascot{position:relative;width:132px;height:120px;animation:hop .62s ease-in-out infinite}
 @keyframes hop{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-11px) rotate(1deg)}}
 .mascot svg{width:100%;height:100%;overflow:visible}
-/* 四肢交替擺動，做出奔跑感 */
+/* 換入官方素材時交由圖檔自身表現，僅保留整體彈跳 */
+.mascot img{width:100%;height:100%;object-fit:contain}
+/* 四肢：對角步態（左前配右後），近側與遠側錯開半個週期 */
 .leg{transform-origin:center top;animation:stride .32s ease-in-out infinite alternate}
-.leg.back{animation-delay:-.16s}
-@keyframes stride{from{transform:rotate(-24deg)}to{transform:rotate(24deg)}}
+.leg.near-front,.leg.far-back{animation-delay:0s}
+.leg.near-back,.leg.far-front{animation-delay:-.16s}
+@keyframes stride{from{transform:rotate(-26deg)}to{transform:rotate(26deg)}}
 .tail{transform-origin:left center;animation:wag .5s ease-in-out infinite alternate}
 @keyframes wag{from{transform:rotate(-9deg)}to{transform:rotate(13deg)}}
 /* 影子隨彈跳縮放 */
@@ -516,7 +521,9 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
   <!-- 品牌列 -->
   <div class="brandbar">
     <div class="logo">
-      <svg class="logo-mark" viewBox="0 0 40 40" role="img" aria-label="HOYA BIT 標誌">
+      <!-- 若 assets/logo.svg（或 .png）存在，會由 JS 換成官方素材 -->
+      <img class="logo-mark" id="logo-img" alt="HOYA BIT" hidden>
+      <svg class="logo-mark" id="logo-fallback" viewBox="0 0 40 40" role="img" aria-label="HOYA BIT 標誌">
         <defs>
           <linearGradient id="lgG" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stop-color="#ff8c3d"/><stop offset="100%" stop-color="#e2611a"/>
@@ -625,8 +632,10 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
     <div class="dust" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="shadow" aria-hidden="true"></div>
     <div class="mascot">
-      <!-- 金寶：HOYA BIT 吉祥物（橘黑條紋老虎） -->
-      <svg viewBox="0 0 132 120" role="img" aria-label="吉祥物金寶正在奔跑蒐集資料">
+      <!-- 金寶：HOYA BIT 吉祥物。若 assets/mascot.(svg|png|gif) 存在會改用官方素材 -->
+      <img id="mascot-img" alt="吉祥物金寶" hidden>
+      <!-- 內建替代圖形（橘黑條紋老虎） -->
+      <svg id="mascot-fallback" viewBox="0 0 132 120" role="img" aria-label="吉祥物金寶正在奔跑蒐集資料">
         <defs>
           <linearGradient id="furG" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#ff8c3d"/>
@@ -645,15 +654,14 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
           <path d="M19 54 L10 52" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
         </g>
 
-        <!-- 後腿 -->
-        <g class="leg back">
-          <path d="M40 74 L33 96" stroke="url(#furG)" stroke-width="11" stroke-linecap="round"/>
-          <ellipse cx="32" cy="99" rx="8" ry="5" fill="#1b1b1f"/>
+        <!-- 四肢：遠側兩腿先畫（顏色略暗製造景深），近側兩腿畫在身體之後 -->
+        <g class="leg far-back">
+          <path d="M44 72 L37 94" stroke="#c4551a" stroke-width="9" stroke-linecap="round"/>
+          <ellipse cx="36" cy="96" rx="7" ry="4.5" fill="#141417"/>
         </g>
-        <!-- 前腿 -->
-        <g class="leg">
-          <path d="M78 74 L88 95" stroke="url(#furG)" stroke-width="11" stroke-linecap="round"/>
-          <ellipse cx="89" cy="98" rx="8" ry="5" fill="#1b1b1f"/>
+        <g class="leg far-front">
+          <path d="M74 72 L82 93" stroke="#c4551a" stroke-width="9" stroke-linecap="round"/>
+          <ellipse cx="83" cy="95" rx="7" ry="4.5" fill="#141417"/>
         </g>
 
         <!-- 身體 -->
@@ -664,6 +672,16 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
         <path d="M72 45 C71 53 71 61 73 69" stroke="#1b1b1f" stroke-width="5" stroke-linecap="round" fill="none"/>
         <!-- 肚子 -->
         <ellipse cx="60" cy="72" rx="22" ry="10" fill="#ffd9b8" opacity=".92"/>
+
+        <!-- 近側兩腿 -->
+        <g class="leg near-back">
+          <path d="M40 74 L31 97" stroke="url(#furG)" stroke-width="11" stroke-linecap="round"/>
+          <ellipse cx="30" cy="100" rx="8" ry="5" fill="#1b1b1f"/>
+        </g>
+        <g class="leg near-front">
+          <path d="M78 74 L89 96" stroke="url(#furG)" stroke-width="11" stroke-linecap="round"/>
+          <ellipse cx="90" cy="99" rx="8" ry="5" fill="#1b1b1f"/>
+        </g>
 
         <!-- 頭 -->
         <g>
@@ -758,6 +776,9 @@ const SERIES_META = {
   price: { title: '價格走勢', unit: 'USD', fmt: 'usd' },
   volume: { title: '成交量', unit: '', fmt: 'compact', type: 'bar' },
   fear_greed: { title: '恐懼貪婪指數', unit: '0–100', fmt: 'int' },
+  treasury_10y: { title: '10 年期公債殖利率', unit: '%', fmt: 'num' },
+  dxy: { title: '美元指數', unit: '', fmt: 'num' },
+  fed_funds_rate: { title: '聯邦基金利率', unit: '%', fmt: 'num' },
   funding_rate: { title: '資金費率', unit: '/8h', fmt: 'pct4' },
   tvl: { title: 'DeFi TVL', unit: 'USD', fmt: 'usd' },
   relative_strength: { title: '相對強弱', unit: '', fmt: 'num' },
@@ -1514,6 +1535,20 @@ function chartPlan(rd) {
       layers: [{ key: 'price', type: 'line', axis: 'y' }, { key: 'fear_greed', type: 'line', axis: 'y1' }] });
     used.add('fear_greed');
   }
+  if (hasSeries(rd, 'price') && hasSeries(rd, 'treasury_10y')) {
+    plan.push({ id: 'combo-pm', title: '價格與總經壓力', sub: '殖利率走高通常壓抑風險資產，兩線同步上行代表壓力尚未傳導',
+      layers: [{ key: 'price', type: 'line', axis: 'y' }, { key: 'treasury_10y', type: 'line', axis: 'y1' }] });
+    used.add('treasury_10y');
+  }
+  // 其餘總經指標合併成一張，避免每個指標各佔一張圖
+  const macroRest = ['dxy', 'fed_funds_rate'].filter(k => hasSeries(rd, k) && !used.has(k));
+  if (macroRest.length) {
+    plan.push({
+      id: 'combo-macro', title: '總經環境', sub: '',
+      layers: macroRest.map((k, i) => ({ key: k, type: 'line', axis: i === 0 ? 'y' : 'y1' }))
+    });
+    macroRest.forEach(k => used.add(k));
+  }
 
   const known = Object.keys(SERIES_META);
   Object.keys(rd.series || {})
@@ -1988,6 +2023,38 @@ function observeNav(ids) {
   }, { rootMargin: '-100px 0px -65% 0px' });
   ids.forEach(id => { const el = $(id); if (el) obs.observe(el); });
 }
+
+/* =========================================================================
+   品牌素材：有官方檔案就用，沒有就用內建替代圖形
+   把檔案放到 frontend/assets/ 即自動生效，無需改程式碼：
+     assets/logo.svg   (或 .png)      品牌標誌
+     assets/mascot.svg (或 .png/.gif) 吉祥物金寶
+   ========================================================================= */
+function swapAsset(candidates, imgId, fallbackId) {
+  const img = $(imgId), fallback = $(fallbackId);
+  if (!img || !fallback) return;
+
+  let i = 0;
+  const tryNext = () => {
+    if (i >= candidates.length) return;      // 全部找不到，保留內建圖形
+    const src = candidates[i++];
+    const probe = new Image();
+    probe.onload = () => {
+      img.src = src;
+      img.hidden = false;
+      fallback.hidden = true;
+    };
+    probe.onerror = tryNext;
+    probe.src = src;
+  };
+  tryNext();
+}
+
+swapAsset(['assets/logo.svg', 'assets/logo.png'], 'logo-img', 'logo-fallback');
+swapAsset(
+  ['assets/mascot.gif', 'assets/mascot.svg', 'assets/mascot.png'],
+  'mascot-img', 'mascot-fallback'
+);
 
 /* =========================================================================
    啟動

@@ -323,6 +323,29 @@ def build_c7_series(series_registry):
                         points.append([date, value])
                 # 恐懼貪婪指數是全市場指標，不歸屬單一幣種
                 put("fear_greed", "MARKET", points)
+
+            elif series_type == "macro_series":
+                # FRED 每個指標都帶 observations（{date, value}），是真正的時間序列
+                raw = data.get("data")
+                indicators = raw.get("indicators") if isinstance(raw, dict) else None
+                if not isinstance(indicators, dict):
+                    continue
+                for key, meta in indicators.items():
+                    if not isinstance(meta, dict):
+                        continue
+                    observations = meta.get("observations")
+                    if not isinstance(observations, list):
+                        continue
+                    points = []
+                    for item in observations:
+                        if not isinstance(item, dict):
+                            continue
+                        date = _iso_date(item.get("date"))
+                        value = _finite_float(item.get("value"))
+                        if date and value is not None:
+                            points.append([date, value])
+                    # 總經指標同樣不歸屬單一幣種
+                    put(str(key), "MARKET", points)
         except Exception:
             # 單一來源轉換失敗不得影響其他來源
             continue
