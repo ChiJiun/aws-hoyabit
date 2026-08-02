@@ -744,7 +744,7 @@ def run_sub_agent(run_id, assignment, plan, deadline):
     messages = [{"role": "user", "content": [{"text": user_text}]}]
     tool_config = build_tool_config()
 
-    max_turns = config.MAX_SUB_AGENT_TURNS  # Sub-agent 每個最多 6 輪工具呼叫
+    max_turns = config.MAX_SUB_AGENT_TURNS
 
     for turn in range(max_turns):
         # 檢查全流程 deadline
@@ -754,6 +754,49 @@ def run_sub_agent(run_id, assignment, plan, deadline):
                 int((time.time() - start_time) * 1000),
                 note=f"Deadline reached at turn {turn + 1}"
             )
+            break
+
+        # 最後一輪：強制收斂，仍帶 tool_config（API 要求），但明確指示不要用工具
+        if turn == max_turns - 1:
+            messages.append({
+                "role": "user",
+                "content": [{"text": (
+                    "【強制收斂指令】時間已到，你不可以再呼叫任何工具。"
+                    "請立刻根據目前已蒐集的所有資料，輸出結構化的 ResearchResult JSON。"
+                    "只輸出 JSON，不要有其他文字。"
+                )}]
+            })
+            try:
+                response = call_bedrock(messages, SUBAGENT_SYSTEM_PROMPT, tool_config)
+            except Exception as e:
+                evidence.log_execution_step(
+                    f"sub_agent_{role}", "error",
+                    int((time.time() - start_time) * 1000),
+                    note=f"Forced convergence call failed: {type(e).__name__}: {str(e)}"
+                )
+                break
+
+            if response:
+                stop_reason = response.get("stopReason", "")
+                output_message = response.get("output", {}).get("message", {})
+                if output_message:
+                    messages.append(output_message)
+
+                # 如果模型仍然回傳 tool_use，用乾淨上下文再試一次
+                if stop_reason == "tool_use":
+                    convergence_msg = _build_convergence_summary(messages, role, dimensions)
+                    try:
+                        retry_resp = call_bedrock(
+                            [{"role": "user", "content": [{"text": convergence_msg}]}],
+                            SUBAGENT_SYSTEM_PROMPT
+                        )
+                    except Exception:
+                        pass
+                    else:
+                        if retry_resp:
+                            retry_output = retry_resp.get("output", {}).get("message", {})
+                            if retry_output:
+                                messages.append(retry_output)
             break
 
         try:
@@ -833,6 +876,36 @@ def _select_tools_for_assignment(assignment, plan):
     return sorted(relevant)
 
 
+def _build_convergence_summary(messages, role, dimensions):
+    """建構乾淨的收斂訊息（不含 toolUse/toolResult blocks），用於強制產出 JSON。"""
+    # 從工具結果中提取所有 summary 文字
+    summaries = []
+    for msg in messages:
+        if msg.get("role") == "user":
+            for block in msg.get("content", []):
+                if "toolResult" in block:
+                    tr = block["toolResult"]
+                    for c in tr.get("content", []):
+                        if "text" in c:
+                            try:
+                                data = json.loads(c["text"])
+                                if "summary" in data:
+                                    summaries.append(data["summary"])
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+
+    dims_str = ", ".join(dimensions)
+    summaries_text = "\n".join(f"- {s}" for s in summaries) if summaries else "（無可用摘要）"
+
+    return (
+        f"你是負責「{role}」的研究員，你已蒐集了以下資料摘要：\n\n"
+        f"{summaries_text}\n\n"
+        f"負責維度：{dims_str}\n\n"
+        f"請根據以上資料，輸出結構化的 ResearchResult JSON（含 dimension、summary、"
+        f"facts、signals、contradictions、limitations）。只輸出 JSON，不要有其他文字。"
+    )
+
+
 def _extract_research_result(messages, role, dimensions):
     """從 Sub-agent 對話歷史中提取 ResearchResult JSON。"""
     # 從最後一則 assistant 訊息中找 JSON
@@ -840,8 +913,7 @@ def _extract_research_result(messages, role, dimensions):
         if msg.get("role") == "assistant":
             content_blocks = msg.get("content", [])
             result = _extract_json_from_response(content_blocks)
-            if result and "facts" in result:
-                # 確保有 dimension 欄位
+            if result:  # 只要是合法 JSON 就接受，缺的欄位用預設值補
                 result.setdefault("dimension", dimensions[0] if dimensions else role)
                 result.setdefault("summary", "")
                 result.setdefault("facts", [])
