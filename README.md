@@ -343,25 +343,99 @@ aws-hoyabit/
 
 ## 環境變數
 
-完整清單見 `.env.example`。必填只有兩項：
+設定方式：本機開發複製 `.env.example` 為 `.env` 並填入真實值；AWS Lambda 則在控制台的「環境變數」區塊逐項填入。所有 `os.environ` 讀取集中在 `config.py`，其他模組一律 `from config import X`。
+
+### 必填（系統無法啟動）
+
+| 變數 | 範例值 | 說明 |
+|---|---|---|
+| `BEDROCK_MODEL_ID` | `us.anthropic.claude-sonnet-4-20250514-v1:0` | Bedrock 模型完整 ID。必須包含 `us.` 前綴，且 region 需已開通該模型的存取權限。錯誤時會得到 `ValidationException: The provided model identifier is invalid` |
+| `DATA_BUCKET` | `crypto-agent-data-teamname` | S3 資料 bucket 名稱，用於讀取基準 CSV 與寫入執行產物。**本機測試留空**即自動切換為本地 `outputs/` 目錄 |
+
+### AWS 憑證
 
 | 變數 | 說明 |
 |---|---|
-| `BEDROCK_MODEL_ID` | 例如 `us.anthropic.claude-sonnet-4-20250514-v1:0` |
-| `DATA_BUCKET` | 資料 bucket 名稱。本機測試留空即改寫入 `outputs/` |
+| `AWS_REGION` | 預設 `us-west-2`。必須與 Bedrock 模型開通的 region 一致 |
+| `AWS_ACCESS_KEY_ID` | IAM 長期金鑰或臨時憑證的 Access Key |
+| `AWS_SECRET_ACCESS_KEY` | 對應的 Secret Key |
+| `AWS_SESSION_TOKEN` | **僅臨時憑證需要**（SSO / assume-role / Workshop）。長期 IAM User 不需要填這一行。臨時憑證通常 1–12 小時過期，症狀是 `ExpiredTokenException` |
 
-執行參數：
+> Lambda 上不需要填 AWS 憑證 — 它透過 IAM Role 自動取得。這四個變數只有本機開發時才需要。
+
+### 執行參數
 
 | 變數 | 預設 | 說明 |
 |---|---|---|
-| `MAX_AGENT_TURNS` | 15 | Agent 迴圈最大輪數 |
-| `TIME_BUDGET_SECONDS` | 600 | 時間預算，與輪數雙重約束 |
-| `TOOL_HTTP_TIMEOUT_SECONDS` | 15 | 單次外部呼叫 timeout |
+| `MAX_AGENT_TURNS` | `15` | Phase B Agent 迴圈最大輪數。與時間預算雙重約束，任一觸及即停止並收斂 |
+| `TIME_BUDGET_SECONDS` | `600` | 整次執行的時間預算（秒）。命題限 15 分鐘，建議設 600 留緩衝 |
+| `TOOL_HTTP_TIMEOUT_SECONDS` | `15` | 單次外部 API 呼叫的 timeout（秒） |
+| `TOOL_HTTP_MAX_ATTEMPTS` | `2` | 單次工具呼叫最大嘗試次數（含重試） |
+| `TOOL_HTTP_BACKOFF_SECONDS` | `0.25` | 重試間隔（秒） |
 
-資料源金鑰全部選用，缺少時對應工具會 graceful fail 並記入資料缺口：
-`COINGECKO_API_KEY`、`ETHERSCAN_API_KEY`、`HELIUS_API_KEY`、`FRED_API_KEY` 等。
+### 資料源金鑰（全部選用）
 
-所有 `os.environ` 讀取集中在 `config.py`，其他模組一律 `from config import X`。金鑰不寫入程式碼，`.env` 已由 `.gitignore` 排除。
+缺少時對應工具會 graceful fail，錯誤記入 `execution_log.jsonl` 並在報告的覆蓋率與信心說明中標註。不會導致整次執行失敗。
+
+| 變數 | 用途 | 免費額度 | 影響的工具 |
+|---|---|---|---|
+| `COINGECKO_API_KEY` | CoinGecko Demo API | 免費申請，日限 10K calls | `get_price_ohlcv`（備援路徑）、`get_market_dominance` |
+| `ETHERSCAN_API_KEY` | Etherscan V2 API | 免費申請，5 calls/s | `get_onchain`（ETH 鏈上） |
+| `HELIUS_API_KEY` | Helius RPC | 免費申請，有日限 | `get_onchain`（SOL 鏈上） |
+| `FRED_API_KEY` | 聖路易聯儲 FRED | 免費申請，無實質限制 | `get_macro`（DXY、DGS10、DFF） |
+| `SOSOVALUE_API_KEY` | SoSoValue ETF 數據 | 需申請 | `get_etf_flow`（BTC/ETH ETF 資金流） |
+| `CMC_API_KEY` | CoinMarketCap | 免費 Basic 方案 | 預留，目前未使用 |
+| `COINGLASS_API_KEY` | CoinGlass 衍生品 | 需付費 | 預留，目前改用免費的 Hyperliquid |
+| `REDDIT_CLIENT_ID` | Reddit OAuth | 免費申請 | 預留，目前未使用 |
+| `REDDIT_CLIENT_SECRET` | Reddit OAuth | 免費申請 | 預留，目前未使用 |
+| `DUNE_API_KEY` | Dune Analytics | 免費方案有限 | 預留，目前未使用 |
+
+### 免鑰來源（不需要環境變數，程式碼直接呼叫）
+
+| 來源 | 用途 |
+|---|---|
+| Binance Spot API | 即時 OHLCV（主力價格來源） |
+| Hyperliquid API | 資金費率、OI、清算（衍生品主力，替代被封鎖的 Binance Futures） |
+| Deribit API | DVOL、期權 OI、Put/Call（BTC/ETH） |
+| Polymarket Gamma API | 預測市場事件定價（創意度亮點） |
+| alternative.me | Fear & Greed 恐懼貪婪指數 |
+| mempool.space | BTC 鏈上交易量 |
+| BscScan (Blockscout) | BNB 鏈上 |
+| XRPL 公開節點 | XRP 鏈上 |
+| DefiLlama | TVL、穩定幣供給 |
+| Google News + 媒體 RSS | 新聞聚合（CoinDesk、Cointelegraph、The Block） |
+| 官方部落格 + GitHub RSS | 一手公告 |
+| SEC EDGAR | 監管文件全文搜尋 |
+| CFTC COT 報告 | 機構期貨淨部位（僅 BTC，每週） |
+| Coin Metrics Community | MVRV、活躍地址等機構級指標 |
+| GitHub API | 開發活躍度（commit 數、最新 release） |
+
+### 已知的雲端環境限制
+
+| 問題 | 原因 | 影響 | 替代方案 |
+|---|---|---|---|
+| Binance Futures 回 HTTP 451 | Binance 封鎖 AWS/GCP 雲端 IP 段 | 缺少 Binance 的多空比 | Hyperliquid 提供同等指標 |
+| Binance Orderbook 回 HTTP 451 | 同上 | 缺少盤口深度 | 目前無替代，記為覆蓋缺口 |
+| 臨時憑證過期 | Session Token 壽命有限 | Bedrock 呼叫失敗 | Demo 前重新取得憑證 |
+
+### `.env` 最小可執行範例
+
+```env
+# 最少需要這些才能在本機跑出完整報告
+AWS_REGION=us-west-2
+AWS_ACCESS_KEY_ID=ASIA...
+AWS_SECRET_ACCESS_KEY=...
+BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
+
+# 本機測試留空，產出寫到 outputs/
+DATA_BUCKET=
+
+# 有這四把鑰就能覆蓋大部分資料源
+ETHERSCAN_API_KEY=...
+HELIUS_API_KEY=...
+FRED_API_KEY=...
+COINGECKO_API_KEY=...
+```
 
 ---
 
