@@ -324,6 +324,35 @@ def build_c7_series(series_registry):
                 # 恐懼貪婪指數是全市場指標，不歸屬單一幣種
                 put("fear_greed", "MARKET", points)
 
+            elif series_type == "derivatives_series":
+                symbol = str(data.get("symbol") or "UNKNOWN")
+                inner = data.get("data")
+                if not isinstance(inner, dict):
+                    continue
+                # Hyperliquid: asset_ctx.funding / openInterest
+                asset_ctx = inner.get("asset_ctx")
+                if isinstance(asset_ctx, dict):
+                    funding = _finite_float(asset_ctx.get("funding"))
+                    oi = _finite_float(asset_ctx.get("openInterest"))
+                    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                    if funding is not None:
+                        result.setdefault("funding_rate", {}).setdefault(symbol, []).append([today, funding])
+                    if oi is not None:
+                        result.setdefault("open_interest", {}).setdefault(symbol, []).append([today, oi])
+                # Binance: premiumIndex.lastFundingRate / openInterest.openInterest
+                premium_idx = inner.get("premiumIndex")
+                if isinstance(premium_idx, dict):
+                    funding = _finite_float(premium_idx.get("lastFundingRate"))
+                    ts = _iso_date(premium_idx.get("time"))
+                    if funding is not None and ts:
+                        result.setdefault("funding_rate", {}).setdefault(symbol, []).append([ts, funding])
+                oi_data = inner.get("openInterest")
+                if isinstance(oi_data, dict):
+                    oi = _finite_float(oi_data.get("openInterest"))
+                    ts = _iso_date(oi_data.get("time"))
+                    if oi is not None and ts:
+                        result.setdefault("open_interest", {}).setdefault(symbol, []).append([ts, oi])
+
             elif series_type == "macro_series":
                 # FRED 每個指標都帶 observations（{date, value}），是真正的時間序列
                 raw = data.get("data")
@@ -344,8 +373,28 @@ def build_c7_series(series_registry):
                         value = _finite_float(item.get("value"))
                         if date and value is not None:
                             points.append([date, value])
-                    # 總經指標同樣不歸屬單一幣種
+                    # 總經指標不歸屬單一幣種
                     put(str(key), "MARKET", points)
+
+            elif series_type == "onchain_series":
+                symbol = str(data.get("symbol") or "UNKNOWN")
+                inner = data.get("data")
+                if not isinstance(inner, dict):
+                    continue
+                # 鏈上資料大多是 point-in-time 快照，但如果有 time-series 格式就轉
+                for metric_name, metric_val in inner.items():
+                    if isinstance(metric_val, list) and metric_val:
+                        points = []
+                        for item in metric_val:
+                            if not isinstance(item, dict):
+                                continue
+                            date = _iso_date(item.get("date") or item.get("timestamp"))
+                            value = _finite_float(item.get("value") or item.get("count"))
+                            if date and value is not None:
+                                points.append([date, value])
+                        if points:
+                            put(f"onchain_{metric_name}", symbol, points)
+
         except Exception:
             # 單一來源轉換失敗不得影響其他來源
             continue

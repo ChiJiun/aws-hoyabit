@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
 :root{
   --ink:#08080a; --surface:#111114; --card:#17171c; --raised:#1e1e24;
@@ -826,7 +826,8 @@ const SERIES_META = {
   tvl: { title: 'DeFi TVL', unit: 'USD', fmt: 'usd' },
   relative_strength: { title: '相對強弱', unit: '', fmt: 'num' },
   correlation_30d: { title: '30 日相關係數', unit: '', fmt: 'num' },
-  open_interest: { title: '未平倉量', unit: 'USD', fmt: 'usd' }
+  open_interest: { title: '未平倉量', unit: 'USD', fmt: 'usd' },
+  macro: { title: '總經指標', unit: '', fmt: 'num' }
 };
 
 /* ---- state ---- */
@@ -1098,6 +1099,14 @@ function render(data, req) {
   $('btn-go').disabled = false;
 
   const rd = data.report_data && typeof data.report_data === 'object' ? data.report_data : null;
+  console.log('[Render] report_data present:', !!rd, rd ? 'series keys: ' + Object.keys(rd.series || {}) : 'no rd');
+
+  /* Visible debug banner for chart troubleshooting */
+  const _chartDbg = document.createElement('div');
+  _chartDbg.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a2e;color:#0f0;font:11px monospace;padding:6px 12px;z-index:9999;max-height:80px;overflow:auto';
+  _chartDbg.textContent = `[DEBUG] rd=${!!rd} | series=${rd ? Object.keys(rd.series||{}).join(',') : 'N/A'} | Chart.js=${typeof Chart !== 'undefined'}`;
+  document.body.appendChild(_chartDbg);
+
   const reportText = data.report_text || '';
   const qtype = (rd && rd.question_type) || inferType(req);
   const symbols = (rd && Array.isArray(rd.symbols) && rd.symbols.length) ? rd.symbols : req.symbols;
@@ -1125,6 +1134,9 @@ function render(data, req) {
   add('sec-dimensions', '分析維度', secDimensions(rd, symbols));
   add('sec-typed', QTYPE_LABEL[qtype] || '專屬分析', secTyped(rd, qtype, symbols));
   add('sec-charts', '圖表', secCharts(rd));
+  if (!rd || !rd.series || !Object.keys(rd.series).length) {
+    blocks.push(`<section id="sec-charts-fallback"><div style="padding:1.5rem;background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-top:1rem"><p style="color:var(--muted);font-size:13px"><b>資料視覺化</b>：本次無可用的時序資料供圖表渲染。</p><p style="color:var(--muted);font-size:12px;margin-top:.5rem">rd=${rd ? 'present' : 'null'}, series=${rd && rd.series ? Object.keys(rd.series).join(',') : 'none'}</p></div></section>`);
+  }
   add('sec-reasoning', '推理鏈', secReasoning(reportText));
   add('sec-evidence', '證據溯源', secEvidence());
   add('sec-coverage', '資料覆蓋', secCoverage(rd));
@@ -1610,17 +1622,26 @@ function chartPlan(rd) {
 }
 
 function secCharts(rd) {
-  if (!rd || !rd.series || typeof rd.series !== 'object') return '';
+  try {
+  if (!rd || !rd.series || typeof rd.series !== 'object') { console.warn('[secCharts] no series data'); return ''; }
   const plan = chartPlan(rd);
-  if (!plan.length) return '';
+  console.log('[secCharts] plan:', plan.length, 'items');
+  if (!plan.length) { console.warn('[secCharts] empty plan'); return ''; }
 
   const cards = plan.map((p, i) => {
     const labels = p.layers.map(l => (SERIES_META[l.key] || { title: l.key }).title);
-    const n = Math.max(...p.layers.map(l =>
-      Math.max(...Object.values(rd.series[l.key]).map(pts => (pts || []).length))));
+    let n = 0;
+    try {
+      n = Math.max(...p.layers.map(l => {
+        const grp = rd.series[l.key];
+        if (!grp || typeof grp !== 'object') return 0;
+        return Math.max(...Object.values(grp).map(pts => (Array.isArray(pts) ? pts.length : 0)));
+      }));
+    } catch(e) { n = 0; }
+    if (!Number.isFinite(n) || n <= 0) n = 0;
     return `<div class="chart-card">
       <h3>${esc(p.title)}</h3>
-      <p class="cmeta">${esc(labels.join(' × '))}　近 ${n} 個資料點</p>
+      <p class="cmeta">${esc(labels.join(' × '))}${n ? `　近 ${n} 個資料點` : ''}</p>
       ${p.sub ? `<p style="font-size:12px;color:var(--muted);margin:-.35rem 0 .6rem;line-height:1.5">${esc(p.sub)}</p>` : ''}
       <div class="chart-box"><canvas id="chart-${i}" data-plan="${i}"></canvas></div>
     </div>`;
@@ -1630,6 +1651,7 @@ function secCharts(rd) {
     ${head('資料視覺化', '', `${plan.length} 張`)}
     <div class="charts">${cards}</div>
   </section>`;
+  } catch (err) { console.error('[secCharts] Error:', err); return ''; }
 }
 
 const PALETTE = ['#f37021', '#60a5fa', '#22c55e', '#a78bfa'];
@@ -1637,26 +1659,33 @@ const PALETTE = ['#f37021', '#60a5fa', '#22c55e', '#a78bfa'];
 function drawCharts(rd) {
   charts.forEach(c => { try { c.destroy(); } catch (e) { /* 已釋放 */ } });
   charts = [];
-  if (!rd || !rd.series) return;
-  if (typeof Chart === 'undefined') return;
+  if (!rd || !rd.series) { console.warn('[Charts] No rd or rd.series'); return; }
+  if (typeof Chart === 'undefined') { console.warn('[Charts] Chart.js not loaded'); return; }
 
   const plan = chartPlan(rd);
+  console.log('[Charts] plan length:', plan.length, 'series keys:', Object.keys(rd.series));
+  if (!plan.length) { console.warn('[Charts] No chart plan items'); return; }
   const reduced = typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   document.querySelectorAll('#sec-charts canvas').forEach(cv => {
+    try {
     const spec = plan[+cv.dataset.plan];
     if (!spec) return;
 
     // X 軸取所有層、所有 symbol 的日期聯集；缺值留 null 讓線斷開（不內插）
     const labelSet = new Set();
     spec.layers.forEach(l => {
-      Object.values(rd.series[l.key] || {}).forEach(pts => {
-        (Array.isArray(pts) ? pts : []).forEach(p => labelSet.add(String(p[0])));
+      const grp = rd.series[l.key];
+      if (!grp || typeof grp !== 'object') return;
+      Object.values(grp).forEach(pts => {
+        (Array.isArray(pts) ? pts : []).forEach(p => {
+          if (Array.isArray(p) && p.length >= 2) labelSet.add(String(p[0]));
+        });
       });
     });
     const labels = [...labelSet].sort();
-    if (labels.length < 2) return;
+    if (labels.length < 2) { console.warn('[Charts] Not enough labels for', spec.id); return; }
 
     const datasets = [];
     const axisFmt = {};
@@ -1670,7 +1699,9 @@ function drawCharts(rd) {
       const splitAxis = layer.axis === 'y' && spec.layers.length === 1 && needsSecondAxis(group);
 
       symbolKeys.forEach((sym, si) => {
-        const map = new Map((group[sym] || []).map(p => [String(p[0]), num(p[1])]));
+        const pts = group[sym];
+        if (!Array.isArray(pts)) return;
+        const map = new Map(pts.filter(p => Array.isArray(p) && p.length >= 2).map(p => [String(p[0]), num(p[1])]));
         const color = PALETTE[colorIdx++ % PALETTE.length];
         const axis = splitAxis && si === 1 ? 'y1' : layer.axis;
         axisFmt[axis] = meta.fmt;
@@ -1749,7 +1780,8 @@ function drawCharts(rd) {
           scales
         }
       }));
-    } catch (e) { /* 單一圖表失敗不影響其他區塊 */ }
+    } catch (e) { console.error('[Charts] Chart creation error:', spec?.id, e); }
+    } catch (outerErr) { console.error('[Charts] Outer error in canvas processing:', outerErr); }
   });
 }
 

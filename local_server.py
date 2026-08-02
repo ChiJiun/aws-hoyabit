@@ -62,6 +62,13 @@ class DemoHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(FRONTEND_DIR), **kwargs)
 
+    def end_headers(self):
+        """Override to add no-cache headers for development."""
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
     def do_GET(self):
         """處理 GET — /outputs/ 路徑從 outputs 目錄讀取，其餘從 frontend。"""
         if self.path.startswith("/outputs/"):

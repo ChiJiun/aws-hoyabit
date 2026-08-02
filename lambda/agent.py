@@ -19,7 +19,7 @@ from botocore.exceptions import ClientError
 import config
 import evidence
 from tools import price, news, onchain, quant, sentiment, macro
-from tools import derivatives, prediction, defi, institutional
+from tools import derivatives, prediction, defi, institutional, etf_flow
 
 # 工具名稱與實際函式的對應表。
 # 這裡的 key 必須跟 build_tool_config() 裡宣告的 toolSpec name 完全一致，
@@ -40,6 +40,7 @@ TOOL_DISPATCH = {
     "get_cftc_cot": institutional.get_cftc_cot,
     "get_sec_filings": institutional.get_sec_filings,
     "get_coin_metrics": institutional.get_coin_metrics,
+    "get_etf_flow": etf_flow.get_etf_flow,
 }
 
 
@@ -70,6 +71,7 @@ SYSTEM_PROMPT = """你是加密市場分析助理。使用者會給你一個或�
 - get_cftc_cot（機構持倉，僅 BTC）：適合討論機構情緒、smart money 方向的題目
 - get_sec_filings（監管文件）：適合討論監管動態、ETF 進度的題目
 - get_coin_metrics（機構級估值指標）：適合討論估值是否合理的題目
+- get_etf_flow（ETF 資金流向，僅 BTC/ETH）：適合討論機構資金進出、ETF 效應的題目
 
 工作步驟：
 
@@ -359,6 +361,21 @@ def build_prefetch_plan(question_type: str, symbols: list, question: str) -> lis
         symbols=symbols,
         reason="macro environment",
     ))
+
+    # --- ETF flow (BTC/ETH only) ---
+    for sym in symbols:
+        if sym.upper() in ("BTC", "ETH"):
+            plan.append(PrefetchItem(
+                capability="etf_flow",
+                tool_name="get_etf_flow",
+                tool_kwargs={
+                    "symbol": sym,
+                    "related_claim": f"取得 {sym} 現貨 ETF 資金流向以評估機構資金進出",
+                },
+                symbols=[sym],
+                reason="ETF fund flow",
+                required=False,
+            ))
 
     # --- Type-specific additions ---
     if question_type == "single_integration":
@@ -1262,6 +1279,24 @@ def build_tool_config():
                             "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
                         },
                         "required": ["symbol", "metrics", "related_claim"]
+                    }
+                }
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_etf_flow",
+                "description": "取得 BTC 或 ETH 現貨 ETF 的資金流向摘要（SosoValue）：每日淨流入/流出、累積淨流入、總淨資產、各基金明細。"
+                               "僅支援 BTC 與 ETH（美國市場目前只有這兩個現貨 ETF 類別）。"
+                               "訊號價值：連續淨流入=機構持續建倉、連續淨流出=機構減持，是機構資金進出場最直接的指標。",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string", "description": "幣種代號，僅支援 BTC 或 ETH"},
+                            "related_claim": {"type": "string", "description": "這筆資料要用來檢驗什麼判斷（必填）"}
+                        },
+                        "required": ["symbol", "related_claim"]
                     }
                 }
             }

@@ -450,15 +450,56 @@ def build_report_data(question_type, symbols, analysis_text, evidence_list,
         # Validate before returning
         validation_errors = validate_report_data(report_data, evidence_ids=known_ids)
         if validation_errors:
-            error_summary = "; ".join(e["message"] for e in validation_errors[:5])
-            _log_error(execution_log, f"C7 validation failed: {error_summary}")
-            return None
+            # Separate FK errors (non-blocking) from structural errors (blocking)
+            fk_errors = [e for e in validation_errors if e.get("code") == "fk"]
+            structural_errors = [e for e in validation_errors if e.get("code") != "fk"]
+
+            if structural_errors:
+                error_summary = "; ".join(e["message"] for e in structural_errors[:5])
+                _log_error(execution_log, f"C7 validation failed: {error_summary}")
+                return None
+
+            # FK errors are non-blocking: strip invalid evidence_ids and proceed
+            if fk_errors:
+                _strip_invalid_evidence_ids(report_data, known_ids)
+                _log_error(execution_log,
+                           f"C7 FK warning: {len(fk_errors)} invalid evidence_id(s) stripped")
 
         return report_data
 
     except Exception as exc:
         _log_error(execution_log, f"build_report_data exception: {exc}")
         return None
+
+
+def _strip_invalid_evidence_ids(report_data, known_ids):
+    """Remove evidence_ids not in known_ids from dimensions, signals, hypothesis, comparison.
+
+    Mutates report_data in place. Used when FK check fails but structure is valid.
+    """
+    known = set(known_ids) if known_ids else set()
+
+    def _filter_ids(obj):
+        if isinstance(obj, dict) and "evidence_ids" in obj:
+            obj["evidence_ids"] = [eid for eid in obj["evidence_ids"] if eid in known]
+
+    for dim in report_data.get("dimensions", []):
+        _filter_ids(dim)
+
+    for sig in report_data.get("signals", []):
+        _filter_ids(sig)
+
+    hyp = report_data.get("hypothesis")
+    if isinstance(hyp, dict):
+        for item in hyp.get("supporting", []):
+            _filter_ids(item)
+        for item in hyp.get("opposing", []):
+            _filter_ids(item)
+
+    comp = report_data.get("comparison")
+    if isinstance(comp, dict):
+        for row in comp.get("rows", []):
+            _filter_ids(row)
 
 
 def _log_error(execution_log, message):
@@ -489,11 +530,31 @@ def _extract_verdict(text):
         block = verdict_match.group(1).strip()
         verdict["text"] = _extract_field(block, "text") or block.split("\n")[0]
     else:
-        # Fallback: first substantial line from 市場判斷 section
+        # Fallback: first substantial line from 市場判斷 section (skip sub-headers and bullets)
         judgment_match = re.search(r"(?:^|\n)\s*#*\s*市場判斷\s*\n(.*?)(?=\n\s*#|\Z)", text, re.DOTALL)
         if judgment_match:
             lines = [l.strip() for l in judgment_match.group(1).strip().split("\n") if l.strip()]
-            verdict["text"] = lines[0] if lines else ""
+            # Skip lines that are sub-headers (bold labels ending with colon) or empty
+            for line in lines:
+                clean = line.lstrip("- *").rstrip("*")
+                # Skip sub-headings like **事實層次：** or **推論層次：**
+                if re.match(r"^\*{0,2}[^\*]+[:：]\*{0,2}$", clean):
+                    continue
+                # Skip very short lines or markdown formatting
+                if len(clean) < 10:
+                    continue
+                verdict["text"] = line
+                break
+            # If no good line found, use the last non-empty line (often the conclusion)
+            if not verdict["text"] and lines:
+                # Look for conclusion section within 市場判斷
+                for line in reversed(lines):
+                    clean = line.lstrip("- *").rstrip("*")
+                    if len(clean) >= 10 and not re.match(r"^\*{0,2}[^\*]+[:：]\*{0,2}$", clean):
+                        verdict["text"] = line
+                        break
+                if not verdict["text"]:
+                    verdict["text"] = lines[-1]
 
     # Stance
     stance_match = re.search(r"stance\s*[:=]\s*(\w+)", text, re.IGNORECASE)

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chart Test</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body style="background:#111;color:#eee;font-family:sans-serif;padding:20px">
+<h2>Chart.js Test</h2>
+<div id="status">Loading...</div>
+<div style="width:600px;height:300px"><canvas id="testChart"></canvas></div>
+<pre id="debug" style="font-size:11px;color:#888;margin-top:20px"></pre>
+
+<script>
+const log = (msg) => { document.getElementById('debug').textContent += msg + '\n'; };
+
+// Test if Chart.js loaded
+log('Chart defined: ' + (typeof Chart !== 'undefined'));
+
+// Fetch the API
+async function run() {
+  try {
+    const resp = await fetch('/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbols: ['BTC'], question: 'BTC short test' })
+    });
+    const data = await resp.json();
+    log('Response keys: ' + Object.keys(data).join(', '));
+    log('Has report_data: ' + !!data.report_data);
+
+    if (!data.report_data) {
+      document.getElementById('status').textContent = 'No report_data in response!';
+      log('report_text length: ' + (data.report_text || '').length);
+      return;
+    }
+
+    const rd = data.report_data;
+    log('report_data keys: ' + Object.keys(rd).join(', '));
+    log('series keys: ' + Object.keys(rd.series || {}).join(', '));
+
+    const series = rd.series || {};
+    if (!series.price) {
+      document.getElementById('status').textContent = 'No price series!';
+      return;
+    }
+
+    log('price keys (symbols): ' + Object.keys(series.price).join(', '));
+    const sym = Object.keys(series.price)[0];
+    const pts = series.price[sym];
+    log('price/' + sym + ' points: ' + (Array.isArray(pts) ? pts.length : 'not array'));
+    if (pts && pts.length > 0) {
+      log('First point: ' + JSON.stringify(pts[0]));
+      log('Last point: ' + JSON.stringify(pts[pts.length - 1]));
+    }
+
+    // Try to draw chart
+    const labels = pts.map(p => p[0]);
+    const values = pts.map(p => p[1]);
+
+    const ctx = document.getElementById('testChart');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: sym + ' Price',
+          data: values,
+          borderColor: '#f37021',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { color: '#888' } },
+          y: { ticks: { color: '#888' } }
+        }
+      }
+    });
+    document.getElementById('status').textContent = 'Chart rendered!';
+    log('SUCCESS: Chart created');
+  } catch (err) {
+    document.getElementById('status').textContent = 'Error: ' + err.message;
+    log('ERROR: ' + err.stack);
+  }
+}
+
+run();
+</script>
+</body>
+</html>
