@@ -76,7 +76,8 @@ const EXPORTS = [
   'normPoints', 'cell', 'inferType', 'splitReport', 'linkCitations', 'mdToHtml',
   'secVerdict', 'secSignals', 'secDimensions', 'secTyped', 'secHypothesis',
   'secComparison', 'secConsistency', 'secCharts', 'secReasoning', 'secEvidence',
-  'secCoverage', 'secWatchlist', 'secRaw', 'chips', 'needsSecondAxis', 'safeJson'
+  'secCoverage', 'secWatchlist', 'secRaw', 'chips', 'needsSecondAxis', 'safeJson',
+  'metricRows', 'dimensionOverview', 'isExtreme', 'percentileTag', 'chartPlan', 'hasSeries'
 ];
 
 let api;
@@ -324,6 +325,116 @@ console.log('\n[13] 響應式版面');
   assert(/@media\(max-width:760px\)[\s\S]*?hyp-cols[\s\S]*?grid-template-columns:1fr/.test(html), '窄螢幕時正反欄改為單欄');
   assert(html.includes('@media(max-width:1000px)'), '有中等螢幕斷點');
   assert(html.includes('overflow-x:auto'), '比較表在窄螢幕可水平捲動');
+}
+
+/* ===================== 14. 指標百分位視覺化 ===================== */
+console.log('\n[14] 指標百分位視覺化');
+{
+  // 後端填充的形狀：{key: {value, label, percentile}}
+  const enriched = {
+    ...fixSingle,
+    dimensions: [{
+      name: '價格動能', state: 'weak', headline: 'h', evidence_ids: [],
+      per_symbol: {
+        BTC: {
+          volume_zscore: { value: -2.21, label: '成交量 Z-score', percentile: 0.3 },
+          adx: { value: 22.19, label: 'ADX 趨勢強度', percentile: 15.9 },
+          rsi_14: { value: 52, label: 'RSI 14', percentile: 50 }
+        }
+      }
+    }, {
+      name: '槓桿結構', state: 'neutral', headline: 'h2', evidence_ids: [],
+      per_symbol: { BTC: { funding_rate: { value: 0.0001, label: '資金費率' } } }
+    }]
+  };
+  const out = api.secDimensions(enriched, ['BTC']);
+  assert(out.includes('ptrack'), '有百分位者渲染百分位軌道');
+  assert(out.includes('成交量 Z-score'), '使用後端提供的中文標籤');
+  assert(out.includes('mark extreme'), 'P0.3 標記為極端值');
+  assert(out.includes('歷史低位 P0'), '極端低位標示文字');
+  assert(out.includes('歷史低位 P16') && !out.includes('歷史高位 P16'), 'P15.9 標為低位而非高位');
+  assert(out.includes('P50') && !out.includes('歷史高位 P50'), 'P50 顯示為一般百分位');
+  assert(out.includes('資金費率'), '無百分位的指標仍顯示數值');
+
+  // 相容 fixture 的純量形狀
+  const scalarShape = {
+    ...fixSingle,
+    dimensions: [{ name: 'D', state: 'strong', headline: 'h', evidence_ids: [], per_symbol: { BTC: { rsi_14: 55 } } }]
+  };
+  const s2 = api.secDimensions(scalarShape, ['BTC']);
+  assert(s2.includes('55'), '純量形狀仍可渲染');
+  assert(!s2.includes('ptrack'), '純量無百分位時不畫軌道');
+
+  assert(api.isExtreme(85) && api.isExtreme(10), '>=80 或 <=20 判定為極端');
+  assert(!api.isExtreme(50) && !api.isExtreme(null), '中間值與 null 不判為極端');
+}
+
+/* ===================== 15. 維度狀態總覽 ===================== */
+console.log('\n[15] 維度狀態總覽');
+{
+  const out = api.secDimensions(fixSingle, ['BTC']);
+  assert(out.includes('dim-overview'), '渲染維度總覽');
+  assert(out.includes('ov-axis'), '總覽含狀態軸');
+  assert(out.includes('偏弱') && out.includes('偏強'), '總覽標示方向兩端');
+  assert(out.includes('存在背離'), '說明同時偏強偏弱代表背離');
+  // 單一維度時不需要總覽
+  const one = { ...fixSingle, dimensions: [fixSingle.dimensions[0]] };
+  assert(!api.secDimensions(one, ['BTC']).includes('dim-overview'), '只有一個維度時不顯示總覽');
+}
+
+/* ===================== 16. 訊號強度總覽 ===================== */
+console.log('\n[16] 訊號強度總覽');
+{
+  const out = api.secSignals(fixSingle);
+  assert(out.includes('sig-summary'), '渲染訊號統計');
+  assert(out.includes('強烈異常') && out.includes('值得注意') && out.includes('已檢查正常'), '三類計數皆呈現');
+  const noneOut = api.secSignals({ signals: [], checked_normal: ['x', 'y'] });
+  assert(noneOut.includes('sig-summary'), '無異常時仍顯示統計（0 也是資訊）');
+}
+
+/* ===================== 17. 組合圖表 ===================== */
+console.log('\n[17] 跨來源組合圖表');
+{
+  const series = {
+    price: { BTC: [['2026-07-01', 100], ['2026-07-02', 101], ['2026-07-03', 102]] },
+    volume: { BTC: [['2026-07-01', 10], ['2026-07-02', 12], ['2026-07-03', 9]] },
+    fear_greed: { MARKET: [['2026-07-01', 30], ['2026-07-02', 28], ['2026-07-03', 27]] }
+  };
+  const plan = api.chartPlan({ series });
+  const ids = plan.map(p => p.id);
+  assert(ids.includes('combo-pv'), '價格與成交量組成一張圖');
+  assert(ids.includes('combo-ps'), '價格與情緒組成一張圖');
+  assert(!ids.includes('s-volume'), '已併入組合圖的 series 不重複單獨出圖');
+  assert(!ids.includes('s-fear_greed'), '情緒併入組合圖後不重複出圖');
+
+  const out = api.secCharts({ series });
+  assert(out.includes('量價是否同步'), '組合圖說明它要回答什麼問題');
+  assert(out.includes('情緒與價格是否脫鉤'), '情緒疊圖說明背離判讀方式');
+  assert((out.match(/<canvas/g) || []).length === plan.length, 'canvas 數與圖表計畫一致');
+
+  // 只有價格時退回單圖
+  const onlyPrice = api.chartPlan({ series: { price: series.price } });
+  assert(onlyPrice.length === 1 && onlyPrice[0].id === 's-price', '只有價格時渲染單一價格圖');
+  assert(api.chartPlan({ series: {} }).length === 0, '無 series 時無圖表計畫');
+}
+
+/* ===================== 18. 金寶載入動畫 ===================== */
+console.log('\n[18] 金寶載入畫面');
+{
+  assert(html.includes('class="mascot"'), '含吉祥物元素');
+  assert(/aria-label="吉祥物金寶正在奔跑蒐集資料"/.test(html), '吉祥物提供無障礙描述');
+  assert(html.includes('金寶'), '標示吉祥物名稱');
+  assert(/@keyframes hop/.test(html) && /@keyframes stride/.test(html), '含彈跳與跨步動畫');
+  assert(html.includes('#ff8c3d') || html.includes('#ff9a4f'), '使用橘色毛色');
+  assert(html.includes('#1b1b1f'), '使用黑色條紋');
+  // 計時器移到右上角
+  assert(html.includes('class="load-timer"'), '載入畫面含計時器');
+  assert(/\.load-timer\{position:absolute;top:[^;]+;right:/.test(html), '計時器定位於右上角');
+  assert(/id="elapsed"/.test(html), '計時器保留 elapsed 元素供 JS 更新');
+  // 全螢幕置中
+  assert(/#loading\{display:none;position:fixed;inset:0/.test(html), '載入畫面為全螢幕覆蓋');
+  assert(html.includes('justify-content:center'), '內容置中');
+  assert(html.includes('load-steps'), '含階段進度指示');
 }
 
 /* ===================== SUMMARY ===================== */

@@ -444,6 +444,9 @@ def build_report_data(question_type, symbols, analysis_text, evidence_list,
 
         report_data = model.to_report_data()
 
+        # 把工具已算好的指標搬進 C7（模型只給敘述，數值一律來自工具）
+        _enrich_with_evidence_metrics(report_data, evidence_list)
+
         # Validate before returning
         validation_errors = validate_report_data(report_data, evidence_ids=known_ids)
         if validation_errors:
@@ -720,6 +723,257 @@ def _build_coverage(text, execution_log):
             coverage["pct"] = round(len(coverage["got"]) / total * 100, 1)
 
     return coverage
+
+
+# ─── Evidence Metric Enrichment ──────────────────────────────────────────────
+#
+# LLM 只輸出維度名稱、狀態與敘述，不輸出數值（數值一律由工具決定性計算）。
+# 這裡把工具已算好的指標從 evidence 的 content_reference 搬進 C7，
+# 讓前端能在不重算任何數字的前提下做視覺化。
+
+METRIC_LABELS = {
+    # 技術指標（含歷史百分位，異常偵測的骨幹）
+    "atr_pct": "ATR 波動幅度",
+    "bollinger_bandwidth": "布林帶寬",
+    "adx": "ADX 趨勢強度",
+    "volume_zscore": "成交量 Z-score",
+    "realized_vol": "已實現波動率",
+    "rsi_14": "RSI 14",
+    "correlation": "相關係數",
+    "range_ratio": "價格區間比",
+    # 衍生品
+    "funding_rate": "資金費率",
+    "open_interest_usd": "未平倉量",
+    "open_interest_qty": "未平倉數量",
+    "long_short_ratio": "多空帳戶比",
+    "long_account": "多頭帳戶占比",
+    "short_account": "空頭帳戶占比",
+    "put_call_ratio": "Put / Call",
+    "dvol": "DVOL 隱含波動",
+    "mark_price": "標記價格",
+    "index_price": "指數價格",
+    # 情緒
+    "current_index": "恐懼貪婪指數",
+    "current_value": "恐懼貪婪指數",
+    "value_change": "情緒 30 日變化",
+    "oldest_index": "期初情緒",
+    # 流動性與盤口
+    "bid_depth_2pct": "買方 ±2% 深度",
+    "ask_depth_2pct": "賣方 ±2% 深度",
+    "best_bid": "最佳買價",
+    "best_ask": "最佳賣價",
+    "spread_pct": "買賣價差",
+    # 鏈上與資金
+    "tx_count": "鏈上交易筆數",
+    "active_addresses": "活躍地址數",
+    "total_tvl_usd": "DeFi TVL",
+    "stablecoin_total_supply_usd": "穩定幣供給",
+    "stablecoin_7d_change_pct": "穩定幣 7 日變化",
+    # 市場結構
+    "total_market_cap_usd": "市場總市值",
+    # 開發活躍度
+    "commit_count_4w": "4 週提交數",
+    # 總經
+    "dxy": "美元指數",
+    "treasury_10y": "10 年期公債殖利率",
+    "fed_funds_rate": "聯邦基金利率",
+    # 機構
+    "CapMVRVCur": "MVRV 比率",
+    "net_speculative": "投機淨部位",
+    "net_commercial": "商業淨部位",
+}
+
+
+def _metric_label(key):
+    """指標鍵值轉為可讀標籤；未知鍵保留原樣以免資訊遺失。"""
+    return METRIC_LABELS.get(key, str(key).replace("_", " "))
+
+
+def _extract_metrics_from_reference(ref):
+    """從單筆 evidence 的 content_reference 取出已算好的指標。
+
+    只讀取工具寫入的數值，不做任何運算。
+    回傳：{key: {"label", "value", "percentile"(可選)}}
+    """
+    out = {}
+    if not isinstance(ref, dict):
+        return out
+
+    def put(key, value, percentile=None, label=None):
+        if key in out:
+            return
+        if not _is_finite(value):
+            return
+        entry = {"label": label or _metric_label(key), "value": value}
+        if _is_finite(percentile):
+            entry["percentile"] = percentile
+        out[key] = entry
+
+    # 技術指標：{key: {value, percentile}}
+    indicators = ref.get("indicators")
+    if isinstance(indicators, dict):
+        for key, item in indicators.items():
+            if isinstance(item, dict):
+                put(key, item.get("value"), item.get("percentile"))
+
+    # 總經：{key: {latest_value, change_pct}}
+    summary = ref.get("indicators_summary")
+    if isinstance(summary, dict):
+        for key, item in summary.items():
+            if isinstance(item, dict):
+                put(key, item.get("latest_value"))
+
+    # 機構級指標：{key: {latest, avg_30d, ...}}
+    metric_values = ref.get("metric_values")
+    if isinstance(metric_values, dict):
+        for key, item in metric_values.items():
+            if isinstance(item, dict):
+                put(key, item.get("latest"))
+
+    # 扁平數值欄位
+    for key, value in ref.items():
+        if key in METRIC_LABELS and not isinstance(value, (dict, list)):
+            put(key, value)
+
+    return out
+
+
+def _evidence_symbol(ref, symbols):
+    """判斷一筆 evidence 屬於哪個幣種；無法判斷時回傳 None。
+
+    None 代表全市場指標（如恐懼貪婪指數、美元指數），由呼叫端廣播到所有幣種；
+    不可猜測歸屬，否則比較題型會把兩個幣種的數字混在一起。
+    """
+    if not isinstance(ref, dict) or not symbols:
+        return None
+
+    candidates = [ref.get("symbol"), ref.get("asset"), ref.get("pair")]
+    query_params = ref.get("query_params")
+    if isinstance(query_params, dict):
+        candidates += [
+            query_params.get("assets"), query_params.get("asset"),
+            query_params.get("symbol"), query_params.get("pair"),
+        ]
+
+    for raw in candidates:
+        if not raw:
+            continue
+        text = str(raw).upper()
+        for sym in symbols:
+            if str(sym).upper() in text:
+                return sym
+    return None
+
+
+# 同一維度內顯示過多指標反而看不到重點，優先保留帶百分位者
+MAX_DIMENSION_METRICS = 6
+
+# 資訊價值較低、容易與其他指標重複的欄位，排在後面
+_LOW_PRIORITY_METRICS = {"mark_price", "index_price", "long_account", "short_account"}
+
+
+def _metric_sort_key(item):
+    """排序：有百分位者優先，再排除低資訊量欄位。"""
+    key, meta = item
+    return (
+        0 if "percentile" in meta else 1,
+        1 if key in _LOW_PRIORITY_METRICS else 0,
+    )
+
+
+def _enrich_with_evidence_metrics(report_data, evidence_list):
+    """把工具算好的指標填入 dimensions[].per_symbol 與 signals[].metrics。
+
+    就地修改 report_data；任何異常都被吞掉，enrichment 失敗不得讓 C7 組裝失敗。
+    """
+    try:
+        if not isinstance(report_data, dict) or not isinstance(evidence_list, list):
+            return
+
+        symbols = report_data.get("symbols") or []
+        single_symbol = symbols[0] if len(symbols) == 1 else None
+
+        # 建立 evidence_id → (metrics, symbol) 索引。
+        # symbol 為 None 表示全市場指標，套用到所有幣種。
+        index = {}
+        for rec in evidence_list:
+            if not isinstance(rec, dict):
+                continue
+            eid = rec.get("evidence_id")
+            if not eid:
+                continue
+            ref = rec.get("content_reference")
+            metrics = _extract_metrics_from_reference(ref)
+            if not metrics:
+                continue
+            matched = _evidence_symbol(ref, symbols) or single_symbol
+            targets = [matched] if matched else list(symbols)
+            index[eid] = (metrics, targets)
+
+        if not index:
+            return
+
+        # dimensions：把指標放進對應幣種的 per_symbol
+        for dim in report_data.get("dimensions") or []:
+            if not isinstance(dim, dict):
+                continue
+            collected = {}
+            for eid in dim.get("evidence_ids") or []:
+                entry = index.get(eid)
+                if not entry:
+                    continue
+                metrics, targets = entry
+                for symbol in targets:
+                    if not symbol:
+                        continue
+                    bucket = collected.setdefault(symbol, {})
+                    for key, meta in metrics.items():
+                        if key in bucket:
+                            continue
+                        value = {"value": meta["value"], "label": meta["label"]}
+                        if "percentile" in meta:
+                            value["percentile"] = meta["percentile"]
+                        bucket[key] = value
+            if not collected:
+                continue
+            per_symbol = dim.get("per_symbol")
+            if not isinstance(per_symbol, dict):
+                per_symbol = {}
+            for symbol, bucket in collected.items():
+                existing = per_symbol.get(symbol)
+                merged = dict(existing) if isinstance(existing, dict) else {}
+                ordered = sorted(bucket.items(), key=_metric_sort_key)
+                for key, value in ordered[:MAX_DIMENSION_METRICS]:
+                    merged.setdefault(key, value)
+                per_symbol[symbol] = merged
+            dim["per_symbol"] = per_symbol
+
+        # signals：優先呈現有百分位的指標（那才是「偏離常態」的依據）
+        for sig in report_data.get("signals") or []:
+            if not isinstance(sig, dict):
+                continue
+            if sig.get("metrics"):
+                continue
+            gathered = {}
+            for eid in sig.get("evidence_ids") or []:
+                entry = index.get(eid)
+                if not entry:
+                    continue
+                for key, meta in entry[0].items():
+                    gathered.setdefault(key, meta)
+            if not gathered:
+                continue
+            ordered = sorted(gathered.items(), key=_metric_sort_key)
+            metrics = []
+            for key, meta in ordered[:4]:
+                metric = {"label": meta["label"], "value": meta["value"]}
+                if "percentile" in meta:
+                    metric["percentile"] = meta["percentile"]
+                metrics.append(metric)
+            sig["metrics"] = metrics
+
+    except Exception:
+        return
 
 
 def _normalize_series(series):

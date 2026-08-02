@@ -82,12 +82,48 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .btn-go:hover:not(:disabled){filter:brightness(1.09)}
 .btn-go:disabled{opacity:.4;cursor:not-allowed}
 
-/* ============ LOADING / ERROR ============ */
-#loading{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--surface);border-top:1px solid var(--accent-line);padding:.75rem 1.4rem;align-items:center;gap:.85rem}
-.spin{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
-@keyframes spin{to{transform:rotate(360deg)}}
-#loading-msg{font-size:13.5px;color:var(--text-dim)}
-#elapsed{margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:500}
+/* ============ LOADING（金寶奔跑） ============ */
+#loading{display:none;position:fixed;inset:0;z-index:300;background:radial-gradient(circle at 50% 42%,#141418 0%,var(--ink) 62%);flex-direction:column;align-items:center;justify-content:center;gap:0}
+/* 右上角計時器 */
+.load-timer{position:absolute;top:1.1rem;right:1.4rem;display:flex;align-items:center;gap:.5rem;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:.4rem .9rem}
+.load-timer .tl{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.load-timer .tv{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
+.load-timer .tdot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* 跑道 */
+.run-stage{position:relative;width:min(440px,84vw);height:150px;display:flex;align-items:flex-end;justify-content:center}
+.mascot{position:relative;width:132px;height:120px;animation:hop .62s ease-in-out infinite}
+@keyframes hop{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-11px) rotate(1deg)}}
+.mascot svg{width:100%;height:100%;overflow:visible}
+/* 四肢交替擺動，做出奔跑感 */
+.leg{transform-origin:center top;animation:stride .32s ease-in-out infinite alternate}
+.leg.back{animation-delay:-.16s}
+@keyframes stride{from{transform:rotate(-24deg)}to{transform:rotate(24deg)}}
+.tail{transform-origin:left center;animation:wag .5s ease-in-out infinite alternate}
+@keyframes wag{from{transform:rotate(-9deg)}to{transform:rotate(13deg)}}
+/* 影子隨彈跳縮放 */
+.shadow{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:96px;height:11px;background:radial-gradient(ellipse,rgba(0,0,0,.6) 0%,transparent 72%);animation:shrink .62s ease-in-out infinite}
+@keyframes shrink{0%,100%{width:96px;opacity:.55}50%{width:66px;opacity:.28}}
+/* 速度線 */
+.dust{position:absolute;bottom:26px;right:calc(50% + 52px);display:flex;flex-direction:column;gap:7px;align-items:flex-end}
+.dust i{display:block;height:2px;border-radius:2px;background:linear-gradient(to left,var(--accent),transparent);animation:whoosh .5s linear infinite}
+.dust i:nth-child(1){width:30px}
+.dust i:nth-child(2){width:46px;animation-delay:.1s}
+.dust i:nth-child(3){width:22px;animation-delay:.22s}
+@keyframes whoosh{0%{opacity:0;transform:translateX(14px)}45%{opacity:.85}100%{opacity:0;transform:translateX(-22px)}}
+/* 地面 */
+.ground{position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,var(--line) 18%,var(--line) 82%,transparent)}
+
+.load-name{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--accent);margin-top:1.5rem}
+#loading-msg{font-size:15.5px;color:var(--text);margin-top:.5rem;text-align:center;padding:0 1.5rem;min-height:1.6em}
+.load-sub{font-size:12.5px;color:var(--muted);margin-top:.6rem;text-align:center;padding:0 1.5rem}
+/* 階段進度點 */
+.load-steps{display:flex;gap:.4rem;margin-top:1.6rem}
+.load-steps i{width:22px;height:3px;border-radius:2px;background:var(--line);transition:background .4s}
+.load-steps i.on{background:var(--accent)}
+
+#error{display:none;max-width:660px;margin:1.25rem auto;padding:.9rem 1.15rem;border:1px solid #7f1d1d;border-left-width:3px;border-radius:var(--r-sm);background:#180f11;color:#fca5a5;font-size:13.5px}
 #error{display:none;max-width:660px;margin:1.25rem auto;padding:.9rem 1.15rem;border:1px solid #7f1d1d;border-left-width:3px;border-radius:var(--r-sm);background:#180f11;color:#fca5a5;font-size:13.5px}
 
 /* ============ 1. VERDICT ============ */
@@ -171,11 +207,58 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .pill.neutral{color:var(--text-dim);background:rgba(161,161,170,.1);border-color:var(--line)}
 .pill.na{color:var(--muted);background:transparent;border-color:var(--line)}
 .dim-head{font-size:13.5px;color:var(--text-dim);line-height:1.65;margin-bottom:.65rem}
-.dim-sym{border-top:1px solid var(--line-soft);padding-top:.55rem;margin-top:.55rem}
-.dim-sym-name{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);margin-bottom:.3rem}
+.dim-sym{border-top:1px solid var(--line-soft);padding-top:.6rem;margin-top:.6rem}
+.dim-sym-name{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);margin-bottom:.45rem}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:.15rem .6rem;font-size:12px}
 .kv dt{color:var(--muted);white-space:nowrap}
 .kv dd{font-family:var(--mono);color:var(--text);text-align:right}
+
+/* ---- 指標列（含歷史百分位定位） ---- */
+.mets{display:flex;flex-direction:column;gap:.5rem}
+.met{font-size:12px}
+.met-top{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}
+.met-l{color:var(--muted);line-height:1.4}
+.met-v{font-family:var(--mono);color:var(--text);font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* 百分位軌道：兩端 20% 為歷史極端區 */
+.ptrack{position:relative;height:6px;margin-top:.3rem;border-radius:3px;background:var(--line);overflow:hidden}
+.ptrack .zone{position:absolute;top:0;bottom:0;width:20%}
+.ptrack .zone.lo{left:0;background:rgba(239,68,68,.22)}
+.ptrack .zone.hi{right:0;background:rgba(239,68,68,.22)}
+.ptrack .mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(113,113,122,.5)}
+.ptrack .mark{position:absolute;top:-2px;width:3px;height:10px;border-radius:2px;background:var(--accent);transform:translateX(-50%);box-shadow:0 0 6px var(--accent)}
+.ptrack .mark.extreme{background:var(--red);box-shadow:0 0 8px var(--red)}
+.met-p{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:.18rem;display:flex;justify-content:space-between}
+.met-p .tag{color:var(--red);font-weight:600}
+.met-p .tag.norm{color:var(--muted);font-weight:400}
+
+/* ---- 維度狀態總覽 ---- */
+.dim-overview{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:1rem 1.2rem;margin-bottom:.85rem}
+.dim-ov-head{font-size:12.5px;color:var(--muted);margin-bottom:.75rem;line-height:1.55}
+.ov-rows{display:flex;flex-direction:column;gap:.45rem}
+.ov-row{display:grid;grid-template-columns:minmax(88px,132px) 1fr auto;gap:.7rem;align-items:center;font-size:12.5px}
+.ov-name{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 狀態軸：偏弱 ← 中性 → 偏強 */
+.ov-axis{position:relative;height:8px;border-radius:4px;background:linear-gradient(to right,rgba(239,68,68,.2),rgba(113,113,122,.18),rgba(34,197,94,.2))}
+.ov-axis .pin{position:absolute;top:-3px;width:4px;height:14px;border-radius:2px;transform:translateX(-50%)}
+.ov-axis .pin.strong{background:var(--green);left:86%;box-shadow:0 0 6px rgba(34,197,94,.7)}
+.ov-axis .pin.weak{background:var(--red);left:14%;box-shadow:0 0 6px rgba(239,68,68,.7)}
+.ov-axis .pin.neutral{background:var(--text-dim);left:50%}
+.ov-axis .pin.na{background:var(--line);left:50%;height:8px;top:0}
+.ov-axis.na{opacity:.4;background:repeating-linear-gradient(45deg,var(--line) 0 4px,transparent 4px 8px)}
+.ov-state{font-size:10.5px;font-weight:600;white-space:nowrap;text-align:right;min-width:44px}
+.ov-state.strong{color:var(--green)}.ov-state.weak{color:var(--red)}
+.ov-state.neutral{color:var(--text-dim)}.ov-state.na{color:var(--muted)}
+.ov-legend{display:flex;justify-content:space-between;font-size:10px;color:#52525b;font-family:var(--mono);margin-top:.5rem;padding:0 0 0 calc(88px + .7rem)}
+
+/* ---- 訊號強度總覽（紅黃計數） ---- */
+.sig-summary{display:flex;gap:.6rem;margin-bottom:.85rem;flex-wrap:wrap}
+.sig-stat{background:var(--surface);border:1px solid var(--line);border-left-width:3px;border-radius:var(--r-sm);padding:.7rem 1rem;display:flex;align-items:baseline;gap:.5rem;flex:1;min-width:150px}
+.sig-stat.red{border-left-color:var(--red)}
+.sig-stat.yellow{border-left-color:var(--amber)}
+.sig-stat.ok{border-left-color:var(--green)}
+.sig-stat .n{font-family:var(--mono);font-size:24px;font-weight:600;line-height:1}
+.sig-stat.red .n{color:var(--red)}.sig-stat.yellow .n{color:var(--amber)}.sig-stat.ok .n{color:var(--green)}
+.sig-stat .t{font-size:12px;color:var(--muted);line-height:1.45}
 
 /* ============ 4. TYPED BLOCKS ============ */
 .hyp-stmt{background:var(--surface);border:1px solid var(--accent-line);border-radius:var(--r-sm);padding:1rem 1.2rem;margin-bottom:.85rem}
@@ -399,11 +482,99 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
   <div id="error" role="alert" aria-live="assertive"></div>
 </section>
 
-<!-- ============ LOADING ============ -->
+<!-- ============ LOADING（金寶奔跑） ============ -->
 <div id="loading" role="status" aria-live="polite">
-  <span class="spin" aria-hidden="true"></span>
-  <span id="loading-msg">正在判別題型與規劃蒐集範圍</span>
-  <span id="elapsed" class="mono">00:00</span>
+  <!-- 計時器：右上角 -->
+  <div class="load-timer">
+    <span class="tdot" aria-hidden="true"></span>
+    <span class="tl">已耗時</span>
+    <span class="tv" id="elapsed">00:00</span>
+  </div>
+
+  <div class="run-stage">
+    <div class="dust" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="shadow" aria-hidden="true"></div>
+    <div class="mascot">
+      <!-- 金寶：HOYA BIT 吉祥物（橘黑條紋老虎） -->
+      <svg viewBox="0 0 132 120" role="img" aria-label="吉祥物金寶正在奔跑蒐集資料">
+        <defs>
+          <linearGradient id="furG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff8c3d"/>
+            <stop offset="100%" stop-color="#e2611a"/>
+          </linearGradient>
+          <linearGradient id="headG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff9a4f"/>
+            <stop offset="100%" stop-color="#ef6f22"/>
+          </linearGradient>
+        </defs>
+
+        <!-- 尾巴 -->
+        <g class="tail">
+          <path d="M26 62 C6 58 2 40 12 30" fill="none" stroke="url(#furG)" stroke-width="9" stroke-linecap="round"/>
+          <path d="M15 45 L7 41" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+          <path d="M19 54 L10 52" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+        </g>
+
+        <!-- 後腿 -->
+        <g class="leg back">
+          <path d="M40 74 L33 96" stroke="url(#furG)" stroke-width="11" stroke-linecap="round"/>
+          <ellipse cx="32" cy="99" rx="8" ry="5" fill="#1b1b1f"/>
+        </g>
+        <!-- 前腿 -->
+        <g class="leg">
+          <path d="M78 74 L88 95" stroke="url(#furG)" stroke-width="11" stroke-linecap="round"/>
+          <ellipse cx="89" cy="98" rx="8" ry="5" fill="#1b1b1f"/>
+        </g>
+
+        <!-- 身體 -->
+        <ellipse cx="58" cy="62" rx="34" ry="22" fill="url(#furG)"/>
+        <!-- 身體條紋 -->
+        <path d="M45 44 C43 52 43 60 46 68" stroke="#1b1b1f" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M59 42 C57 52 57 62 60 72" stroke="#1b1b1f" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M72 45 C71 53 71 61 73 69" stroke="#1b1b1f" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <!-- 肚子 -->
+        <ellipse cx="60" cy="72" rx="22" ry="10" fill="#ffd9b8" opacity=".92"/>
+
+        <!-- 頭 -->
+        <g>
+          <!-- 耳朵 -->
+          <circle cx="93" cy="26" r="9" fill="url(#headG)"/>
+          <circle cx="93" cy="26" r="4.5" fill="#1b1b1f"/>
+          <circle cx="118" cy="30" r="8" fill="url(#headG)"/>
+          <circle cx="118" cy="30" r="4" fill="#1b1b1f"/>
+          <!-- 臉 -->
+          <ellipse cx="105" cy="43" rx="21" ry="18" fill="url(#headG)"/>
+          <!-- 額頭條紋 -->
+          <path d="M100 27 L98 34" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+          <path d="M108 26 L108 33" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+          <path d="M116 29 L118 36" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+          <!-- 口鼻 -->
+          <ellipse cx="106" cy="49" rx="13" ry="10" fill="#ffe6cd"/>
+          <!-- 眼睛 -->
+          <ellipse cx="98" cy="40" rx="3.4" ry="4" fill="#1b1b1f"/>
+          <ellipse cx="113" cy="40" rx="3.4" ry="4" fill="#1b1b1f"/>
+          <circle cx="99.2" cy="38.6" r="1.2" fill="#fff"/>
+          <circle cx="114.2" cy="38.6" r="1.2" fill="#fff"/>
+          <!-- 鼻子與嘴 -->
+          <path d="M103 46.5 L109 46.5 L106 49.8 Z" fill="#1b1b1f"/>
+          <path d="M106 50 L106 52.5" stroke="#1b1b1f" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M106 52.5 C103.4 55 101 54 100 52.4" stroke="#1b1b1f" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          <path d="M106 52.5 C108.6 55 111 54 112 52.4" stroke="#1b1b1f" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          <!-- 鬍鬚 -->
+          <path d="M95 48 L86 46" stroke="#1b1b1f" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
+          <path d="M95 51 L86 52" stroke="#1b1b1f" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
+          <path d="M117 48 L126 46" stroke="#1b1b1f" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
+          <path d="M117 51 L126 52" stroke="#1b1b1f" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
+        </g>
+      </svg>
+    </div>
+    <div class="ground" aria-hidden="true"></div>
+  </div>
+
+  <p class="load-name">金寶 · JINBAO</p>
+  <p id="loading-msg">正在判別題型與規劃蒐集範圍</p>
+  <p class="load-sub">正在並行蒐集多源資料，完整分析約需 1–3 分鐘</p>
+  <div class="load-steps" id="load-steps" aria-hidden="true"></div>
 </div>
 
 <!-- ============ RESULT ============ -->
@@ -629,21 +800,31 @@ function startLoading() {
   $('error').style.display = 'none';
   $('view-input').hidden = true;
   $('view-result').hidden = true;
+  $('topbar').hidden = true;
   $('btn-go').disabled = true;
   $('loading').style.display = 'flex';
+
   secs = 0; msgIdx = 0;
   $('elapsed').textContent = '00:00';
   $('loading-msg').textContent = PROGRESS[0];
+  $('load-steps').innerHTML = PROGRESS
+    .map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('');
+
   tick = setInterval(() => {
     secs++;
     const m = String(Math.floor(secs / 60)).padStart(2, '0');
     const s = String(secs % 60).padStart(2, '0');
     $('elapsed').textContent = `${m}:${s}`;
   }, 1000);
+
+  // 進度訊息只往前推進，不循環回頭 —— 回頭會讓人以為卡住了
   msgTick = setInterval(() => {
-    msgIdx = (msgIdx + 1) % PROGRESS.length;
+    if (msgIdx >= PROGRESS.length - 1) return;
+    msgIdx++;
     $('loading-msg').textContent = PROGRESS[msgIdx];
-  }, 9000);
+    const dots = $('load-steps').querySelectorAll('i');
+    dots.forEach((d, i) => { if (i <= msgIdx) d.classList.add('on'); });
+  }, 11000);
 }
 
 async function run() {
@@ -874,15 +1055,13 @@ function secSignals(rd) {
 
   const cards = sorted.map(s => {
     const lvl = s.level === 'red' ? 'red' : 'yellow';
-    const metrics = (Array.isArray(s.metrics) ? s.metrics : []).map(m => {
-      const p = num(m.percentile);
-      const hi = p !== null && (p >= 80 || p <= 20);
-      return `<div class="mrow">
-        <div class="mrow-top"><span class="ml">${esc(m.label ?? '')}</span>
-        <span class="mv">${fmt(m.value, 'auto')}${p !== null ? ` · P${Math.round(p)}` : ''}</span></div>
-        ${p !== null ? `<div class="pbar${hi ? ' hi' : ''}"><i style="width:${Math.max(2, Math.min(100, p))}%"></i></div>` : ''}
-      </div>`;
-    }).join('');
+    // signals[].metrics 是 [{label, value, percentile}]，轉成 metricRows 吃的形狀
+    const asMap = {};
+    (Array.isArray(s.metrics) ? s.metrics : []).forEach((m, i) => {
+      if (!m || typeof m !== 'object') return;
+      asMap[`m${i}`] = { value: m.value, label: m.label ?? '', percentile: m.percentile };
+    });
+    const metrics = metricRows(asMap);
 
     return `<article class="sig ${lvl}">
       <div class="sig-top">
@@ -890,15 +1069,23 @@ function secSignals(rd) {
         <h3 class="sig-title">${esc(s.title ?? '')}</h3>
       </div>
       ${s.detail ? `<p class="sig-detail">${esc(s.detail)}</p>` : ''}
-      ${metrics ? `<div class="sig-metrics">${metrics}</div>` : ''}
+      ${metrics ? `<div class="mets" style="margin-bottom:.6rem">${metrics}</div>` : ''}
       ${s.caveat ? `<p class="sig-caveat"><b>注意</b>：${esc(s.caveat)}</p>` : ''}
       ${chips(s.evidence_ids)}
     </article>`;
   }).join('');
 
+  const redN = signals.filter(s => s.level === 'red').length;
+  const yellowN = signals.length - redN;
+  const summary = `<div class="sig-summary">
+    <div class="sig-stat ${redN ? 'red' : 'ok'}"><span class="n">${redN}</span><span class="t">強烈異常<br>偏離常態達門檻</span></div>
+    <div class="sig-stat ${yellowN ? 'yellow' : 'ok'}"><span class="n">${yellowN}</span><span class="t">值得注意<br>接近極端或訊號背離</span></div>
+    <div class="sig-stat ok"><span class="n">${normal.length}</span><span class="t">已檢查正常<br>落在常態範圍</span></div>
+  </div>`;
+
   const signalBody = signals.length
-    ? `<div class="sig-grid">${cards}</div>`
-    : `<div class="empty">本次掃描未偵測到達門檻的異常訊號。這是有意義的結果：代表各項指標都落在常態範圍內，而非我們沒有檢查。</div>`;
+    ? summary + `<div class="sig-grid">${cards}</div>`
+    : summary + `<div class="empty">本次掃描未偵測到達門檻的異常訊號。這是有意義的結果：代表各項指標都落在常態範圍內，而非我們沒有檢查。</div>`;
 
   const normalBody = normal.length ? `<div class="normal-box">
     <p class="nb-head"><span class="ic" aria-hidden="true">✓</span>已檢查並確認落在常態範圍（用來證明上方異常是全面掃描後的結果，不是挑選出來的）</p>
@@ -924,6 +1111,79 @@ function chips(ids) {
 /* =========================================================================
    3. 分析維度
    ========================================================================= */
+/** 依 key 推導數值格式；後端已算好數值，這裡只決定怎麼顯示 */
+const METRIC_FMT = {
+  funding_rate: 'pct4', open_interest_usd: 'usd', total_tvl_usd: 'usd',
+  stablecoin_total_supply_usd: 'usd', total_market_cap_usd: 'usd',
+  mark_price: 'usd', index_price: 'usd', best_bid: 'usd', best_ask: 'usd',
+  bid_depth_2pct: 'compact', ask_depth_2pct: 'compact',
+  open_interest_qty: 'compact', tx_count: 'compact', active_addresses: 'compact',
+  current_index: 'int', oldest_index: 'int', value_change: 'int',
+  commit_count_4w: 'int', net_speculative: 'compact', net_commercial: 'compact'
+};
+
+/** 百分位極端判定：兩端 20% 視為偏離常態 */
+function isExtreme(p) {
+  return p !== null && (p <= 20 || p >= 80);
+}
+
+function percentileTag(p) {
+  if (p === null) return '';
+  if (p >= 80) return `歷史高位 P${Math.round(p)}`;
+  if (p <= 20) return `歷史低位 P${Math.round(p)}`;
+  return `P${Math.round(p)}`;
+}
+
+/**
+ * 渲染指標列。相容兩種形狀：
+ *  - 純量：{ rsi_14: 55 }（fixture 慣例）
+ *  - 物件：{ atr_pct: {value, label, percentile} }（後端由工具指標填充）
+ */
+function metricRows(metrics) {
+  if (!metrics || typeof metrics !== 'object') return '';
+  const rows = Object.entries(metrics).map(([key, raw]) => {
+    let value, label = key, pct = null;
+    if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+      value = raw.value;
+      label = raw.label || key;
+      pct = num(raw.percentile);
+    } else {
+      value = raw;
+    }
+    if (value === null || value === undefined || typeof value === 'object') return '';
+
+    const shown = fmt(value, METRIC_FMT[key] || 'auto');
+    const ext = isExtreme(pct);
+    return `<div class="met">
+      <div class="met-top"><span class="met-l">${esc(label)}</span><span class="met-v">${shown}</span></div>
+      ${pct === null ? '' : `<div class="ptrack" role="img" aria-label="歷史百分位 ${Math.round(pct)}">
+        <span class="zone lo"></span><span class="zone hi"></span><span class="mid"></span>
+        <span class="mark${ext ? ' extreme' : ''}" style="left:${Math.max(1, Math.min(99, pct))}%"></span>
+      </div>
+      <div class="met-p"><span>歷史分布</span><span class="tag${ext ? '' : ' norm'}">${esc(percentileTag(pct))}</span></div>`}
+    </div>`;
+  }).filter(Boolean).join('');
+  return rows;
+}
+
+/** 維度狀態總覽：一眼看完所有維度的方向 */
+function dimensionOverview(dims) {
+  if (dims.length < 2) return '';
+  const rows = dims.map(d => {
+    const st = STATE[d.state] ? d.state : 'neutral';
+    return `<div class="ov-row">
+      <span class="ov-name" title="${esc(d.name ?? '')}">${esc(d.name ?? '')}</span>
+      <span class="ov-axis${st === 'na' ? ' na' : ''}"><span class="pin ${st}"></span></span>
+      <span class="ov-state ${st}">${esc(STATE[st])}</span>
+    </div>`;
+  }).join('');
+  return `<div class="dim-overview">
+    <p class="dim-ov-head">各維度方向一覽。同時出現偏強與偏弱，代表來源之間存在背離。</p>
+    <div class="ov-rows">${rows}</div>
+    <div class="ov-legend"><span>偏弱</span><span>中性</span><span>偏強</span></div>
+  </div>`;
+}
+
 function secDimensions(rd, symbols) {
   if (!rd) return '';
   const dims = Array.isArray(rd.dimensions) ? rd.dimensions : [];
@@ -935,13 +1195,12 @@ function secDimensions(rd, symbols) {
     let perHtml = '';
     if (per) {
       perHtml = Object.entries(per).map(([sym, metrics]) => {
-        if (!metrics || typeof metrics !== 'object') return '';
-        const rows = Object.entries(metrics)
-          .filter(([, v]) => v !== null && v !== undefined && typeof v !== 'object')
-          .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${fmt(v, 'auto')}</dd>`)
-          .join('');
+        const rows = metricRows(metrics);
         if (!rows) return '';
-        return `<div class="dim-sym"><p class="dim-sym-name">${esc(sym)}</p><dl class="kv">${rows}</dl></div>`;
+        return `<div class="dim-sym">
+          ${symbols.length > 1 ? `<p class="dim-sym-name">${esc(sym)}</p>` : ''}
+          <div class="mets">${rows}</div>
+        </div>`;
       }).join('');
     }
     return `<article class="dim${state === 'na' ? ' na' : ''}">
@@ -962,6 +1221,7 @@ function secDimensions(rd, symbols) {
 
   return `<section id="sec-dimensions">
     ${head('分析維度', why, `${dims.length} 項${naCount ? `・${naCount} 項無資料` : ''}`)}
+    ${dimensionOverview(dims)}
     <div class="dim-grid">${cards}</div>
   </section>`;
 }
@@ -1088,38 +1348,74 @@ function secConsistency(rd) {
 /* =========================================================================
    5. 圖表（只讀 C7 series，前端不計算任何指標）
    ========================================================================= */
+/** 是否有足夠可畫的點 */
+function hasSeries(rd, key) {
+  const g = rd && rd.series && rd.series[key];
+  return !!(g && typeof g === 'object' &&
+    Object.values(g).some(pts => Array.isArray(pts) && pts.length > 1));
+}
+
+/**
+ * 圖表清單。除了逐一畫出各 series，另外組合兩張「跨來源對照圖」：
+ *  - 價格 × 成交量：量價是否同步
+ *  - 價格 × 恐懼貪婪：情緒與價格是否脫鉤（背離訊號的視覺化）
+ * 組合圖只是把既有 series 放到同一張圖，不做任何運算。
+ */
+function chartPlan(rd) {
+  const plan = [];
+  const used = new Set();
+
+  if (hasSeries(rd, 'price') && hasSeries(rd, 'volume')) {
+    plan.push({ id: 'combo-pv', title: '價格與成交量', sub: '量價是否同步：價格變動有無成交量支撐',
+      layers: [{ key: 'price', type: 'line', axis: 'y' }, { key: 'volume', type: 'bar', axis: 'y1' }] });
+    used.add('price'); used.add('volume');
+  }
+  if (hasSeries(rd, 'price') && hasSeries(rd, 'fear_greed')) {
+    plan.push({ id: 'combo-ps', title: '價格與市場情緒', sub: '情緒與價格是否脫鉤：兩線走向相反即為背離',
+      layers: [{ key: 'price', type: 'line', axis: 'y' }, { key: 'fear_greed', type: 'line', axis: 'y1' }] });
+    used.add('fear_greed');
+  }
+
+  const known = Object.keys(SERIES_META);
+  Object.keys(rd.series || {})
+    .filter(k => hasSeries(rd, k) && !used.has(k))
+    .sort((a, b) => {
+      const ia = known.indexOf(a), ib = known.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    })
+    .forEach(k => {
+      const meta = SERIES_META[k] || { title: k };
+      plan.push({ id: `s-${k}`, title: meta.title, sub: '',
+        layers: [{ key: k, type: meta.type === 'bar' ? 'bar' : 'line', axis: 'y' }] });
+    });
+
+  return plan;
+}
+
 function secCharts(rd) {
   if (!rd || !rd.series || typeof rd.series !== 'object') return '';
-  const keys = Object.keys(rd.series).filter(k => {
-    const s = rd.series[k];
-    return s && typeof s === 'object' &&
-      Object.values(s).some(pts => Array.isArray(pts) && pts.length > 1);
-  });
-  if (!keys.length) return '';
+  const plan = chartPlan(rd);
+  if (!plan.length) return '';
 
-  // 價格優先，其餘依 SERIES_META 已知順序，未知的排最後
-  const known = Object.keys(SERIES_META);
-  keys.sort((a, b) => {
-    const ia = known.indexOf(a), ib = known.indexOf(b);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
-
-  const cards = keys.map((k, i) => {
-    const meta = SERIES_META[k] || { title: k, unit: '' };
-    const syms = Object.keys(rd.series[k]);
-    const n = Math.max(...syms.map(s => (rd.series[k][s] || []).length));
+  const cards = plan.map((p, i) => {
+    const labels = p.layers.map(l => (SERIES_META[l.key] || { title: l.key }).title);
+    const n = Math.max(...p.layers.map(l =>
+      Math.max(...Object.values(rd.series[l.key]).map(pts => (pts || []).length))));
     return `<div class="chart-card">
-      <h3>${esc(meta.title)}</h3>
-      <p class="cmeta">${esc(syms.join(' · '))}${meta.unit ? ` — ${esc(meta.unit)}` : ''}　近 ${n} 個資料點</p>
-      <div class="chart-box"><canvas id="chart-${i}" data-key="${esc(k)}"></canvas></div>
+      <h3>${esc(p.title)}</h3>
+      <p class="cmeta">${esc(labels.join(' × '))}　近 ${n} 個資料點</p>
+      ${p.sub ? `<p style="font-size:12px;color:var(--muted);margin:-.35rem 0 .6rem;line-height:1.5">${esc(p.sub)}</p>` : ''}
+      <div class="chart-box"><canvas id="chart-${i}" data-plan="${i}"></canvas></div>
     </div>`;
   }).join('');
 
   return `<section id="sec-charts">
-    ${head('資料視覺化', '所有數值由後端工具決定性計算，前端僅負責呈現', `${keys.length} 張`)}
+    ${head('資料視覺化', '所有數值由後端工具決定性計算，前端僅負責呈現', `${plan.length} 張`)}
     <div class="charts">${cards}</div>
   </section>`;
 }
+
+const PALETTE = ['#f37021', '#60a5fa', '#22c55e', '#a78bfa'];
 
 function drawCharts(rd) {
   charts.forEach(c => { try { c.destroy(); } catch (e) { /* 已釋放 */ } });
@@ -1127,87 +1423,110 @@ function drawCharts(rd) {
   if (!rd || !rd.series) return;
   if (typeof Chart === 'undefined') return;
 
-  const palette = ['#f37021', '#60a5fa', '#22c55e', '#f59e0b'];
+  const plan = chartPlan(rd);
+  const reduced = typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   document.querySelectorAll('#sec-charts canvas').forEach(cv => {
-    const key = cv.dataset.key;
-    const group = rd.series[key];
-    if (!group) return;
-    const meta = SERIES_META[key] || { fmt: 'auto' };
+    const spec = plan[+cv.dataset.plan];
+    if (!spec) return;
 
-    // 以各 symbol 的日期聯集為 X 軸，缺值以 null 斷線（不內插、不臆測）
+    // X 軸取所有層、所有 symbol 的日期聯集；缺值留 null 讓線斷開（不內插）
     const labelSet = new Set();
-    Object.values(group).forEach(pts => {
-      (Array.isArray(pts) ? pts : []).forEach(p => labelSet.add(String(p[0])));
+    spec.layers.forEach(l => {
+      Object.values(rd.series[l.key] || {}).forEach(pts => {
+        (Array.isArray(pts) ? pts : []).forEach(p => labelSet.add(String(p[0])));
+      });
     });
     const labels = [...labelSet].sort();
     if (labels.length < 2) return;
 
-    const datasets = Object.entries(group).map(([sym, pts], i) => {
-      const map = new Map((Array.isArray(pts) ? pts : []).map(p => [String(p[0]), num(p[1])]));
-      const color = palette[i % palette.length];
-      return {
-        label: sym,
-        data: labels.map(d => (map.has(d) ? map.get(d) : null)),
-        borderColor: color,
-        backgroundColor: meta.type === 'bar' ? color + '99' : color + '1f',
-        borderWidth: 1.8,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        tension: .28,
-        fill: meta.type !== 'bar' && Object.keys(group).length === 1,
-        spanGaps: false,
-        yAxisID: i === 1 && needsSecondAxis(group) ? 'y1' : 'y'
-      };
+    const datasets = [];
+    const axisFmt = {};
+    let colorIdx = 0;
+
+    spec.layers.forEach(layer => {
+      const group = rd.series[layer.key] || {};
+      const meta = SERIES_META[layer.key] || { title: layer.key, fmt: 'auto' };
+      const symbolKeys = Object.keys(group);
+      // 同一 series 內若兩個幣種數量級差太多，第二個移到右軸
+      const splitAxis = layer.axis === 'y' && spec.layers.length === 1 && needsSecondAxis(group);
+
+      symbolKeys.forEach((sym, si) => {
+        const map = new Map((group[sym] || []).map(p => [String(p[0]), num(p[1])]));
+        const color = PALETTE[colorIdx++ % PALETTE.length];
+        const axis = splitAxis && si === 1 ? 'y1' : layer.axis;
+        axisFmt[axis] = meta.fmt;
+        const isBar = layer.type === 'bar';
+        datasets.push({
+          type: isBar ? 'bar' : 'line',
+          label: spec.layers.length > 1
+            ? `${meta.title}${symbolKeys.length > 1 || sym !== 'MARKET' ? ` (${sym})` : ''}`
+            : sym,
+          data: labels.map(d => (map.has(d) ? map.get(d) : null)),
+          borderColor: color,
+          backgroundColor: isBar ? color + '80' : color + '1f',
+          borderWidth: isBar ? 0 : 1.9,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: .28,
+          fill: !isBar && spec.layers.length === 1 && symbolKeys.length === 1,
+          spanGaps: false,
+          yAxisID: axis,
+          order: isBar ? 2 : 1
+        });
+      });
+    });
+
+    if (!datasets.length) return;
+
+    const mkTicks = axis => ({
+      color: '#71717a',
+      font: { size: 10, family: "'IBM Plex Mono', monospace" },
+      maxTicksLimit: 6,
+      callback: v => fmt(v, axisFmt[axis] || 'auto')
     });
 
     const scales = {
       x: {
-        grid: { color: 'rgba(38,38,44,.55)' },
-        ticks: { color: '#71717a', font: { size: 10, family: "'IBM Plex Mono', monospace" }, maxTicksLimit: 7 }
-      },
-      y: {
-        position: 'left',
-        grid: { color: 'rgba(38,38,44,.55)' },
+        grid: { color: 'rgba(38,38,44,.5)' },
         ticks: {
-          color: '#71717a', font: { size: 10, family: "'IBM Plex Mono', monospace" }, maxTicksLimit: 6,
-          callback: v => fmt(v, meta.fmt)
+          color: '#71717a', font: { size: 10, family: "'IBM Plex Mono', monospace" },
+          maxTicksLimit: 7, maxRotation: 0, autoSkip: true
         }
-      }
+      },
+      y: { position: 'left', grid: { color: 'rgba(38,38,44,.5)' }, ticks: mkTicks('y') }
     };
     if (datasets.some(d => d.yAxisID === 'y1')) {
       scales.y1 = {
         position: 'right',
         grid: { drawOnChartArea: false },
-        ticks: {
-          color: '#71717a', font: { size: 10, family: "'IBM Plex Mono', monospace" }, maxTicksLimit: 6,
-          callback: v => fmt(v, meta.fmt)
-        }
+        ticks: mkTicks('y1')
       };
     }
 
     try {
       charts.push(new Chart(cv, {
-        type: meta.type === 'bar' ? 'bar' : 'line',
         data: { labels, datasets },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: { duration: 500 },
+          animation: reduced ? false : { duration: 520 },
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: {
               display: datasets.length > 1,
-              labels: { color: '#a1a1aa', font: { size: 11 }, boxWidth: 10, boxHeight: 10, usePointStyle: true }
+              labels: {
+                color: '#a1a1aa', font: { size: 11 },
+                boxWidth: 10, boxHeight: 10, usePointStyle: true
+              }
             },
             tooltip: {
-              backgroundColor: '#17171c',
-              borderColor: '#26262c',
-              borderWidth: 1,
-              titleColor: '#f4f4f5',
-              bodyColor: '#a1a1aa',
-              padding: 9,
-              callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y, meta.fmt)}` }
+              backgroundColor: '#17171c', borderColor: '#26262c', borderWidth: 1,
+              titleColor: '#f4f4f5', bodyColor: '#a1a1aa', padding: 9,
+              callbacks: {
+                label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y, axisFmt[c.dataset.yAxisID] || 'auto')}`
+              }
             }
           },
           scales
