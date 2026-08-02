@@ -47,7 +47,10 @@ check(count('id="mascot-img"') === 1 && count('id="mascot-fallback"') === 1,
 check(html.includes("assets/logo.svg"), '會嘗試載入 assets/logo.svg');
 check(html.includes("assets/mascot"), '會嘗試載入 assets/mascot');
 check(html.includes('<b>H</b>OYA BIT'), 'logo 字標為 HOYA BIT，H 以品牌色強調');
-check(html.includes('#f26722'), 'logo 使用品牌橘 #f26722');
+check(html.includes('#f96a2b'), 'logo 使用品牌橘 #f96a2b');
+check(/\.logo-mark[^{]*\{[^}]*\}/.test(html) && html.includes('viewBox="0 0 100 100"'),
+  'logo 標誌為方形版面');
+check(html.includes('fill="#0a0a0a"'), 'logo 為橘色置於黑底');
 check(html.includes('aria-label="HOYA BIT 標誌"'), 'logo 有無障礙標籤');
 check(count('class="hero"') === 1, 'hero 版面存在');
 check(/\.hero\{[^}]*grid-template-columns/.test(html), 'hero 使用兩欄格線');
