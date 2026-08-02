@@ -451,8 +451,12 @@ console.log('\n[18] 金寶載入畫面');
   assert(/aria-label="吉祥物金寶正在奔跑蒐集資料"/.test(html), '吉祥物提供無障礙描述');
   assert(html.includes('金寶'), '標示吉祥物名稱');
   assert(/@keyframes hop/.test(html) && /@keyframes stride/.test(html), '含彈跳與跨步動畫');
-  assert(html.includes('#ff8c3d') || html.includes('#ff9a4f'), '使用橘色毛色');
-  assert(html.includes('#1b1b1f'), '使用黑色條紋');
+  // 金寶為金色機甲貓：金色裝甲、綠色眼睛、粉色愛心
+  assert(html.includes('#e0ac45') || html.includes('#f7d27a'), '使用金色裝甲');
+  assert(html.includes('#3fd9a2') || html.includes('#8affd2'), '使用綠色眼睛');
+  assert(html.includes('#ef7f8d'), '使用粉色（愛心與內耳）');
+  assert(html.includes('id="heartG"'), '胸前有愛心核心');
+  assert(html.includes('id="eyeG"'), '眼睛使用漸層');
   // 四足動物應有四條腿
   const legs = ['near-front', 'near-back', 'far-front', 'far-back'];
   legs.forEach(l => assert(html.includes(`leg ${l}`), `具備 ${l} 腿`));
