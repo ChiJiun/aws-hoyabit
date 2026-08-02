@@ -65,9 +65,8 @@ section{margin-bottom:1.75rem;scroll-margin-top:100px}
 /* 品牌列 */
 .brandbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.15rem 2.25rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .logo{display:flex;align-items:center;gap:.7rem}
-.logo-mark{width:38px;height:38px;flex-shrink:0;object-fit:contain}
-/* 官方標誌通常是橫式，換入後放寬讓它不被壓縮 */
-img.logo-mark{width:auto;max-width:190px;height:34px}
+/* 官方標誌為方形黑底磚，加圓角讓它在深色列上讀起來是刻意的 */
+.logo-mark{width:36px;height:36px;flex-shrink:0;object-fit:contain;border-radius:8px}
 .logo-text{display:flex;flex-direction:column;line-height:1.15}
 /* 字標：H 為品牌橘，其餘為淺色（深色底上以白代替原本的深灰） */
 .logo-text .lt-main{font-size:20px;font-weight:700;letter-spacing:.02em;color:#fff}
@@ -149,11 +148,8 @@ textarea:focus{outline:none;border-color:var(--accent)}
 @keyframes stride{from{transform:rotate(-26deg)}to{transform:rotate(26deg)}}
 .tail{transform-origin:left center;animation:wag .5s ease-in-out infinite alternate}
 @keyframes wag{from{transform:rotate(-9deg)}to{transform:rotate(13deg)}}
-/* 揮手：以肩為軸小幅擺動 */
-.wave{transform-origin:84px 66px;animation:waving .46s ease-in-out infinite alternate}
-@keyframes waving{from{transform:rotate(-11deg)}to{transform:rotate(9deg)}}
 /* 頭部隨步伐輕微起伏，避免整體看起來僵硬 */
-.head{transform-origin:105px 47px;animation:bob .62s ease-in-out infinite}
+.head{transform-origin:105px 43px;animation:bob .62s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
 /* 影子隨彈跳縮放 */
 .shadow{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:96px;height:11px;background:radial-gradient(ellipse,rgba(0,0,0,.6) 0%,transparent 72%);animation:shrink .62s ease-in-out infinite}
@@ -528,17 +524,7 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
   <!-- 品牌列 -->
   <div class="brandbar">
     <div class="logo">
-      <!-- 若 assets/logo.svg（或 .png）存在，會由 JS 換成官方素材 -->
-      <img class="logo-mark" id="logo-img" alt="HOYA BIT" hidden>
-      <svg class="logo-mark" id="logo-fallback" viewBox="0 0 100 100" role="img" aria-label="HOYA BIT 標誌">
-        <rect width="100" height="100" fill="#0a0a0a"/>
-        <!-- 上方刀鋒：頂邊平直、左肩圓角，向左下收成尖端 -->
-        <path d="M60 15 L34 15 C26 15 21 19 18 27 L18 73 L41 34 L60 34 Z" fill="#f96a2b"/>
-        <!-- 中央弧形：構成 h 的碗狀 -->
-        <path d="M27 45 L49 45 C62 45 68 57 60 68 L44 92 L27 92 Z" fill="#f96a2b"/>
-        <!-- 下方刀鋒：與上方呼應，向左下延伸 -->
-        <path d="M92 40 L70 40 C62 40 57 44 54 52 L38 92 L63 92 L80 52 Z" fill="#f96a2b"/>
-      </svg>
+      <img class="logo-mark" src="assets/logo.png" alt="HOYA BIT" width="36" height="36">
       <span class="logo-text">
         <span class="lt-main"><b>H</b>OYA BIT</span>
         <span class="lt-sub">MARKET INTELLIGENCE</span>
@@ -637,125 +623,84 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
       <!-- 金寶：HOYA BIT 吉祥物。若 assets/mascot.(svg|png|gif) 存在會改用官方素材 -->
       <img id="mascot-img" alt="吉祥物金寶" hidden>
       <!-- 內建替代圖形（橘黑條紋老虎） -->
-      <svg id="mascot-fallback" viewBox="0 0 148 132" role="img" aria-label="吉祥物金寶正在奔跑蒐集資料">
+      <svg id="mascot-fallback" viewBox="0 0 132 120" role="img" aria-label="吉祥物金寶正在奔跑蒐集資料">
         <defs>
-          <linearGradient id="gold" x1="0" y1="0" x2="0.35" y2="1">
-            <stop offset="0%" stop-color="#ffe9a8"/>
-            <stop offset="35%" stop-color="#f5c242"/>
-            <stop offset="100%" stop-color="#c98c1c"/>
+          <linearGradient id="furG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff8c3d"/>
+            <stop offset="100%" stop-color="#e2611a"/>
           </linearGradient>
-          <linearGradient id="goldDk" x1="0" y1="0" x2="0.35" y2="1">
-            <stop offset="0%" stop-color="#d3a02c"/>
-            <stop offset="100%" stop-color="#9c6c14"/>
+          <linearGradient id="headG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff9a4f"/>
+            <stop offset="100%" stop-color="#ef6f22"/>
           </linearGradient>
-          <linearGradient id="coral" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#ff8a63"/>
-            <stop offset="100%" stop-color="#ea5f3c"/>
-          </linearGradient>
-          <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#fffaf0"/>
-            <stop offset="100%" stop-color="#f6e6c9"/>
-          </linearGradient>
-          <radialGradient id="iris" cx="0.4" cy="0.35" r="0.8">
-            <stop offset="0%" stop-color="#4ee39b"/>
-            <stop offset="60%" stop-color="#12b06e"/>
-            <stop offset="100%" stop-color="#046b45"/>
-          </radialGradient>
         </defs>
 
-        <!-- 乳白蓬鬆尾巴 -->
+        <!-- 尾巴 -->
         <g class="tail">
-          <path d="M34 72 C14 70 6 54 16 40 C20 34 28 34 30 40 C32 47 26 52 22 50"
-                fill="none" stroke="url(#cream)" stroke-width="11" stroke-linecap="round"/>
+          <path d="M26 62 C6 58 2 40 12 30" fill="none" stroke="url(#furG)" stroke-width="9" stroke-linecap="round"/>
+          <path d="M15 45 L7 41" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+          <path d="M19 54 L10 52" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
         </g>
 
-        <!-- 遠側前後肢（暗金，製造景深） -->
+        <!-- 四肢：遠側兩腿先畫（顏色略暗製造景深），近側兩腿畫在身體之後 -->
         <g class="leg far-back">
-          <path d="M50 84 L43 104" stroke="url(#goldDk)" stroke-width="9" stroke-linecap="round"/>
-          <ellipse cx="41" cy="108" rx="8" ry="5" fill="#9c6c14"/>
+          <path d="M44 72 L37 94" stroke="#c4551a" stroke-width="9" stroke-linecap="round"/>
+          <ellipse cx="36" cy="96" rx="7" ry="4.5" fill="#141417"/>
         </g>
         <g class="leg far-front">
-          <path d="M76 84 L84 103" stroke="url(#goldDk)" stroke-width="9" stroke-linecap="round"/>
-          <ellipse cx="86" cy="107" rx="8" ry="5" fill="#9c6c14"/>
+          <path d="M74 72 L82 93" stroke="#c4551a" stroke-width="9" stroke-linecap="round"/>
+          <ellipse cx="83" cy="95" rx="7" ry="4.5" fill="#141417"/>
         </g>
 
-        <!-- 軀幹：金色裝甲 + 珊瑚橘板件 -->
-        <ellipse cx="63" cy="74" rx="26" ry="18" fill="url(#gold)"/>
-        <path d="M50 62 C56 58 72 58 78 63 C74 68 54 68 50 62 Z" fill="url(#coral)"/>
-        <ellipse cx="63" cy="80" rx="17" ry="9" fill="url(#coral)"/>
-        <!-- 胸前圓形核心 -->
-        <circle cx="63" cy="70" r="7.5" fill="url(#goldDk)"/>
-        <circle cx="63" cy="70" r="5" fill="url(#coral)"/>
-        <circle cx="61.4" cy="68.4" r="1.6" fill="#fff" opacity=".75"/>
-        <!-- 裝甲分割線 -->
-        <path d="M45 68 Q46 76 49 83" stroke="#a8761a" stroke-width="1.4" fill="none" opacity=".6"/>
-        <path d="M81 68 Q82 76 79 83" stroke="#a8761a" stroke-width="1.4" fill="none" opacity=".6"/>
+        <!-- 身體 -->
+        <ellipse cx="58" cy="62" rx="34" ry="22" fill="url(#furG)"/>
+        <!-- 身體條紋 -->
+        <path d="M45 44 C43 52 43 60 46 68" stroke="#1b1b1f" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M59 42 C57 52 57 62 60 72" stroke="#1b1b1f" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M72 45 C71 53 71 61 73 69" stroke="#1b1b1f" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <!-- 肚子 -->
+        <ellipse cx="60" cy="72" rx="22" ry="10" fill="#ffd9b8" opacity=".92"/>
 
-        <!-- 近側前後肢：金色分節 + 珊瑚橘關節 + 厚實金靴 -->
+        <!-- 近側兩腿 -->
         <g class="leg near-back">
-          <path d="M47 84 L38 106" stroke="url(#gold)" stroke-width="11" stroke-linecap="round"/>
-          <circle cx="43" cy="95" r="4" fill="url(#coral)"/>
-          <ellipse cx="36" cy="111" rx="10" ry="6" fill="url(#gold)"/>
-          <ellipse cx="36" cy="113" rx="10" ry="3" fill="url(#goldDk)"/>
+          <path d="M40 74 L31 97" stroke="url(#furG)" stroke-width="11" stroke-linecap="round"/>
+          <ellipse cx="30" cy="100" rx="8" ry="5" fill="#1b1b1f"/>
         </g>
         <g class="leg near-front">
-          <path d="M79 84 L90 105" stroke="url(#gold)" stroke-width="11" stroke-linecap="round"/>
-          <circle cx="85" cy="95" r="4" fill="url(#coral)"/>
-          <ellipse cx="92" cy="110" rx="10" ry="6" fill="url(#gold)"/>
-          <ellipse cx="92" cy="112" rx="10" ry="3" fill="url(#goldDk)"/>
+          <path d="M78 74 L89 96" stroke="url(#furG)" stroke-width="11" stroke-linecap="round"/>
+          <ellipse cx="90" cy="99" rx="8" ry="5" fill="#1b1b1f"/>
         </g>
 
-        <!-- 揮手的手臂：乳白掌墊 + 粉色趾墊 -->
-        <g class="wave">
-          <path d="M84 66 L100 52" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
-          <circle cx="103" cy="49" r="7" fill="url(#cream)"/>
-          <circle cx="100.5" cy="45" r="2.2" fill="#ff9e8a"/>
-          <circle cx="105.5" cy="44.6" r="2.2" fill="#ff9e8a"/>
-          <circle cx="103" cy="51.5" r="2.8" fill="#ff9e8a" opacity=".85"/>
-        </g>
-
-        <!-- 頭部 -->
-        <g class="head">
-          <!-- 貓耳：金色外殼 + 深色內耳 -->
-          <path d="M84 30 L86 9 L101 22 Z" fill="url(#gold)"/>
-          <path d="M88 25 L89 15 L96 22 Z" fill="#2a2118"/>
-          <path d="M126 32 L128 12 L112 23 Z" fill="url(#gold)"/>
-          <path d="M121 28 L122 19 L115 24 Z" fill="#2a2118"/>
-          <!-- 左側尖刺鬃毛 -->
-          <path d="M82 36 L70 32 L82 42 Z" fill="url(#goldDk)"/>
-          <path d="M82 44 L69 44 L82 50 Z" fill="url(#goldDk)"/>
-
-          <!-- 金色頭盔 -->
-          <path d="M105 20 C121 20 130 30 130 43 C130 50 127 55 123 57
-                   L87 57 C83 55 80 50 80 43 C80 30 89 20 105 20 Z"
-                fill="url(#gold)"/>
-          <!-- 額前深色帶 -->
-          <path d="M86 32 C92 24 118 24 124 32 C119 36 91 36 86 32 Z" fill="#2a2118"/>
-          <!-- 珊瑚橘水滴寶石 -->
-          <path d="M105 22 C110 27 111 33 105 36 C99 33 100 27 105 22 Z" fill="url(#coral)"/>
-          <ellipse cx="103.6" cy="27.5" rx="1.4" ry="2.2" fill="#fff" opacity=".6"/>
-
-          <!-- 乳白臉部面板 -->
-          <ellipse cx="105" cy="47" rx="21" ry="17" fill="url(#cream)"/>
-
-          <!-- 大眼睛：綠色虹膜環 + 大黑瞳 -->
-          <ellipse cx="95" cy="45" rx="8.4" ry="9.4" fill="#0d1a14"/>
-          <ellipse cx="95" cy="45" rx="7.4" ry="8.4" fill="url(#iris)"/>
-          <ellipse cx="95" cy="45.6" rx="4.8" ry="5.8" fill="#0f0f10"/>
-          <ellipse cx="92.6" cy="41.6" rx="2.2" ry="2.7" fill="#fff" opacity=".92"/>
-          <circle cx="97.4" cy="48.4" r="1.1" fill="#fff" opacity=".5"/>
-
-          <ellipse cx="117" cy="45" rx="8.4" ry="9.4" fill="#0d1a14"/>
-          <ellipse cx="117" cy="45" rx="7.4" ry="8.4" fill="url(#iris)"/>
-          <ellipse cx="117" cy="45.6" rx="4.8" ry="5.8" fill="#0f0f10"/>
-          <ellipse cx="114.6" cy="41.6" rx="2.2" ry="2.7" fill="#fff" opacity=".92"/>
-          <circle cx="119.4" cy="48.4" r="1.1" fill="#fff" opacity=".5"/>
-
-          <!-- 粉色小鼻子 -->
-          <path d="M103.2 56 L108.8 56 L106 58.8 Z" fill="#ff9e8a"/>
-          <!-- 張嘴笑 -->
-          <path d="M100 60 C102.6 65.4 109.4 65.4 112 60 Z" fill="#c8384a"/>
-          <path d="M103 63.6 C104.6 65 107.4 65 109 63.6 Z" fill="#ff8a99"/>
+        <!-- 頭 -->
+        <g>
+          <!-- 耳朵 -->
+          <circle cx="93" cy="26" r="9" fill="url(#headG)"/>
+          <circle cx="93" cy="26" r="4.5" fill="#1b1b1f"/>
+          <circle cx="118" cy="30" r="8" fill="url(#headG)"/>
+          <circle cx="118" cy="30" r="4" fill="#1b1b1f"/>
+          <!-- 臉 -->
+          <ellipse cx="105" cy="43" rx="21" ry="18" fill="url(#headG)"/>
+          <!-- 額頭條紋 -->
+          <path d="M100 27 L98 34" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+          <path d="M108 26 L108 33" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+          <path d="M116 29 L118 36" stroke="#1b1b1f" stroke-width="4" stroke-linecap="round"/>
+          <!-- 口鼻 -->
+          <ellipse cx="106" cy="49" rx="13" ry="10" fill="#ffe6cd"/>
+          <!-- 眼睛 -->
+          <ellipse cx="98" cy="40" rx="3.4" ry="4" fill="#1b1b1f"/>
+          <ellipse cx="113" cy="40" rx="3.4" ry="4" fill="#1b1b1f"/>
+          <circle cx="99.2" cy="38.6" r="1.2" fill="#fff"/>
+          <circle cx="114.2" cy="38.6" r="1.2" fill="#fff"/>
+          <!-- 鼻子與嘴 -->
+          <path d="M103 46.5 L109 46.5 L106 49.8 Z" fill="#1b1b1f"/>
+          <path d="M106 50 L106 52.5" stroke="#1b1b1f" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M106 52.5 C103.4 55 101 54 100 52.4" stroke="#1b1b1f" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          <path d="M106 52.5 C108.6 55 111 54 112 52.4" stroke="#1b1b1f" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          <!-- 鬍鬚 -->
+          <path d="M95 48 L86 46" stroke="#1b1b1f" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
+          <path d="M95 51 L86 52" stroke="#1b1b1f" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
+          <path d="M117 48 L126 46" stroke="#1b1b1f" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
+          <path d="M117 51 L126 52" stroke="#1b1b1f" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>
         </g>
       </svg>
     </div>
