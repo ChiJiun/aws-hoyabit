@@ -1,11 +1,6 @@
-"""
-evidence.py — 四欄位證據記錄
+"""Evidence 記錄、品質資訊與原始資料封存索引。"""
 
-命題明文要求每筆證據需可回溯，且主辦方會抽查。這裡的設計原則是
-「不讓 LLM 負責記錄」：source、fetched_at、content_reference 由程式自動產生，
-LLM 唯一要提供的是 related_claim，並且列為工具的必填參數。
-"""
-
+import hashlib
 import uuid
 from datetime import datetime, timezone
 
@@ -16,74 +11,93 @@ evidence_list = []
 execution_log = []
 
 
-def reset_stores():
-    """清空證據清單與執行紀錄，在每次新的執行開始時呼叫。
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    需要這個是因為 Lambda 容器可能被重複使用，殘留上一次的資料會污染結果。
-    使用 .clear() 而非重新賦值，確保所有已持有參照的地方都能看到清空效果。
-    """
-    global evidence_list, execution_log
+
+def reset_stores():
+    """清空上一次 Lambda 容器可能殘留的證據與執行紀錄。"""
     evidence_list.clear()
     execution_log.clear()
 
 
 def log_evidence(run_id, tool_name, related_claim, fetch_result):
-    # 功能：把一次工具呼叫的結果轉成一筆標準證據記錄，存進 evidence_list。
-    # 檢查：related_claim 若為空或過短，直接回傳錯誤，不寫入
-    #      （這是強制 LLM 說明取數目的的關卡）。
-    # 自動產生的欄位：
-    #   evidence_id       —— 唯一識別碼
-    #   source            —— 從 fetch_result 取實際呼叫的 API 網址
-    #   fetched_at        —— 目前 UTC 時間（ISO 8601）
-    #   content_reference —— 從 fetch_result 取引用片段／查詢參數／指標數值
-    # 由 LLM 提供的欄位：
-    #   related_claim     —— 這筆資料要支持或檢驗哪個判斷
-    # 同時呼叫 storage.save_raw_payload() 把原始回應封存到 S3。
-    # 回傳：evidence_id 字串
+    """把成功工具結果轉成可回溯 Evidence 並封存完整 envelope。
 
-    # 驗證 related_claim：空值、None、或去空白後長度 < 5 一律拒絕
-    if not related_claim or len(related_claim.strip()) < 5:
+    命題必要欄位 `source`、`fetched_at`、`content_reference`、
+    `related_claim` 永遠保留；額外欄位提供工具、品質、異常、封存位置與
+    SHA-256，供抽查和完整性驗證。
+    """
+    if not related_claim or len(str(related_claim).strip()) < 5:
         return {"error": "related_claim is empty or too short"}
+    if not isinstance(fetch_result, dict):
+        return {"error": "fetch_result must be a dict"}
+    if fetch_result.get("error") or fetch_result.get("status") == "error":
+        return {"error": "failed tool result cannot be recorded as evidence"}
 
-    # 自動產生欄位
-    evidence_id = str(uuid.uuid4())
+    evidence_id = f"ev_{uuid.uuid4()}"
+    fetched_at = _utc_now()
     source = fetch_result.get("source", "unknown")
-    fetched_at = datetime.now(timezone.utc).isoformat()
-    content_reference = fetch_result.get("content_reference", {})
+    content_reference = dict(fetch_result.get("content_reference") or {})
+    anomaly_flags = list(fetch_result.get("anomaly_flags") or [])
+    data_quality = dict(content_reference.get("quality") or {})
 
-    # 組建證據記錄
+    envelope = {
+        "schema_version": fetch_result.get("schema_version", "1.0"),
+        "evidence_id": evidence_id,
+        "run_id": run_id,
+        "tool_name": tool_name,
+        "source": source,
+        "fetched_at": fetched_at,
+        "related_claim": str(related_claim),
+        "content_reference": content_reference,
+        "anomaly_flags": anomaly_flags,
+        "raw": fetch_result.get("raw", {}),
+    }
+    serialized = storage.serialize_json_payload(envelope).encode("utf-8")
+    raw_payload_sha256 = hashlib.sha256(serialized).hexdigest()
+
+    raw_payload_path = None
+    archive_status = "success"
+    archive_error = None
+    try:
+        raw_payload_path = storage.save_raw_payload(run_id, evidence_id, envelope)
+    except Exception as exc:  # Evidence 本身仍保留，但清楚標示封存失敗。
+        archive_status = "failed"
+        archive_error = f"{type(exc).__name__}: {exc}"
+        log_execution_step(
+            "save_raw_payload",
+            "error",
+            0,
+            evidence_id=evidence_id,
+            note=archive_error,
+        )
+
+    source_url = source if isinstance(source, str) and source.startswith(("http://", "https://")) else None
     record = {
         "evidence_id": evidence_id,
         "source": source,
         "fetched_at": fetched_at,
         "content_reference": content_reference,
-        "related_claim": related_claim,
+        "related_claim": str(related_claim),
+        "schema_version": fetch_result.get("schema_version", "1.0"),
+        "tool_name": tool_name,
+        "source_url": source_url,
+        "data_quality": data_quality,
+        "anomaly_flags": anomaly_flags,
+        "raw_payload_path": raw_payload_path,
+        "raw_payload_sha256": raw_payload_sha256,
+        "archive_status": archive_status,
+        "archive_error": archive_error,
     }
-
-    # 封存原始回應到 S3
-    storage.save_raw_payload(run_id, evidence_id, fetch_result.get("raw", {}))
-
-    # 新增至全域證據清單
     evidence_list.append(record)
-
     return evidence_id
 
 
 def log_execution_step(tool_name, status, elapsed_ms, evidence_id=None, note=None):
-    """記錄一筆執行紀錄，存進 execution_log。
-
-    無論工具呼叫成功或失敗都會記錄。一份看得到「嘗試過、失敗了、記錄了缺口」
-    的日誌，比只有成功紀錄的日誌更可信。
-
-    Args:
-        tool_name: 呼叫的工具名稱（如 "get_price_ohlcv"）
-        status: 執行狀態（如 "success" 或 "error"）
-        elapsed_ms: 執行耗時（毫秒）
-        evidence_id: 對應的證據 ID（失敗時可為 None）
-        note: 備註說明（可為 None）
-    """
+    """記錄成功、失敗、降級或限制，供 Execution Log 與報告限制使用。"""
     record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": _utc_now(),
         "tool_name": tool_name,
         "status": status,
         "elapsed_ms": elapsed_ms,

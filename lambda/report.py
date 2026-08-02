@@ -3,11 +3,15 @@ report.py — 報告渲染
 
 以純本地、決定性的方式整理實際引用證據、分析維度與失敗嘗試。
 報告不使用固定類別分母、覆蓋率或維度分數。
+C7 report_data 由 report_schema.build_report_data() 產生。
 """
 
 import json
 import re
 from urllib.parse import urlparse
+
+from report_schema import build_report_data as _c7_build_report_data
+from report_schema import validate_report_data as _c7_validate
 
 
 ANALYSIS_DIMENSIONS = (
@@ -617,6 +621,10 @@ def _verification_links(record):
 def _format_verification_links(record, limit=3):
     links = _verification_links(record)[:limit]
     if not links:
+        source = str(record.get("source", "")).strip()
+        # Provider 名稱等非 URL 標籤可直接呈現；技術 endpoint 仍只留在 evidence JSON。
+        if source and not source.lower().startswith(("http://", "https://")):
+            return source
         return "技術來源詳見 evidence_list.json"
     formatted = []
     for label, url in links:
@@ -675,3 +683,42 @@ def _escape_pipe(value):
     # 功能：跳脫 Markdown 表格中的管線字元。
     # 回傳：跳脫後字串。
     return value.replace("|", "\\|")
+
+
+# ─── C7 Integration ──────────────────────────────────────────────────────────
+
+def generate_report_data(question_type, symbols, analysis_text, evidence_list,
+                         execution_log=None, series=None):
+    """Generate C7 report_data.json content.
+
+    Fails gracefully: returns None and logs error to execution_log.
+    Does NOT block the original three deliverables (report.md, evidence, log).
+
+    Args:
+        question_type: "single_integration" | "hypothesis" | "comparison"
+        symbols: e.g. ["BTC"] or ["BTC", "ETH"]
+        analysis_text: Agent's analysis output
+        evidence_list: C2 evidence records
+        execution_log: Mutable list for error logging
+        series: Dict of time-series for chart rendering
+
+    Returns:
+        dict (valid C7) or None on failure.
+    """
+    try:
+        return _c7_build_report_data(
+            question_type=question_type,
+            symbols=symbols,
+            analysis_text=analysis_text,
+            evidence_list=evidence_list,
+            execution_log=execution_log,
+            series=series,
+        )
+    except Exception as exc:
+        if isinstance(execution_log, list):
+            execution_log.append({
+                "tool_name": "generate_report_data",
+                "status": "error",
+                "note": f"C7 generation failed: {exc}",
+            })
+        return None

@@ -197,7 +197,9 @@ class TestComputeQuantErrorHandling:
             result = compute_quant("BTC", ["atr_pct"], 14, "test claim")
 
         assert "content_reference" in result
-        assert result["content_reference"] == {}
+        assert result["status"] == "error"
+        assert result["content_reference"]["freshness_status"] == "unknown"
+        assert result["content_reference"]["provider"] == "Local deterministic pandas"
 
 
 if __name__ == "__main__":

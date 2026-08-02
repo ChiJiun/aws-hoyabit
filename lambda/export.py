@@ -2,6 +2,7 @@
 export.py — 交付物匯出與自我檢查
 
 把執行期間累積的證據與日誌，轉成命題要求的檔案格式。
+C7 report_data 成功時由 export_report_data() 輸出 JSON。
 """
 
 import json
@@ -201,3 +202,24 @@ def validate_before_export(evidence_list, analysis_text, analyzed_evidence_ids=N
     except Exception:
         # 永不讓未處理例外逸出；發生例外時視為未通過
         return (False, ["validate_before_export 執行時發生內部錯誤"])
+
+
+# ─── C7 report_data Export ───────────────────────────────────────────────────
+
+def export_report_data(report_data):
+    """Serialize C7 report_data to JSON string for storage as report_data.json.
+
+    Args:
+        report_data: Validated C7 dict (from report.generate_report_data).
+
+    Returns:
+        JSON string or None if report_data is None/invalid.
+    """
+    try:
+        if report_data is None:
+            return None
+        if not isinstance(report_data, dict):
+            return None
+        return json.dumps(report_data, ensure_ascii=False, indent=2)
+    except Exception:
+        return None

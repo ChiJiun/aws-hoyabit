@@ -775,6 +775,33 @@ def search_news(symbol, lookback_days, related_claim, keywords=None):
         normalized["anomaly_flags"] = detect_news_anomalies(
             normalized.get("raw", {}).get("items", []), bounded_lookback
         )
+
+    # --- Event series for C7 watchlist ---
+    try:
+        _raw = normalized.get("raw") or {}
+        _items = _raw.get("items") or []
+        _now_utc = datetime.now(timezone.utc)
+        _cutoff = _now_utc - timedelta(days=bounded_lookback)
+        _events_list = []
+        for _it in _items:
+            _pub = _parse_published_at(_it.get("published_at"))
+            if _pub is None:
+                continue
+            if _pub < _cutoff:
+                continue
+            _events_list.append({
+                "date": _pub.strftime("%Y-%m-%d"),
+                "event": (_it.get("title") or "")[:80],
+                "source_url": _it.get("url") or "",
+            })
+        _events_list.sort(key=lambda x: x["date"])
+        _events_list = _events_list[:20]
+        if isinstance(_raw, dict):
+            _raw["series"] = {"events": _events_list}
+        normalized["series"] = {"events": _events_list}
+    except Exception:
+        pass  # series extraction is best-effort
+
     return normalized
 
 

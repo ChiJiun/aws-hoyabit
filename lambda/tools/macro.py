@@ -351,11 +351,25 @@ def get_macro(indicators, related_claim, lookback_days=90):
                             f"方向：{'緊縮' if direction == 'tightening' else '寬鬆'}",
                 ))
 
+        # --- Event series for C7 watchlist ---
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        event_series = [
+            {
+                "date": e["date"],
+                "event": e["event_name"],
+                "source_url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+            }
+            for e in upcoming_events
+            if e["date"] >= today_str
+        ]
+        raw_data["series"] = {"events": event_series}
+
         result = {
             "raw": raw_data,
             "source": source_url if series_ids_queried else FRED_BASE_URL,
             "content_reference": content_reference,
             "summary": summary,
+            "series": {"events": event_series},
         }
         if anomaly_flags:
             result["anomaly_flags"] = anomaly_flags

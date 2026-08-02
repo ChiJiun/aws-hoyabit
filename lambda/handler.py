@@ -186,6 +186,42 @@ def build_report_quality_warnings(summary):
     return warnings
 
 
+def _build_report_data_stub(question_type, symbols, series_data):
+    """Build a minimal report_data structure conforming to C7 schema.
+
+    This is a mock/interface stub. The full implementation lives in the
+    Report task axis (report.build_report_data). Here we provide the
+    orchestrator-known fields so the pipeline stays unblocked.
+
+    Returns None if assembly fails (C7 mandates graceful degradation).
+    """
+    try:
+        report_data = {
+            "schema_version": "1.0",
+            "question_type": question_type,
+            "symbols": symbols,
+            "series": series_data if series_data else {},
+            "coverage": {
+                "pct": None,
+                "got": [],
+                "missing": [],
+            },
+        }
+        # Add type-specific fields
+        if question_type == "hypothesis":
+            report_data["hypothesis"] = None  # filled by report axis
+        else:
+            report_data["hypothesis"] = None
+        if question_type == "comparison":
+            report_data["comparison"] = None  # filled by report axis
+        else:
+            report_data["comparison"] = None
+
+        return report_data
+    except Exception:
+        return None
+
+
 def lambda_handler(event, context):
     """AWS Lambda 的進入點，串起整條流程。
 
@@ -217,11 +253,21 @@ def lambda_handler(event, context):
         # 3. 產生本次 run_id
         run_id = generate_run_id()
 
-        # 4. 執行 Agent 主迴圈，蒐集證據
+        # 3b. Reset series registry (request-scoped)
+        agent.reset_series_registry()
+
+        # 4. 執行 Agent 主迴圈，蒐集證據（含 Phase A/B 兩階段）
         messages = agent.run_agent_loop(run_id, symbols, question)
+
+        # 4b. Collect orchestrator outputs
+        question_type = agent._run_context.get("question_type", "single_integration")
+        series_data = agent.collect_series()
 
         # 5. 收尾整理成三段式結構
         analysis_text = agent.summarize_final_analysis(messages)
+
+        # 5b. Finally clear series registry
+        agent.reset_series_registry()
 
         # 6. 交付前自我檢查
         passed, issues = export.validate_before_export(
@@ -259,13 +305,27 @@ def lambda_handler(event, context):
         evidence_url = storage.generate_download_link(run_id, "evidence_list.json")
         log_url = storage.generate_download_link(run_id, "execution_log.jsonl")
 
-        # 組裝回應
+        # 組裝回應 (C5 contract)
         response_body = {
             "report_text": report_text,
             "evidence_download_url": evidence_url,
             "log_download_url": log_url,
             "run_id": run_id,
         }
+
+        # C5/C7: report_data (structured visualization data)
+        # Build report_data stub — full implementation by Report task axis
+        report_data = _build_report_data_stub(
+            question_type, symbols, series_data
+        )
+        if report_data is not None:
+            response_body["report_data"] = report_data
+            # Also save to S3
+            try:
+                report_data_json = json.dumps(report_data, ensure_ascii=False)
+                storage.save_output_file(run_id, "report_data.json", report_data_json)
+            except Exception:
+                pass  # report_data save failure must not block response
 
         # 若匯出或報告品質檢查未通過，沿用既有警告欄位但維持 200 與 C5 必要欄位
         if validation_warnings:
@@ -332,12 +392,18 @@ def main():
 
     # 4. Agent 主迴圈
     print("[INFO] 開始 Agent 主迴圈...")
+    agent.reset_series_registry()
     messages = agent.run_agent_loop(run_id, symbols, question)
+    question_type = agent._run_context.get("question_type", "single_integration")
+    series_data = agent.collect_series()
     print(f"[INFO] Agent 迴圈完成，共 {len(messages)} 則訊息")
+    print(f"[INFO] 題型：{question_type}")
+    print(f"[INFO] Phase A 結果：{agent._run_context.get('phase_a_outcome', {})}")
 
     # 5. 摘要
     print("[INFO] 產生最終分析摘要...")
     analysis_text = agent.summarize_final_analysis(messages)
+    agent.reset_series_registry()
 
     # 6. 自我檢查
     passed, issues = export.validate_before_export(

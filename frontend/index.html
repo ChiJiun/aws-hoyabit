@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
 <style>
 :root{
   --ink:#09090b;--surface:#131316;--card:#1a1a1f;--line:#27272a;
@@ -196,7 +197,125 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:t
 /* Responsive */
 @media(min-width:1200px){.dash-grid{padding:1.5rem 2rem}.split{grid-template-columns:1fr 420px}}
 @media(max-width:768px){.top-row,.split{grid-template-columns:1fr}.ev-panel{position:static;max-height:none}.radar-flex{flex-direction:column;align-items:center}.dash-grid,.dl-footer{padding-left:.75rem;padding-right:.75rem}.dash-header{padding:.75rem 1rem}.hero-card,.radar-row,.evidence-row{padding:1rem}.report-col{max-height:none}}
-@media(prefers-reduced-motion:reduce){.spinner,.conclusion-box,.mini-spin{animation:none}}
+@media(prefers-reduced-motion:reduce){.spinner,.conclusion-box,.mini-spin{animation:none}.c7-chart canvas{animation:none!important}}
+
+/* ===== C7 STRUCTURED REPORT ===== */
+#c7-report{display:none;max-width:1400px;margin:0 auto;padding:1.5rem 1rem}
+
+/* Verdict Card */
+.c7-verdict{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem 2rem;margin-bottom:1rem;position:relative;overflow:hidden}
+.c7-verdict::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+.c7-verdict.stance-bullish::before{background:var(--green)}.c7-verdict.stance-bearish::before{background:var(--red)}.c7-verdict.stance-neutral::before{background:var(--muted)}.c7-verdict.stance-mixed::before{background:var(--accent)}
+.c7-verdict-text{font-size:18px;font-weight:600;color:#fff;margin-bottom:.8rem;line-height:1.5}
+.c7-verdict-meta{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.c7-confidence{display:flex;align-items:center;gap:.5rem;font-size:14px}
+.c7-confidence-bar{width:80px;height:6px;background:var(--line);border-radius:3px;overflow:hidden}.c7-confidence-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.c7-confidence-label{color:var(--accent);font-family:'IBM Plex Mono',monospace;font-weight:600}
+.c7-invalidation{font-size:13px;color:var(--muted);border-left:2px solid var(--line);padding-left:.75rem;margin-top:.6rem;line-height:1.5}
+.c7-invalidation strong{color:var(--text);font-weight:500}
+
+/* Coverage Warning */
+.c7-coverage-warn{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:var(--radius-sm);padding:.8rem 1rem;margin-bottom:1rem;font-size:13px;color:#fca5a5;display:flex;align-items:flex-start;gap:.5rem}
+.c7-coverage-warn .cw-icon{flex-shrink:0;font-size:16px}
+.c7-coverage-warn .cw-body{flex:1}
+.c7-coverage-warn .cw-title{font-weight:600;color:#fca5a5;margin-bottom:.2rem}
+.c7-coverage-warn .cw-missing{font-size:11px;color:var(--muted);margin-top:.3rem}
+
+/* Dimension Strip */
+.c7-dim-strip{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;padding:.6rem 1rem;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm)}
+.c7-dim-pill{display:inline-flex;align-items:center;gap:.3rem;font-size:13px;padding:.25rem .6rem;border-radius:4px;border:1px solid var(--line)}
+.c7-dim-pill.dim-strong{border-color:rgba(34,197,94,.4);color:var(--green)}.c7-dim-pill.dim-strong::before{content:'🟢';font-size:10px}
+.c7-dim-pill.dim-weak{border-color:rgba(239,68,68,.4);color:var(--red)}.c7-dim-pill.dim-weak::before{content:'🔴';font-size:10px}
+.c7-dim-pill.dim-neutral{border-color:rgba(113,113,122,.4);color:var(--muted)}.c7-dim-pill.dim-neutral::before{content:'🟡';font-size:10px}
+.c7-dim-pill.dim-na{border-color:rgba(113,113,122,.3);color:var(--muted);opacity:.7}.c7-dim-pill.dim-na::before{content:'⚫';font-size:10px}
+
+/* Signals */
+.c7-signals{display:flex;flex-direction:column;gap:.6rem;margin-bottom:1rem}
+.c7-signal-card{padding:.8rem 1rem;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--line)}
+.c7-signal-card.signal-red{border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.05)}
+.c7-signal-card.signal-yellow{border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.05)}
+.c7-signal-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:.3rem;display:flex;align-items:center;gap:.4rem}
+.c7-signal-title .sig-icon{font-size:12px}
+.c7-signal-detail{font-size:13px;color:var(--text);line-height:1.5;margin-bottom:.3rem}
+.c7-signal-metrics{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.3rem}
+.c7-signal-metric{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--accent);background:var(--accent-dim);padding:.15rem .4rem;border-radius:3px}
+.c7-signal-caveat{font-size:11px;color:var(--muted);font-style:italic}
+
+/* Checked Normal */
+.c7-checked-normal{margin-bottom:1rem}
+.c7-checked-normal summary{font-size:13px;color:var(--muted);cursor:pointer;padding:.4rem 0}
+.c7-checked-normal summary:focus{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.c7-checked-normal ul{list-style:none;padding:.4rem 0 0 1rem}
+.c7-checked-normal li{font-size:12px;color:var(--muted);padding:.15rem 0}.c7-checked-normal li::before{content:'✓ ';color:var(--green)}
+
+/* Dimension Cards (single) */
+.c7-dim-cards{display:flex;flex-direction:column;gap:.8rem;margin-bottom:1rem}
+.c7-dim-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem 1.2rem}
+.c7-dim-card.dim-na{opacity:.7;border-style:dashed}
+.c7-dim-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
+.c7-dim-card-name{font-size:14px;font-weight:600;color:#fff}
+.c7-dim-card-state{font-size:11px;font-family:'IBM Plex Mono',monospace;padding:.1rem .4rem;border-radius:3px}
+.c7-dim-card-headline{font-size:13px;color:var(--text);line-height:1.5}
+.c7-dim-card-na-reason{font-size:12px;color:var(--muted);margin-top:.3rem;font-style:italic}
+
+/* Chart container */
+.c7-chart{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1rem;position:relative}
+.c7-chart canvas{width:100%!important;height:200px!important}
+.c7-chart-title{font-size:13px;font-weight:600;color:#fff;margin-bottom:.6rem}
+.c7-chart-fallback{font-size:12px;color:var(--muted);padding:1rem;text-align:center}
+
+/* Watchlist */
+.c7-watchlist{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem 1.2rem;margin-bottom:1rem}
+.c7-watchlist h4{font-size:14px;font-weight:600;color:#fff;margin-bottom:.6rem}
+.c7-watchlist-item{display:flex;gap:.8rem;padding:.5rem 0;border-bottom:1px solid var(--line);font-size:13px}
+.c7-watchlist-item:last-child{border-bottom:none}
+.c7-watchlist-date{font-family:'IBM Plex Mono',monospace;color:var(--accent);flex-shrink:0;width:90px}
+.c7-watchlist-event{font-weight:500;color:#fff}
+.c7-watchlist-why{color:var(--muted);font-size:12px;margin-top:.15rem}
+
+/* Hypothesis Layout */
+.c7-hypo-statement{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem 1.2rem;margin-bottom:1rem;font-size:15px;font-weight:500;color:#fff;line-height:1.6}
+.c7-hypo-columns{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.c7-hypo-col{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem}
+.c7-hypo-col.col-supporting{border-color:rgba(34,197,94,.3)}
+.c7-hypo-col.col-opposing{border-color:rgba(239,68,68,.3)}
+.c7-hypo-col-title{font-size:13px;font-weight:600;margin-bottom:.6rem;display:flex;align-items:center;gap:.3rem}
+.c7-hypo-col.col-supporting .c7-hypo-col-title{color:var(--green)}
+.c7-hypo-col.col-opposing .c7-hypo-col-title{color:var(--red)}
+.c7-hypo-point{font-size:13px;color:var(--text);padding:.4rem 0;border-bottom:1px solid var(--line);line-height:1.5}
+.c7-hypo-point:last-child{border-bottom:none}
+.c7-hypo-strength{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-left:.3rem}
+.c7-hypo-neutral{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:.8rem 1rem;margin-bottom:1rem}
+.c7-hypo-neutral-title{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:.4rem}
+.c7-hypo-insufficient{background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-sm);padding:.8rem 1rem;margin-bottom:1rem;font-size:12px;color:#fbbf24}
+.c7-hypo-verdict-reason{background:var(--card);border:2px solid var(--accent);border-radius:var(--radius-sm);padding:1rem 1.2rem;margin-bottom:1rem;font-size:14px;color:#fff;line-height:1.6}
+.c7-hypo-indeterminate{background:rgba(113,113,122,.1);border:1px solid var(--muted);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1rem;font-size:14px;color:var(--muted);text-align:center}
+
+/* Comparison Layout */
+.c7-cmp-table{width:100%;border-collapse:separate;border-spacing:0;margin-bottom:1rem;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden}
+.c7-cmp-table th,.c7-cmp-table td{padding:.6rem .8rem;text-align:left;font-size:13px;border-bottom:1px solid var(--line)}
+.c7-cmp-table th{background:var(--card);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:500}
+.c7-cmp-table tr:last-child td{border-bottom:none}
+.c7-cmp-table .cmp-edge{font-weight:600;color:var(--accent)}
+.c7-cmp-table .cmp-dim{font-weight:500;color:#fff}
+.c7-cmp-table .cmp-detail{font-size:11px;color:var(--muted);display:block;margin-top:.1rem}
+.c7-cmp-table td.edge-winner{background:rgba(243,112,33,.06)}
+.c7-cmp-prefer{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.c7-cmp-prefer-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem}
+.c7-cmp-prefer-box h5{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:.4rem}
+.c7-cmp-prefer-box p{font-size:13px;color:var(--text);line-height:1.5}
+
+/* Evidence Disclosure */
+.c7-evidence-disclosure{margin-top:.4rem}
+.c7-evidence-disclosure summary{font-size:11px;color:var(--accent);cursor:pointer;padding:.2rem 0}
+.c7-evidence-disclosure summary:focus{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.c7-evidence-disclosure .ed-content{padding:.4rem 0 0 .5rem;font-size:11px;color:var(--muted);line-height:1.5}
+.c7-evidence-disclosure .ed-field{margin-bottom:.2rem}
+.c7-evidence-disclosure .ed-label{color:var(--muted);font-weight:500}
+
+/* Responsive: Comparison stack on narrow */
+@media(max-width:768px){.c7-hypo-columns,.c7-cmp-prefer{grid-template-columns:1fr}.c7-cmp-table{font-size:12px}.c7-cmp-table th,.c7-cmp-table td{padding:.4rem .5rem}.c7-verdict-meta{flex-direction:column;gap:.6rem}}
+@media(prefers-reduced-motion:reduce){.c7-confidence-fill{transition:none}}
 </style>
 </head>
 <body>
@@ -270,6 +389,8 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:t
   <a class="dl-btn" id="dl-log" href="#" target="_blank"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>執行紀錄</a>
 </div>
 </div>
+<!-- C7 STRUCTURED REPORT -->
+<div id="c7-report"></div>
 
 <script>
 const API_URL=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?`${window.location.origin}/api`:"https://請填入你的-function-url.lambda-url.us-east-1.on.aws/";
@@ -356,7 +477,19 @@ document.getElementById('submit').addEventListener('click',async()=>{
   startLoading();
   try{
     let data;
-    if(DEMO_MODE){await new Promise(r=>setTimeout(r,2000));data=DEMO_DATA}
+    if(DEMO_MODE){
+      // In demo mode, try loading C7 fixture based on coin selection
+      const fixtureMap={1:{default:'fixtures/c7_single_integration.json'},2:{default:'fixtures/c7_comparison.json'}};
+      const fixturePath=selectedCoins.length===2?fixtureMap[2].default:fixtureMap[1].default;
+      // Detect hypothesis keywords
+      const hypoKeywords=/假說|假設|驗證|是否|hypothesis/i;
+      const useHypo=selectedCoins.length===1&&hypoKeywords.test(q);
+      const finalPath=useHypo?'fixtures/c7_hypothesis.json':fixturePath;
+      let reportData=null;
+      try{const fr=await fetch(finalPath);if(fr.ok)reportData=await fr.json()}catch(e){}
+      await new Promise(r=>setTimeout(r,1500));
+      data={...DEMO_DATA,report_data:reportData};
+    }
     else{const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:[...selectedCoins],question:q})});if(!res.ok){const b=await res.json().catch(()=>({}));throw new Error(b.error||`錯誤 ${res.status}`)}data=await res.json();data.evidence_list=await loadEvidenceList(data)}
     renderDashboard(data,{symbols:[...selectedCoins],question:q});
   }catch(e){showErr(e.message||'無法連線。')}
@@ -385,6 +518,18 @@ function renderDashboard(data,req){
   document.getElementById('submit').disabled=false;
   const report=data.report_text||'';
   evidenceList=Array.isArray(data.evidence_list)?data.evidence_list:[];
+  // Bind download links first (always available regardless of render path)
+  if(data.evidence_download_url)document.getElementById('dl-evidence').href=data.evidence_download_url;
+  if(data.log_download_url)document.getElementById('dl-log').href=data.log_download_url;
+  // Try C7 structured rendering
+  let c7Success=false;
+  try{
+    if(validateReportData(data.report_data)){
+      renderStructuredReport(data.report_data,report);
+      c7Success=true;
+    }
+  }catch(e){console.error('C7 fallback to markdown:',e);document.getElementById('c7-report').style.display='none'}
+  // Always render the existing dashboard (with markdown report)
   document.getElementById('dash-header').style.display='flex';
   document.getElementById('hdr-run-id').textContent='Run: '+(data.run_id||'--');
   document.getElementById('hdr-time').textContent=new Date().toISOString().slice(0,19).replace('T',' ')+' UTC';
@@ -399,8 +544,6 @@ function renderDashboard(data,req){
   fillWarnings(scores,report);
   renderReportWithCards(report);
   bindContradictionInteractions();
-  if(data.evidence_download_url)document.getElementById('dl-evidence').href=data.evidence_download_url;
-  if(data.log_download_url)document.getElementById('dl-log').href=data.log_download_url;
   document.getElementById('dashboard').style.display='block';
 }
 
@@ -719,6 +862,342 @@ function renderInlineCharts(panel,normalized){
   const ref=normalized.ref,donut=panel.querySelector('#sent-donut');
   if(donut&&ref.positive_pct!==undefined){const ctx=donut.getContext('2d'),data=[toNumber(ref.positive_pct)||0,toNumber(ref.neutral_pct)||0,toNumber(ref.negative_pct)||0],total=data.reduce((sum,value)=>sum+value,0)||100,colors=['#22c55e','#71717a','#ef4444'];let start=-Math.PI/2;data.forEach((value,index)=>{const angle=Math.PI*2*value/total;ctx.beginPath();ctx.moveTo(40,40);ctx.arc(40,40,35,start,start+angle);ctx.fillStyle=colors[index];ctx.fill();start+=angle});ctx.beginPath();ctx.arc(40,40,20,0,Math.PI*2);ctx.fillStyle='#1a1a1f';ctx.fill()}
   const line=panel.querySelector('#series-line');if(line)drawSeries(line,extractSeries(ref));
+}
+
+// ====== C7 STRUCTURED REPORT RENDERING ======
+let c7ChartInstances=[];
+
+function validateReportData(rd){
+  if(!rd||typeof rd!=='object')return false;
+  if(rd.schema_version!=='1.0')return false;
+  if(!['single_integration','hypothesis','comparison'].includes(rd.question_type))return false;
+  if(!Array.isArray(rd.symbols)||!rd.symbols.length)return false;
+  if(!rd.verdict||typeof rd.verdict!=='object')return false;
+  if(!Array.isArray(rd.dimensions))return false;
+  return true;
+}
+
+function destroyC7Charts(){c7ChartInstances.forEach(c=>{try{c.destroy()}catch(e){}});c7ChartInstances=[]}
+
+function renderStructuredReport(reportData,reportText){
+  destroyC7Charts();
+  const container=document.getElementById('c7-report');
+  container.innerHTML='';
+  container.style.display='block';
+  try{
+    const qt=reportData.question_type;
+    let html='';
+    html+=renderVerdictCard(reportData.verdict,reportData.coverage);
+    html+=renderDimensionStrip(reportData.dimensions);
+    html+=renderSignalsSection(reportData.signals);
+    html+=renderCheckedNormal(reportData.checked_normal);
+    if(qt==='single_integration')html+=renderSingleLayout(reportData);
+    else if(qt==='hypothesis')html+=renderHypothesisLayout(reportData);
+    else if(qt==='comparison')html+=renderComparisonLayout(reportData);
+    container.innerHTML=html;
+    renderC7Charts(reportData);
+  }catch(e){
+    console.error('C7 render error:',e);
+    container.style.display='none';
+    throw e;
+  }
+}
+
+function renderVerdictCard(verdict,coverage){
+  const stance=verdict.stance||'neutral';
+  const conf=Math.round((verdict.confidence||0)*100);
+  const confColor=conf>=70?'var(--green)':conf>=50?'var(--accent)':'var(--red)';
+  let html=`<div class="c7-verdict stance-${escapeHtml(stance)}" id="c7-verdict">`;
+  html+=`<div class="c7-verdict-text">${escapeHtml(verdict.text)}</div>`;
+  html+=`<div class="c7-verdict-meta">`;
+  html+=`<div class="c7-confidence"><span class="c7-confidence-bar"><span class="c7-confidence-fill" style="width:${conf}%;background:${confColor}"></span></span><span class="c7-confidence-label">${conf}% ${escapeHtml(verdict.confidence_label||'')}</span></div>`;
+  html+=`</div>`;
+  if(verdict.invalidation){
+    html+=`<div class="c7-invalidation"><strong>推翻條件：</strong>${escapeHtml(verdict.invalidation)}</div>`;
+  }
+  html+=`</div>`;
+  if(coverage&&typeof coverage.pct==='number'&&coverage.pct<60){
+    html+=renderCoverageWarning(coverage);
+  }
+  return html;
+}
+
+function renderCoverageWarning(coverage){
+  let html=`<div class="c7-coverage-warn" id="c7-coverage-warn" role="alert">`;
+  html+=`<span class="cw-icon">⚠️</span><div class="cw-body">`;
+  html+=`<div class="cw-title">資料可用率偏低（本題可用率 ${coverage.pct}%）</div>`;
+  html+=`<div>本題所需的 Phase A 預抓能力中，部分資料未能取得，以下結論應審慎參考。</div>`;
+  if(Array.isArray(coverage.missing)&&coverage.missing.length){
+    html+=`<div class="cw-missing">缺失：${coverage.missing.map(m=>escapeHtml(m.capability)+' ('+escapeHtml(m.reason)+')').join('、')}</div>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+
+function renderDimensionStrip(dimensions){
+  if(!Array.isArray(dimensions)||!dimensions.length)return'';
+  let html=`<div class="c7-dim-strip" id="c7-dim-strip">`;
+  dimensions.forEach(d=>{
+    const state=d.state||'neutral';
+    html+=`<span class="c7-dim-pill dim-${escapeHtml(state)}">${escapeHtml(d.name)}</span>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+
+function renderSignalsSection(signals){
+  if(!Array.isArray(signals)||!signals.length)return'';
+  let html=`<div class="c7-signals" id="c7-signals">`;
+  signals.forEach(sig=>{
+    const level=sig.level||'yellow';
+    html+=`<div class="c7-signal-card signal-${escapeHtml(level)}">`;
+    html+=`<div class="c7-signal-title"><span class="sig-icon">${level==='red'?'🔴':'🟡'}</span>${escapeHtml(sig.title)}</div>`;
+    html+=`<div class="c7-signal-detail">${escapeHtml(sig.detail)}</div>`;
+    if(Array.isArray(sig.metrics)&&sig.metrics.length){
+      html+=`<div class="c7-signal-metrics">${sig.metrics.map(m=>`<span class="c7-signal-metric">${escapeHtml(m.label)}: ${escapeHtml(String(m.value))}${m.percentile!=null?' (P'+m.percentile+')':''}</span>`).join('')}</div>`;
+    }
+    if(sig.caveat)html+=`<div class="c7-signal-caveat">${escapeHtml(sig.caveat)}</div>`;
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+
+function renderCheckedNormal(items){
+  if(!Array.isArray(items)||!items.length)return'';
+  let html=`<details class="c7-checked-normal" id="c7-checked-normal"><summary>已檢查正常項目（${items.length}）</summary><ul>`;
+  items.forEach(item=>{html+=`<li>${escapeHtml(item)}</li>`});
+  html+=`</ul></details>`;
+  return html;
+}
+
+// ====== SINGLE LAYOUT ======
+function renderSingleLayout(data){
+  let html='';
+  html+=`<div class="c7-chart" id="c7-price-chart"><div class="c7-chart-title">價格走勢（近 90 日）</div><canvas id="c7-price-canvas"></canvas><div class="c7-chart-fallback" id="c7-price-fallback" style="display:none">圖表無法載入，數據請參考下方維度卡片。</div></div>`;
+  html+=renderDimensionCards(data.dimensions);
+  html+=renderWatchlist(data.watchlist);
+  return html;
+}
+
+function renderDimensionCards(dimensions){
+  if(!Array.isArray(dimensions)||!dimensions.length)return'';
+  let html=`<div class="c7-dim-cards" id="c7-dim-cards">`;
+  dimensions.forEach(d=>{
+    const state=d.state||'neutral';
+    const isNa=state==='na';
+    html+=`<div class="c7-dim-card ${isNa?'dim-na':''}">`;
+    html+=`<div class="c7-dim-card-header"><span class="c7-dim-card-name">${escapeHtml(d.name)}</span><span class="c7-dim-card-state" style="background:${stateColor(state)}">${stateLabel(state)}</span></div>`;
+    if(isNa){
+      html+=`<div class="c7-dim-card-headline">⚫ 無資料</div>`;
+      html+=`<div class="c7-dim-card-na-reason">${escapeHtml(d.headline||'資料不可用')}</div>`;
+    }else{
+      html+=`<div class="c7-dim-card-headline">${escapeHtml(d.headline)}</div>`;
+    }
+    if(Array.isArray(d.evidence_ids)&&d.evidence_ids.length){
+      html+=renderEvidenceDisclosure(d.evidence_ids);
+    }
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+
+function renderWatchlist(watchlist){
+  if(!Array.isArray(watchlist)||!watchlist.length)return'';
+  let html=`<div class="c7-watchlist" id="c7-watchlist"><h4>觀察清單</h4>`;
+  watchlist.forEach(w=>{
+    html+=`<div class="c7-watchlist-item"><span class="c7-watchlist-date">${escapeHtml(w.date||'--')}</span><div><div class="c7-watchlist-event">${escapeHtml(w.event)}</div><div class="c7-watchlist-why">${escapeHtml(w.why||'')}</div></div></div>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+
+// ====== HYPOTHESIS LAYOUT ======
+function renderHypothesisLayout(data){
+  const hypo=data.hypothesis;
+  if(!hypo)return'';
+  let html='';
+  html+=`<div class="c7-hypo-statement" id="c7-hypo-statement">假說：${escapeHtml(hypo.statement)}</div>`;
+  if(hypo.indeterminate){
+    html+=`<div class="c7-hypo-indeterminate" id="c7-hypo-indeterminate">⚠️ 依現有證據無法判定此假說成立或不成立，需額外資料或時間驗證。</div>`;
+  }
+  html+=`<div class="c7-hypo-columns">`;
+  html+=`<div class="c7-hypo-col col-supporting"><div class="c7-hypo-col-title">✓ 支持證據（${(hypo.supporting||[]).length}）</div>`;
+  (hypo.supporting||[]).forEach(p=>{
+    html+=`<div class="c7-hypo-point">${escapeHtml(p.point)}<span class="c7-hypo-strength">[${escapeHtml(p.strength||'')}]</span>${renderEvidenceDisclosure(p.evidence_ids)}</div>`;
+  });
+  html+=`</div>`;
+  html+=`<div class="c7-hypo-col col-opposing"><div class="c7-hypo-col-title">✗ 反對證據（${(hypo.opposing||[]).length}）</div>`;
+  (hypo.opposing||[]).forEach(p=>{
+    html+=`<div class="c7-hypo-point">${escapeHtml(p.point)}<span class="c7-hypo-strength">[${escapeHtml(p.strength||'')}]</span>${renderEvidenceDisclosure(p.evidence_ids)}</div>`;
+  });
+  html+=`</div></div>`;
+  if(Array.isArray(hypo.neutral)&&hypo.neutral.length){
+    html+=`<div class="c7-hypo-neutral"><div class="c7-hypo-neutral-title">中性證據（${hypo.neutral.length}）</div>`;
+    hypo.neutral.forEach(p=>{html+=`<div class="c7-hypo-point">${escapeHtml(p.point)}</div>`});
+    html+=`</div>`;
+  }
+  if(Array.isArray(hypo.insufficient)&&hypo.insufficient.length){
+    html+=`<div class="c7-hypo-insufficient"><strong>資料不足項目：</strong>`;
+    hypo.insufficient.forEach(p=>{html+=`<div>${escapeHtml(p.point)} — <em>${escapeHtml(p.reason||'')}</em></div>`});
+    html+=`</div>`;
+  }
+  if(hypo.verdict_reason){
+    html+=`<div class="c7-hypo-verdict-reason" id="c7-hypo-verdict-reason"><strong>裁決理由：</strong>${escapeHtml(hypo.verdict_reason)}</div>`;
+  }
+  html+=`<div class="c7-chart" id="c7-hypo-chart"><div class="c7-chart-title">假說相關趨勢</div><canvas id="c7-hypo-canvas"></canvas><div class="c7-chart-fallback" id="c7-hypo-fallback" style="display:none">圖表無法載入。</div></div>`;
+  html+=renderDimensionCards(data.dimensions);
+  html+=renderWatchlist(data.watchlist);
+  return html;
+}
+
+// ====== COMPARISON LAYOUT ======
+function renderComparisonLayout(data){
+  const cmp=data.comparison;
+  if(!cmp)return'';
+  let html='';
+  html+=renderComparisonTable(cmp.rows,data.symbols);
+  html+=`<div class="c7-cmp-prefer" id="c7-cmp-prefer">`;
+  html+=`<div class="c7-cmp-prefer-box"><h5>何時關注 ${escapeHtml(data.symbols[0]||'A')}</h5><p>${escapeHtml(cmp.when_prefer_a||'--')}</p></div>`;
+  html+=`<div class="c7-cmp-prefer-box"><h5>何時關注 ${escapeHtml(data.symbols[1]||'B')}</h5><p>${escapeHtml(cmp.when_prefer_b||'--')}</p></div>`;
+  html+=`</div>`;
+  html+=`<div class="c7-chart" id="c7-rs-chart"><div class="c7-chart-title">相對強弱（${escapeHtml(data.symbols[1]||'B')}/${escapeHtml(data.symbols[0]||'A')}）</div><canvas id="c7-rs-canvas"></canvas><div class="c7-chart-fallback" id="c7-rs-fallback" style="display:none">圖表無法載入。</div></div>`;
+  html+=`<div class="c7-chart" id="c7-corr-chart"><div class="c7-chart-title">30 日滾動相關性</div><canvas id="c7-corr-canvas"></canvas><div class="c7-chart-fallback" id="c7-corr-fallback" style="display:none">圖表無法載入。</div></div>`;
+  html+=renderDimensionCards(data.dimensions);
+  html+=renderWatchlist(data.watchlist);
+  return html;
+}
+
+function renderComparisonTable(rows,symbols){
+  if(!Array.isArray(rows)||!rows.length)return'';
+  const sa=symbols[0]||'A',sb=symbols[1]||'B';
+  let html=`<table class="c7-cmp-table" id="c7-cmp-table"><thead><tr><th>維度</th><th>${escapeHtml(sa)}</th><th>${escapeHtml(sb)}</th><th>優勢</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const edgeA=r.edge==='A',edgeB=r.edge==='B';
+    html+=`<tr>`;
+    html+=`<td class="cmp-dim">${escapeHtml(r.dimension)}</td>`;
+    html+=`<td class="${edgeA?'edge-winner':''}">${escapeHtml(r.a?.value||'--')}<span class="cmp-detail">${escapeHtml(r.a?.detail||'')}</span></td>`;
+    html+=`<td class="${edgeB?'edge-winner':''}">${escapeHtml(r.b?.value||'--')}<span class="cmp-detail">${escapeHtml(r.b?.detail||'')}</span></td>`;
+    html+=`<td class="cmp-edge">${escapeHtml(r.edge==='A'?sa:r.edge==='B'?sb:'—')}</td>`;
+    html+=`</tr>`;
+  });
+  html+=`</tbody></table>`;
+  return html;
+}
+
+// ====== EVIDENCE DISCLOSURE ======
+function renderEvidenceDisclosure(evidenceIds){
+  if(!Array.isArray(evidenceIds)||!evidenceIds.length)return'';
+  let html=`<details class="c7-evidence-disclosure"><summary>查證來源（${evidenceIds.length}）</summary><div class="ed-content">`;
+  evidenceIds.forEach(id=>{
+    html+=`<div class="ed-field"><span class="ed-label">evidence_id:</span> ${escapeHtml(id)}</div>`;
+  });
+  html+=`</div></details>`;
+  return html;
+}
+
+// ====== HELPERS ======
+function stateColor(state){
+  if(state==='strong')return'rgba(34,197,94,.2)';
+  if(state==='weak')return'rgba(239,68,68,.2)';
+  if(state==='na')return'rgba(113,113,122,.2)';
+  return'rgba(245,158,11,.2)';
+}
+function stateLabel(state){
+  if(state==='strong')return'🟢 強';
+  if(state==='weak')return'🔴 弱';
+  if(state==='na')return'⚫ 無資料';
+  return'🟡 中性';
+}
+
+// ====== CHART.JS RENDERING WITH FALLBACK ======
+function renderC7Charts(data){
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const chartOpts={animation:reduced?false:{duration:600},responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#71717a',font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#71717a',font:{size:10}},grid:{color:'rgba(255,255,255,.08)'}}}};
+  if(typeof Chart==='undefined'){showAllChartFallbacks();return}
+  try{
+    if(data.question_type==='single_integration'||data.question_type==='hypothesis'){
+      renderPriceSparkline(data,chartOpts);
+    }
+    if(data.question_type==='hypothesis'){
+      renderHypoChart(data,chartOpts);
+    }
+    if(data.question_type==='comparison'){
+      renderRelativeStrengthChart(data,chartOpts);
+      renderCorrelationChart(data,chartOpts);
+    }
+  }catch(e){
+    console.error('Chart render error:',e);
+    showAllChartFallbacks();
+  }
+}
+
+function showAllChartFallbacks(){
+  document.querySelectorAll('.c7-chart-fallback').forEach(el=>{el.style.display='block'});
+  document.querySelectorAll('.c7-chart canvas').forEach(el=>{el.style.display='none'});
+}
+
+function safeSeriesData(series,key,symbol){
+  if(!series||!series[key])return null;
+  const raw=series[key][symbol]||series[key][Object.keys(series[key])[0]];
+  if(!Array.isArray(raw)||raw.length<2)return null;
+  const valid=raw.filter(p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[1])));
+  return valid.length>=2?valid:null;
+}
+
+function renderPriceSparkline(data,opts){
+  const canvasId=data.question_type==='hypothesis'?'c7-hypo-canvas':'c7-price-canvas';
+  const fallbackId=data.question_type==='hypothesis'?'c7-hypo-fallback':'c7-price-fallback';
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const symbol=data.symbols[0];
+  const points=safeSeriesData(data.series,'price',symbol);
+  if(!points){document.getElementById(fallbackId).style.display='block';canvas.style.display='none';return}
+  try{
+    const chart=new Chart(canvas,{type:'line',data:{labels:points.map(p=>p[0]),datasets:[{data:points.map(p=>Number(p[1])),borderColor:'#f37021',backgroundColor:'rgba(243,112,33,.1)',borderWidth:2,pointRadius:0,fill:true,tension:.3}]},options:{...opts,plugins:{...opts.plugins,tooltip:{callbacks:{label:ctx=>`${symbol} $${ctx.parsed.y.toLocaleString()}`}}}}});
+    c7ChartInstances.push(chart);
+  }catch(e){document.getElementById(fallbackId).style.display='block';canvas.style.display='none'}
+}
+
+function renderHypoChart(data,opts){
+  const canvas=document.getElementById('c7-hypo-canvas');
+  if(!canvas)return;
+  const seriesKeys=Object.keys(data.series||{}).filter(k=>k!=='price');
+  if(!seriesKeys.length){document.getElementById('c7-hypo-fallback').style.display='block';canvas.style.display='none';return}
+  const key=seriesKeys[0],symbol=data.symbols[0];
+  const points=safeSeriesData(data.series,key,symbol);
+  if(!points){document.getElementById('c7-hypo-fallback').style.display='block';canvas.style.display='none';return}
+  try{
+    const chart=new Chart(canvas,{type:'line',data:{labels:points.map(p=>p[0]),datasets:[{label:key,data:points.map(p=>Number(p[1])),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.1)',borderWidth:2,pointRadius:0,fill:true,tension:.3}]},options:{...opts}});
+    c7ChartInstances.push(chart);
+  }catch(e){document.getElementById('c7-hypo-fallback').style.display='block';canvas.style.display='none'}
+}
+
+function renderRelativeStrengthChart(data,opts){
+  const canvas=document.getElementById('c7-rs-canvas');
+  if(!canvas)return;
+  const rsData=data.series?.relative_strength;
+  const key=rsData?Object.keys(rsData)[0]:null;
+  const points=key&&Array.isArray(rsData[key])?rsData[key].filter(p=>Array.isArray(p)&&Number.isFinite(Number(p[1]))):null;
+  if(!points||points.length<2){document.getElementById('c7-rs-fallback').style.display='block';canvas.style.display='none';return}
+  try{
+    const chart=new Chart(canvas,{type:'line',data:{labels:points.map(p=>p[0]),datasets:[{label:key,data:points.map(p=>Number(p[1])),borderColor:'#f37021',backgroundColor:'rgba(243,112,33,.1)',borderWidth:2,pointRadius:2,fill:true,tension:.3}]},options:{...opts}});
+    c7ChartInstances.push(chart);
+  }catch(e){document.getElementById('c7-rs-fallback').style.display='block';canvas.style.display='none'}
+}
+
+function renderCorrelationChart(data,opts){
+  const canvas=document.getElementById('c7-corr-canvas');
+  if(!canvas)return;
+  const corrData=data.series?.correlation_30d;
+  const key=corrData?Object.keys(corrData)[0]:null;
+  const points=key&&Array.isArray(corrData[key])?corrData[key].filter(p=>Array.isArray(p)&&Number.isFinite(Number(p[1]))):null;
+  if(!points||points.length<2){document.getElementById('c7-corr-fallback').style.display='block';canvas.style.display='none';return}
+  try{
+    const chart=new Chart(canvas,{type:'line',data:{labels:points.map(p=>p[0]),datasets:[{label:'相關性',data:points.map(p=>Number(p[1])),borderColor:'#71717a',backgroundColor:'rgba(113,113,122,.1)',borderWidth:2,pointRadius:2,fill:true,tension:.3}]},options:{...opts,scales:{...opts.scales,y:{...opts.scales.y,min:0,max:1}}}});
+    c7ChartInstances.push(chart);
+  }catch(e){document.getElementById('c7-corr-fallback').style.display='block';canvas.style.display='none'}
 }
 </script>
 </body>

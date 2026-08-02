@@ -24,6 +24,57 @@ _DEFILLAMA_BASE = "https://api.llama.fi"
 _STABLECOINS_BASE = "https://stablecoins.llama.fi"
 
 
+def _calc_change_str_from_series(series_envelope):
+    """從 series envelope 計算 7d 與 30d 百分比變化字串。
+
+    回傳 "7d +X.X%, 30d +Y.Y%" 或 None。
+    """
+    if not series_envelope or not isinstance(series_envelope, dict):
+        return None
+    points = series_envelope.get("points", [])
+    if len(points) < 2:
+        return None
+
+    latest_val = points[-1][1]
+    if latest_val == 0:
+        return None
+
+    parts = []
+
+    # 7d change
+    if len(points) >= 7:
+        val_7d_ago = points[-7][1]
+        if val_7d_ago > 0:
+            pct_7d = ((latest_val - val_7d_ago) / val_7d_ago) * 100
+            sign = "+" if pct_7d >= 0 else ""
+            parts.append(f"7d {sign}{pct_7d:.1f}%")
+
+    # 30d change
+    if len(points) >= 30:
+        val_30d_ago = points[-30][1]
+        if val_30d_ago > 0:
+            pct_30d = ((latest_val - val_30d_ago) / val_30d_ago) * 100
+            sign = "+" if pct_30d >= 0 else ""
+            parts.append(f"30d {sign}{pct_30d:.1f}%")
+
+    return ", ".join(parts) if parts else None
+
+
+def _calc_30d_change_from_series(series_envelope):
+    """從 series envelope 計算 30d 百分比變化。回傳 float 或 None。"""
+    if not series_envelope or not isinstance(series_envelope, dict):
+        return None
+    points = series_envelope.get("points", [])
+    if len(points) < 30:
+        return None
+
+    latest_val = points[-1][1]
+    val_30d_ago = points[-30][1]
+    if val_30d_ago <= 0:
+        return None
+    return round(((latest_val - val_30d_ago) / val_30d_ago) * 100, 2)
+
+
 def get_defi_data(metrics, chain="all", related_claim=""):
     """取得 DeFi TVL 與穩定幣供給資料。
 
@@ -107,7 +158,62 @@ def get_defi_data(metrics, chain="all", related_claim=""):
             if stablecoin_7d_change_pct is not None:
                 content_reference["stablecoin_7d_change_pct"] = stablecoin_7d_change_pct
 
-        # ---- 組裝 summary ----
+        # ---- 組裝 raw ----
+        raw_data = {
+            "tvl": results.get("tvl", {}),
+            "stablecoin_supply": results.get("stablecoin_supply", {}),
+            "query_params": {
+                "metrics": metrics,
+                "chain": chain,
+            },
+        }
+
+        # ---- 嘗試取得歷史序列資料 ----
+        try:
+            from tools.series_utils import normalize_series, build_series_envelope
+
+            series_dict = {}
+
+            # 穩定幣歷史
+            if "stablecoin_supply" in metrics:
+                sc_points = _fetch_stablecoin_history(max_days=90)
+                if sc_points:
+                    series_dict["stablecoin_supply"] = build_series_envelope(
+                        sc_points,
+                        unit="USD",
+                        provider="DefiLlama",
+                        scope=chain,
+                        pair="USDT/mcap",
+                        timeframe="1d",
+                    )
+
+            # TVL 歷史
+            if "tvl" in metrics:
+                tvl_points = _fetch_tvl_history(chain=chain, max_days=90)
+                if tvl_points:
+                    series_dict["tvl"] = build_series_envelope(
+                        tvl_points,
+                        unit="USD",
+                        provider="DefiLlama",
+                        scope=chain,
+                        pair="TVL/total",
+                        timeframe="1d",
+                    )
+
+            if series_dict:
+                raw_data["series"] = series_dict
+            else:
+                raw_data["series"] = {
+                    "series_unavailable": True,
+                    "reason": "歷史序列資料無可用數據點",
+                }
+        except Exception as e:
+            raw_data["series"] = {
+                "series_unavailable": True,
+                "reason": f"歷史序列取得失敗: {type(e).__name__}: {str(e)}",
+            }
+
+        # ---- 組裝 summary（僅含最新值與 7d/30d 變化，不含完整序列）----
         summary_parts = []
 
         if total_tvl_usd is not None:
@@ -116,6 +222,11 @@ def get_defi_data(metrics, chain="all", related_claim=""):
                 summary_parts.append(f"{chain} TVL ${tvl_b:.1f} B")
             else:
                 summary_parts.append(f"全市場 TVL ${tvl_b:.1f} B")
+
+            # 從 series 計算 TVL 7d/30d 變化
+            tvl_change_str = _calc_change_str_from_series(raw_data.get("series", {}).get("tvl"))
+            if tvl_change_str:
+                summary_parts.append(f"TVL 變化: {tvl_change_str}")
 
             # 列出 top 5 chains
             if chain_tvl_breakdown:
@@ -130,33 +241,36 @@ def get_defi_data(metrics, chain="all", related_claim=""):
             change_str = ""
             if stablecoin_7d_change_pct is not None:
                 sign = "+" if stablecoin_7d_change_pct >= 0 else ""
-                change_str = f"（近 7 日變化 {sign}{stablecoin_7d_change_pct:.1f}%）"
+                change_str = f"（7d {sign}{stablecoin_7d_change_pct:.1f}%"
+
+            # 從 series 計算穩定幣 30d 變化
+            sc_30d_change = _calc_30d_change_from_series(raw_data.get("series", {}).get("stablecoin_supply"))
+            if sc_30d_change is not None:
+                sign_30 = "+" if sc_30d_change >= 0 else ""
+                change_str += f", 30d {sign_30}{sc_30d_change:.1f}%）"
+            elif change_str:
+                change_str += "）"
+
             summary_parts.append(f"穩定幣供給 ${sc_b:.1f} B{change_str}")
         elif "stablecoin_supply" in metrics:
             summary_parts.append("穩定幣供給: 取得失敗")
 
         summary = ", ".join(summary_parts)
 
-        # ---- 組裝 raw ----
-        raw_data = {
-            "tvl": results.get("tvl", {}),
-            "stablecoin_supply": results.get("stablecoin_supply", {}),
-            "query_params": {
-                "metrics": metrics,
-                "chain": chain,
-            },
-        }
-
         # 記錄執行步驟
         evidence.log_execution_step(
             "get_defi_data", "success", elapsed_ms, note=summary[:100]
         )
+
+        # Extract series from raw_data for top-level adapter key (consistent with other tools)
+        series_for_adapter = raw_data.get("series", {})
 
         return {
             "raw": raw_data,
             "source": source_url,
             "content_reference": content_reference,
             "summary": summary,
+            "series": series_for_adapter,
         }
 
     except Exception as e:
@@ -280,6 +394,79 @@ def _fetch_stablecoin_supply():
 
     except Exception as e:
         return {"error": f"穩定幣供給取得失敗: {type(e).__name__}: {str(e)}"}
+
+
+def _fetch_stablecoin_history(max_days=90):
+    """取得 USDT 穩定幣總市值歷史資料（用於趨勢分析）。
+
+    呼叫 DefiLlama stablecoincharts endpoint，取得 USDT total mcap 歷史。
+    回傳 [[date_str, total_supply_usd], ...] 或空 list。
+    """
+    try:
+        url = f"{_STABLECOINS_BASE}/stablecoincharts/all?stablecoin=1"
+        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if not isinstance(data, list):
+            return []
+
+        points = []
+        for entry in data:
+            ts = entry.get("date")
+            total_circulating = entry.get("totalCirculating", {})
+            pegged_usd = total_circulating.get("peggedUSD")
+            if ts is not None and pegged_usd is not None:
+                try:
+                    date_str = datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
+                    points.append([date_str, float(pegged_usd)])
+                except (ValueError, TypeError, OSError):
+                    continue
+
+        from tools.series_utils import normalize_series
+        return normalize_series(points, max_days=max_days)
+
+    except Exception:
+        return []
+
+
+def _fetch_tvl_history(chain="all", max_days=90):
+    """取得 TVL 歷史資料（全市場或特定鏈）。
+
+    - chain='all': 呼叫 /v2/historicalChainTvl
+    - chain=特定鏈: 呼叫 /v2/historicalChainTvl/{chain}
+
+    回傳 [[date_str, tvl_usd], ...] 或空 list。
+    """
+    try:
+        if chain.lower() == "all":
+            url = f"{_DEFILLAMA_BASE}/v2/historicalChainTvl"
+        else:
+            url = f"{_DEFILLAMA_BASE}/v2/historicalChainTvl/{chain}"
+
+        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if not isinstance(data, list):
+            return []
+
+        points = []
+        for entry in data:
+            ts = entry.get("date")
+            tvl = entry.get("tvl")
+            if ts is not None and tvl is not None:
+                try:
+                    date_str = datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
+                    points.append([date_str, float(tvl)])
+                except (ValueError, TypeError, OSError):
+                    continue
+
+        from tools.series_utils import normalize_series
+        return normalize_series(points, max_days=max_days)
+
+    except Exception:
+        return []
 
 
 # ---- Symbol → GitHub Repo 映射表 ----

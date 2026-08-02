@@ -104,9 +104,10 @@ class TestSaveRawPayloadS3:
             result = save_raw_payload("run-s3", "ev-s3", raw_data)
 
         assert result == f"s3://{bucket_name}/runs/run-s3/raw/ev-s3.json"
+        from storage import serialize_json_payload
         mock_s3.put_object.assert_called_once_with(
             Bucket=bucket_name,
             Key="runs/run-s3/raw/ev-s3.json",
-            Body=json.dumps(raw_data, ensure_ascii=False, default=str),
+            Body=serialize_json_payload(raw_data).encode("utf-8"),
             ContentType="application/json",
         )

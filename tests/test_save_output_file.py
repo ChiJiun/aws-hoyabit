@@ -94,8 +94,8 @@ class TestSaveOutputFileS3:
         mock_s3.put_object.assert_called_once_with(
             Bucket=bucket_name,
             Key="runs/run-s3/report.md",
-            Body=content,
-            ContentType="text/markdown",
+            Body=content.encode("utf-8"),
+            ContentType="text/markdown; charset=utf-8",
         )
 
     def test_uploads_json_to_s3_with_correct_content_type(self):
@@ -113,7 +113,7 @@ class TestSaveOutputFileS3:
         mock_s3.put_object.assert_called_once_with(
             Bucket=bucket_name,
             Key="runs/run-s3/evidence.json",
-            Body=content,
+            Body=content.encode("utf-8"),
             ContentType="application/json",
         )
 
@@ -132,8 +132,8 @@ class TestSaveOutputFileS3:
         mock_s3.put_object.assert_called_once_with(
             Bucket=bucket_name,
             Key="runs/run-s3/log.jsonl",
-            Body=content,
-            ContentType="application/jsonl",
+            Body=content.encode("utf-8"),
+            ContentType="application/x-ndjson",
         )
 
     def test_returns_s3_key(self):

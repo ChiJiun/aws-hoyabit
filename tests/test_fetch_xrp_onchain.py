@@ -1,12 +1,9 @@
 """Tests for fetch_xrp_onchain function."""
 import sys
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-# Mock evidence module before importing onchain
-sys.modules['evidence'] = MagicMock()
-sys.modules['config'] = MagicMock()
-
-sys.path.insert(0, 'lambda')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lambda"))
 from tools.onchain import fetch_xrp_onchain
 
 

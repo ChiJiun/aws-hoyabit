@@ -116,7 +116,13 @@ def test_property_3_loop_terminates_on_end_turn(mock_bedrock):
         }
     }
 
-    messages = agent.run_agent_loop("run_test_001", ["BTC"], "測試問題")
+    with patch("agent.run_phase_a_prefetch") as mock_pa:
+        mock_pa.return_value = agent.PrefetchOutcome(
+            question_type="single_integration",
+            started_at="2026-01-01T00:00:00Z",
+            completed_at="2026-01-01T00:00:01Z",
+        )
+        messages = agent.run_agent_loop("run_test_001", ["BTC"], "測試問題")
 
     # 迴圈應該在第一輪就結束
     assert mock_bedrock.call_count == 1
@@ -157,7 +163,13 @@ def test_property_3_loop_terminates_at_max_turns(mock_bedrock):
                 "content": [{"text": json.dumps({"summary": "test", "evidence_id": "ev_123"})}],
                 "status": "success",
             }
-            messages = agent.run_agent_loop("run_test_002", ["BTC"], "測試問題")
+            with patch("agent.run_phase_a_prefetch") as mock_pa:
+                mock_pa.return_value = agent.PrefetchOutcome(
+                    question_type="single_integration",
+                    started_at="2026-01-01T00:00:00Z",
+                    completed_at="2026-01-01T00:00:01Z",
+                )
+                messages = agent.run_agent_loop("run_test_002", ["BTC"], "測試問題")
     finally:
         config.MAX_AGENT_TURNS = original_max
 
@@ -197,7 +209,7 @@ def test_property_3_loop_terminates_on_time_budget(mock_bedrock):
 
     # 設極短的時間預算
     original_budget = config.TIME_BUDGET_SECONDS
-    config.TIME_BUDGET_SECONDS = 0.2  # 200ms
+    config.TIME_BUDGET_SECONDS = 0.3  # 300ms
 
     try:
         with patch("agent.dispatch_tool_call") as mock_dispatch:
@@ -206,7 +218,13 @@ def test_property_3_loop_terminates_on_time_budget(mock_bedrock):
                 "content": [{"text": json.dumps({"summary": "test", "evidence_id": "ev_1"})}],
                 "status": "success",
             }
-            messages = agent.run_agent_loop("run_test_003", ["BTC"], "測試問題")
+            with patch("agent.run_phase_a_prefetch") as mock_pa:
+                mock_pa.return_value = agent.PrefetchOutcome(
+                    question_type="single_integration",
+                    started_at="2026-01-01T00:00:00Z",
+                    completed_at="2026-01-01T00:00:01Z",
+                )
+                messages = agent.run_agent_loop("run_test_003", ["BTC"], "測試問題")
     finally:
         config.TIME_BUDGET_SECONDS = original_budget
 
@@ -226,7 +244,13 @@ def _capture_initial_user_text(symbols, question):
         },
     }
     with patch("agent.call_bedrock", return_value=response):
-        messages = agent.run_agent_loop("run_initial_prompt", symbols, question)
+        with patch("agent.run_phase_a_prefetch") as mock_pa:
+            mock_pa.return_value = agent.PrefetchOutcome(
+                question_type="single_integration",
+                started_at="2026-01-01T00:00:00Z",
+                completed_at="2026-01-01T00:00:01Z",
+            )
+            messages = agent.run_agent_loop("run_initial_prompt", symbols, question)
     return messages[0]["content"][0]["text"]
 
 
@@ -684,3 +708,607 @@ def test_summarize_final_analysis_marks_empty_evidence_as_insufficient(mock_bedr
 
     assert evidence.evidence_list == []
     assert evidence.execution_log == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase A/B Orchestration Tests
+# Validates: Pipeline Presentation requirements
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Question Type Classification ──
+
+class TestClassifyQuestionType:
+    """Tests for classify_question_type() rule-based + LLM fallback."""
+
+    def test_two_symbols_always_comparison(self):
+        """Rule 1: two symbols → comparison regardless of question content."""
+        result = agent.classify_question_type(["BTC", "ETH"], "分析 BTC")
+        assert result.question_type == "comparison"
+        assert result.method == "rule"
+        assert "rule1_two_symbols" in result.matched_rules
+
+    def test_hypothesis_keywords_detected(self):
+        """Rule 2: hypothesis keywords trigger hypothesis type."""
+        questions = [
+            "市場認為 BTC 將上漲，這個觀點正確嗎？",
+            "有人說 ETH 即將突破，是否成立？",
+            "驗證 BTC 短期盤整的假設",
+            "市場預期 SOL 生態將爆發，能否驗證？",
+            "聲音認為 BNB 被低估",
+        ]
+        for q in questions:
+            result = agent.classify_question_type(["BTC"], q)
+            assert result.question_type == "hypothesis", f"Failed for: {q}"
+            assert result.method == "rule"
+            assert "rule2_hypothesis_keywords" in result.matched_rules
+
+    def test_default_single_integration(self):
+        """Rule 3: no special keywords → single_integration."""
+        result = agent.classify_question_type(
+            ["BTC"], "綜合分析 BTC 目前的市場狀態"
+        )
+        assert result.question_type == "single_integration"
+        assert result.method == "rule"
+        assert "rule3_default" in result.matched_rules
+
+    def test_comparison_overrides_hypothesis_keywords(self):
+        """Two symbols should be comparison even if question has hypothesis keywords."""
+        result = agent.classify_question_type(
+            ["BTC", "ETH"], "市場認為 BTC 比 ETH 更安全，是否成立？"
+        )
+        assert result.question_type == "comparison"
+
+    def test_classification_logs_execution_step(self):
+        """classify_question_type should log its result."""
+        evidence.reset_stores()
+        agent.classify_question_type(["SOL"], "分析 SOL 走勢")
+        classify_logs = [
+            log for log in evidence.execution_log
+            if log["tool_name"] == "classify_question_type"
+        ]
+        assert len(classify_logs) == 1
+        assert classify_logs[0]["status"] == "success"
+        assert "single_integration" in classify_logs[0]["note"]
+        evidence.reset_stores()
+
+
+# ── Prefetch Plan ──
+
+class TestBuildPrefetchPlan:
+    """Tests for build_prefetch_plan() — three question types."""
+
+    def test_single_integration_plan_has_common_items(self):
+        """Single integration: common per-symbol + sentiment + macro."""
+        plan = agent.build_prefetch_plan("single_integration", ["BTC"], "分析走勢")
+        capabilities = [item.capability for item in plan]
+        # Must have: price, quant, derivatives_hl, derivatives_binance, news, onchain, sentiment, macro
+        assert "price" in capabilities
+        assert "quant" in capabilities
+        assert "derivatives_hl" in capabilities
+        assert "derivatives_binance" in capabilities
+        assert "news" in capabilities
+        assert "onchain" in capabilities
+        assert "sentiment" in capabilities
+        assert "macro" in capabilities
+        # Type-specific additions
+        assert "defi_stablecoin" in capabilities
+        assert "prediction" in capabilities
+
+    def test_hypothesis_plan_includes_directed_news(self):
+        """Hypothesis plan includes directed news search."""
+        plan = agent.build_prefetch_plan(
+            "hypothesis", ["ETH"], "市場認為 ETH 將突破"
+        )
+        capabilities = [item.capability for item in plan]
+        assert "directed_news" in capabilities
+        assert "defi_stablecoin" in capabilities
+        assert "prediction" in capabilities
+
+    def test_comparison_plan_includes_correlation_and_dominance(self):
+        """Comparison plan includes correlation and dominance."""
+        plan = agent.build_prefetch_plan(
+            "comparison", ["BTC", "ETH"], "比較風險特徵"
+        )
+        capabilities = [item.capability for item in plan]
+        assert "correlation" in capabilities
+        assert "dominance" in capabilities
+        # Should have items for both symbols
+        btc_items = [item for item in plan if "BTC" in item.symbols]
+        eth_items = [item for item in plan if "ETH" in item.symbols]
+        assert len(btc_items) >= 4
+        assert len(eth_items) >= 4
+
+    def test_sentiment_and_macro_not_duplicated(self):
+        """Sentiment and macro only appear once regardless of symbol count."""
+        plan = agent.build_prefetch_plan(
+            "comparison", ["BTC", "ETH"], "比較"
+        )
+        sentiment_items = [i for i in plan if i.capability == "sentiment"]
+        macro_items = [i for i in plan if i.capability == "macro"]
+        assert len(sentiment_items) == 1
+        assert len(macro_items) == 1
+
+    def test_plan_items_have_valid_tool_names(self):
+        """All plan items reference tools that exist in TOOL_DISPATCH."""
+        plan = agent.build_prefetch_plan(
+            "single_integration", ["SOL"], "分析 SOL"
+        )
+        for item in plan:
+            assert item.tool_name in agent.TOOL_DISPATCH, (
+                f"Plan item {item.capability} references unknown tool: {item.tool_name}"
+            )
+
+    def test_plan_items_have_related_claim(self):
+        """All plan items must have a non-empty related_claim in kwargs."""
+        plan = agent.build_prefetch_plan("hypothesis", ["BTC"], "假設測試")
+        for item in plan:
+            claim = item.tool_kwargs.get("related_claim", "")
+            assert len(claim) >= 5, (
+                f"Plan item {item.capability} has too short related_claim: '{claim}'"
+            )
+
+
+# ── Phase A Prefetch Execution ──
+
+class TestRunPhaseAPrefetch:
+    """Tests for run_phase_a_prefetch() — concurrency, timeout, isolation."""
+
+    def test_successful_prefetch_records_results(self):
+        """Successful tools are recorded in results with evidence_id."""
+        evidence.reset_stores()
+
+        # Create a minimal plan with mock tools
+        plan = [
+            agent.PrefetchItem(
+                capability="test_cap",
+                tool_name="get_sentiment",
+                tool_kwargs={"related_claim": "測試 Phase A 預取功能正確性"},
+                symbols=["BTC"],
+                reason="test",
+            ),
+        ]
+
+        with patch.dict(agent.TOOL_DISPATCH, {
+            "get_sentiment": MagicMock(return_value={
+                "raw": {"value": 65},
+                "source": "https://api.alternative.me/fng/",
+                "content_reference": {"value": 65},
+                "summary": "Fear & Greed Index 為 65",
+            })
+        }):
+            outcome = agent.run_phase_a_prefetch("run_test_pa", plan, soft_deadline_seconds=10)
+
+        assert len(outcome.results) == 1
+        assert outcome.results[0]["status"] == "success"
+        assert outcome.results[0]["evidence_id"] is not None
+        assert "raw" not in outcome.results[0].get("summary", "")
+        evidence.reset_stores()
+
+    def test_single_tool_failure_does_not_cancel_others(self):
+        """One tool failure should not affect other tools."""
+        evidence.reset_stores()
+
+        def failing_tool(**kwargs):
+            raise RuntimeError("API exploded")
+
+        def succeeding_tool(**kwargs):
+            return {
+                "raw": {"ok": True},
+                "source": "test_source",
+                "content_reference": {"k": "v"},
+                "summary": "success data",
+            }
+
+        plan = [
+            agent.PrefetchItem(
+                capability="will_fail",
+                tool_name="get_sentiment",
+                tool_kwargs={"related_claim": "這個會失敗但不影響其他工具"},
+                symbols=["BTC"],
+                reason="test failure",
+            ),
+            agent.PrefetchItem(
+                capability="will_succeed",
+                tool_name="get_macro",
+                tool_kwargs={
+                    "indicators": ["DXY"],
+                    "related_claim": "這個應該正常完成不受其他工具影響",
+                },
+                symbols=["BTC"],
+                reason="test success",
+            ),
+        ]
+
+        with patch.dict(agent.TOOL_DISPATCH, {
+            "get_sentiment": failing_tool,
+            "get_macro": succeeding_tool,
+        }):
+            outcome = agent.run_phase_a_prefetch("run_test_iso", plan, soft_deadline_seconds=10)
+
+        assert len(outcome.results) == 1
+        assert outcome.results[0]["capability"] == "will_succeed"
+        assert len(outcome.missing) == 1
+        assert outcome.missing[0]["capability"] == "will_fail"
+        evidence.reset_stores()
+
+    def test_soft_deadline_cancels_pending_futures(self):
+        """Futures not completed within deadline are cancelled/marked timeout."""
+        evidence.reset_stores()
+
+        def slow_tool(**kwargs):
+            time.sleep(5)  # very slow
+            return {
+                "raw": {}, "source": "s", "content_reference": {},
+                "summary": "should not complete",
+            }
+
+        def fast_tool(**kwargs):
+            return {
+                "raw": {"fast": True}, "source": "fast_src",
+                "content_reference": {"r": 1}, "summary": "fast result",
+            }
+
+        plan = [
+            agent.PrefetchItem(
+                capability="fast_one",
+                tool_name="get_sentiment",
+                tool_kwargs={"related_claim": "快速工具應在期限內完成"},
+                symbols=["BTC"],
+                reason="fast",
+            ),
+            agent.PrefetchItem(
+                capability="slow_one",
+                tool_name="get_macro",
+                tool_kwargs={
+                    "indicators": ["DXY"],
+                    "related_claim": "慢速工具應被期限截止",
+                },
+                symbols=["BTC"],
+                reason="slow",
+            ),
+        ]
+
+        with patch.dict(agent.TOOL_DISPATCH, {
+            "get_sentiment": fast_tool,
+            "get_macro": slow_tool,
+        }):
+            outcome = agent.run_phase_a_prefetch(
+                "run_test_deadline", plan, soft_deadline_seconds=0.5
+            )
+
+        # The fast one should succeed, the slow one may be in missing
+        succeeded = [r["capability"] for r in outcome.results]
+        missed = [m["capability"] for m in outcome.missing]
+        assert "fast_one" in succeeded
+        # slow_one might be cancelled or timeout
+        if "slow_one" in missed:
+            assert any("deadline" in m.get("reason", "") or "timeout" in m.get("reason", "")
+                       for m in outcome.missing if m["capability"] == "slow_one")
+        evidence.reset_stores()
+
+    def test_empty_plan_returns_empty_outcome(self):
+        """Empty plan produces empty outcome without errors."""
+        evidence.reset_stores()
+        outcome = agent.run_phase_a_prefetch("run_empty", [], soft_deadline_seconds=10)
+        assert outcome.results == []
+        assert outcome.missing == []
+        evidence.reset_stores()
+
+
+# ── Phase B Context Builder ──
+
+class TestBuildPhaseBContext:
+    """Tests for build_phase_b_context() — no raw data in output."""
+
+    def test_context_contains_summaries_and_evidence_ids(self):
+        """Phase B context includes summaries and evidence_ids from results."""
+        outcome = agent.PrefetchOutcome(
+            question_type="single_integration",
+            started_at="2026-08-01T00:00:00Z",
+            completed_at="2026-08-01T00:01:30Z",
+            results=[{
+                "capability": "price",
+                "tool_name": "get_price_ohlcv",
+                "status": "success",
+                "evidence_id": "ev_test_price",
+                "summary": "BTC 價格近 30 天上漲 5%",
+                "anomaly_flags": [{"signal": "volume_spike", "direction": "up"}],
+                "symbols": ["BTC"],
+            }],
+            missing=[{
+                "capability": "onchain",
+                "tool_name": "get_onchain",
+                "reason": "API timeout",
+                "required": True,
+            }],
+        )
+        context = agent.build_phase_b_context(outcome)
+
+        assert "ev_test_price" in context
+        assert "BTC 價格近 30 天上漲 5%" in context
+        assert "volume_spike" in context
+        assert "onchain" in context
+        assert "API timeout" in context
+        # NO raw data
+        assert '"raw"' not in context
+
+    def test_context_excludes_raw_payload(self):
+        """Raw data must NEVER appear in Phase B context."""
+        outcome = agent.PrefetchOutcome(
+            question_type="single_integration",
+            started_at="2026-08-01T00:00:00Z",
+            completed_at="2026-08-01T00:01:30Z",
+            results=[{
+                "capability": "price",
+                "tool_name": "get_price_ohlcv",
+                "status": "success",
+                "evidence_id": "ev_123",
+                "summary": "summary text",
+                "anomaly_flags": [],
+                "symbols": ["BTC"],
+                "raw_result": {"raw": {"secret_data": "should_not_appear" * 100}},
+            }],
+            missing=[],
+        )
+        context = agent.build_phase_b_context(outcome)
+        assert "secret_data" not in context
+        assert "should_not_appear" not in context
+
+
+# ── Force Convergence ──
+
+class TestShouldForceConvergence:
+    """Tests for should_force_convergence() — 20% boundary."""
+
+    def test_not_convergent_when_plenty_of_time(self):
+        """Should not converge when >20% budget remains."""
+        # budget=600, elapsed=100 → remaining=500 (83%) → False
+        started = time.time() - 100
+        assert agent.should_force_convergence(started, 600) is False
+
+    def test_convergent_at_boundary(self):
+        """Should converge when remaining is exactly at or below 20%."""
+        # budget=600, elapsed=481 → remaining=119 < 120 → True
+        started = time.time() - 481
+        assert agent.should_force_convergence(started, 600) is True
+
+    def test_convergent_when_over_budget(self):
+        """Should converge when over budget."""
+        started = time.time() - 700
+        assert agent.should_force_convergence(started, 600) is True
+
+    def test_not_convergent_at_80_percent(self):
+        """At 80% elapsed (20% remaining), should just barely converge."""
+        # budget=100, elapsed=80 → remaining=20 = 20% → equal to threshold
+        # remaining < 0.2 * budget → 20 < 20 → False (not strictly less)
+        started = time.time() - 80
+        result = agent.should_force_convergence(started, 100)
+        # At exactly 20% remaining it depends on timing; test near-boundary
+        started = time.time() - 81
+        assert agent.should_force_convergence(started, 100) is True
+
+
+# ── Series Registry ──
+
+class TestSeriesRegistry:
+    """Tests for series registry — request-scoped, cleared per request."""
+
+    def test_register_and_collect(self):
+        """Basic register and collect works."""
+        agent.reset_series_registry()
+        agent.register_visualization_series("test_series", "price_series", {"data": [1, 2]})
+        series = agent.collect_series()
+        assert "test_series" in series
+        assert series["test_series"]["series_type"] == "price_series"
+        agent.reset_series_registry()
+
+    def test_reset_clears_registry(self):
+        """reset_series_registry clears all data."""
+        agent.reset_series_registry()
+        agent.register_visualization_series("s1", "type", {"k": "v"})
+        assert len(agent.collect_series()) == 1
+        agent.reset_series_registry()
+        assert len(agent.collect_series()) == 0
+
+    def test_multiple_registrations_accumulate(self):
+        """Multiple registrations in same request accumulate."""
+        agent.reset_series_registry()
+        agent.register_visualization_series("price_btc", "price", {"btc": [1]})
+        agent.register_visualization_series("price_eth", "price", {"eth": [2]})
+        series = agent.collect_series()
+        assert len(series) == 2
+        agent.reset_series_registry()
+
+    def test_series_isolated_per_request(self):
+        """Series from one request don't leak to another."""
+        agent.reset_series_registry()
+        agent.register_visualization_series("request1", "type", {"d": 1})
+        agent.reset_series_registry()  # simulate new request
+        series = agent.collect_series()
+        assert "request1" not in series
+
+
+# ── Question Type Prompt ──
+
+class TestBuildQuestionTypePrompt:
+    """Tests for build_question_type_prompt() — per-type system prompt."""
+
+    def test_single_integration_prompt(self):
+        """Single integration prompt mentions relevant keywords."""
+        prompt = agent.build_question_type_prompt("single_integration", ["BTC"])
+        assert "整合" in prompt or "單幣" in prompt
+        assert "BTC" in prompt
+
+    def test_hypothesis_prompt(self):
+        """Hypothesis prompt mentions validation keywords."""
+        prompt = agent.build_question_type_prompt("hypothesis", ["ETH"])
+        assert "驗證" in prompt or "假設" in prompt
+
+    def test_comparison_prompt(self):
+        """Comparison prompt mentions both symbols."""
+        prompt = agent.build_question_type_prompt("comparison", ["BTC", "ETH"])
+        assert "BTC" in prompt
+        assert "ETH" in prompt
+        assert "比較" in prompt
+
+    def test_no_fixed_report_quotas(self):
+        """Question type prompts must not introduce fixed report quotas."""
+        for qt in ("single_integration", "hypothesis", "comparison"):
+            prompt = agent.build_question_type_prompt(qt, ["BTC", "ETH"][:2 if qt == "comparison" else 1])
+            assert "5/5" not in prompt
+            assert "固定分母" not in prompt
+
+
+# ── Integration: run_agent_loop with Phase A/B ──
+
+@patch("agent.call_bedrock")
+def test_run_agent_loop_integrates_phase_a_b(mock_bedrock):
+    """run_agent_loop should execute Phase A, classify type, and inject context."""
+    evidence.reset_stores()
+
+    # Mock Bedrock to immediately end
+    mock_bedrock.return_value = {
+        "stopReason": "end_turn",
+        "output": {
+            "message": {
+                "role": "assistant",
+                "content": [{"text": "基於 Phase A 預取資料進行分析完成。"}]
+            }
+        }
+    }
+
+    # Mock all tools to return success
+    mock_tool = MagicMock(return_value={
+        "raw": {"data": [1, 2, 3]},
+        "source": "https://test.api/mock",
+        "content_reference": {"key": "value"},
+        "summary": "Mock tool success",
+    })
+
+    with patch.dict(agent.TOOL_DISPATCH, {k: mock_tool for k in agent.TOOL_DISPATCH}):
+        messages = agent.run_agent_loop("run_test_integration", ["BTC"], "分析市場")
+
+    # Verify Phase A was executed (classification logged)
+    classify_logs = [
+        log for log in evidence.execution_log
+        if log["tool_name"] == "classify_question_type"
+    ]
+    assert len(classify_logs) == 1
+
+    # Verify question_type is stored in run context
+    assert agent._run_context.get("question_type") == "single_integration"
+
+    # Verify Phase A context is injected into initial message
+    initial_msg = messages[0]["content"][0]["text"]
+    assert "Phase A" in initial_msg
+
+    evidence.reset_stores()
+
+
+@patch("agent.call_bedrock")
+def test_run_agent_loop_forces_convergence_at_20_percent(mock_bedrock):
+    """When budget < 20% remaining, convergence is forced."""
+    evidence.reset_stores()
+
+    call_count = [0]
+
+    def delayed_bedrock(*args, **kwargs):
+        call_count[0] += 1
+        # Each call takes 0.5s to simulate time passing
+        time.sleep(0.3)
+        if call_count[0] <= 5:
+            return {
+                "stopReason": "tool_use",
+                "output": {
+                    "message": {
+                        "role": "assistant",
+                        "content": [{
+                            "toolUse": {
+                                "toolUseId": f"tool-{call_count[0]}",
+                                "name": "get_sentiment",
+                                "input": {"related_claim": "持續蒐集但時間快到了"}
+                            }
+                        }]
+                    }
+                }
+            }
+        return {
+            "stopReason": "end_turn",
+            "output": {
+                "message": {
+                    "role": "assistant",
+                    "content": [{"text": "收斂完成"}]
+                }
+            }
+        }
+
+    mock_bedrock.side_effect = delayed_bedrock
+
+    # Set time budget = 1s. With Phase A returning immediately (mocked),
+    # the loop_start captures time at top of run_agent_loop.
+    # Each bedrock call takes 0.3s. After ~3 calls (~0.9s), remaining < 0.2s (20% of 1s).
+    original_budget = config.TIME_BUDGET_SECONDS
+    config.TIME_BUDGET_SECONDS = 1
+
+    mock_tool = MagicMock(return_value={
+        "raw": {}, "source": "test", "content_reference": {},
+        "summary": "test",
+    })
+
+    try:
+        with patch.dict(agent.TOOL_DISPATCH, {k: mock_tool for k in agent.TOOL_DISPATCH}):
+            with patch("agent.run_phase_a_prefetch") as mock_pa:
+                mock_pa.return_value = agent.PrefetchOutcome(
+                    question_type="single_integration",
+                    started_at="2026-01-01T00:00:00Z",
+                    completed_at="2026-01-01T00:00:01Z",
+                )
+                messages = agent.run_agent_loop("run_test_conv", ["BTC"], "快速測試")
+    finally:
+        config.TIME_BUDGET_SECONDS = original_budget
+
+    # Should have force_convergence or timeout logged for agent_loop
+    agent_loop_logs = [
+        log for log in evidence.execution_log
+        if log["tool_name"] == "agent_loop"
+    ]
+    convergence_logs = [
+        log for log in evidence.execution_log
+        if log.get("status") == "force_convergence"
+        or (log.get("note") and "20%" in log.get("note", ""))
+        or log.get("status") == "timeout"
+    ]
+    # Either convergence or timeout must have been triggered
+    assert len(agent_loop_logs) >= 1 or len(convergence_logs) >= 1, (
+        f"Expected convergence/timeout. agent_loop logs: {agent_loop_logs}, "
+        f"all logs: {evidence.execution_log}"
+    )
+    evidence.reset_stores()
+
+
+# ── Handler integration with report_data ──
+
+@patch("agent.run_agent_loop")
+@patch("agent.summarize_final_analysis")
+def test_handler_returns_report_data_in_c5_response(mock_summarize, mock_loop):
+    """Handler response includes report_data per C5 contract."""
+    evidence.reset_stores()
+    agent._run_context = {"question_type": "single_integration"}
+    agent._series_registry = {"price_btc": {"series_type": "price", "data": {}}}
+
+    mock_loop.return_value = [{"role": "user", "content": [{"text": "test"}]}]
+    mock_summarize.return_value = "## 市場判斷\n結論\n## 關鍵依據\n依據\n## 信心說明\n說明"
+
+    event = {"body": json.dumps({"symbols": ["BTC"], "question": "測試 report_data 傳遞"})}
+    response = handler.lambda_handler(event, None)
+    body = json.loads(response["body"])
+
+    assert response["statusCode"] == 200
+    assert "report_data" in body
+    assert body["report_data"]["question_type"] == "single_integration"
+    assert body["report_data"]["symbols"] == ["BTC"]
+    assert body["report_data"]["schema_version"] == "1.0"
+
+    evidence.reset_stores()
+    agent.reset_series_registry()

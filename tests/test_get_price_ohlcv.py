@@ -75,7 +75,9 @@ class TestGetPriceOhlcvBaseline:
             result = get_price_ohlcv("SOL", "2019-01-01", "2019-01-31", "old date range test")
         assert "error" in result
         assert "content_reference" in result
-        assert result["content_reference"] == {}
+        assert result["status"] == "error"
+        assert result["content_reference"]["freshness_status"] == "unknown"
+        assert result["content_reference"]["provider"] == "Competition baseline CSV"
 
     def test_filters_date_range_correctly(self):
         """Verifies date filtering works — only dates within range are returned."""

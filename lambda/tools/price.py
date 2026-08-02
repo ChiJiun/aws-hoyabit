@@ -52,8 +52,14 @@ def get_price_ohlcv(symbol, start_date, end_date, related_claim):
         if start_date > end_date:
             return {"error": f"[get_price_ohlcv] 無效日期範圍: {start_date}~{end_date}"}
 
-        # 1. 讀取基準 CSV
-        baseline_df = storage.read_baseline_csv(symbol)
+        # 1. 讀取基準 CSV，統一日期為 UTC 日字串以支援 CSV 與測試 Timestamp。
+        baseline_df = storage.read_baseline_csv(symbol).copy()
+        if "date" not in baseline_df.columns:
+            raise ValueError("基準 OHLCV 缺少 date 欄位")
+        parsed_dates = pd.to_datetime(baseline_df["date"], errors="coerce", utc=True)
+        if parsed_dates.isna().any():
+            raise ValueError("基準 OHLCV 含無法解析的 date")
+        baseline_df["date"] = parsed_dates.dt.strftime("%Y-%m-%d")
 
         # 2. 判斷是否需要補即時資料
         recent_df = pd.DataFrame()
@@ -501,3 +507,183 @@ def get_market_dominance(related_claim):
         elapsed_ms = int((time.time() - start_time) * 1000)
         evidence.log_execution_step("get_market_dominance", "error", elapsed_ms, note=str(e))
         return {"error": f"[get_market_dominance] {type(e).__name__}: {str(e)}", "source": source_url, "content_reference": {}}
+
+
+# ---- C1 v1.0 品質契約包裝（保留既有函式行為與欄位）----
+_ORIGINAL_GET_PRICE_OHLCV = get_price_ohlcv
+_ORIGINAL_GET_ORDERBOOK_DEPTH = get_orderbook_depth
+_ORIGINAL_GET_MARKET_DOMINANCE = get_market_dominance
+
+
+def _price_return_anomalies(records, as_of, window=20):
+    """以日報酬相對近期波動的 z-score 偵測 A5 極端漲跌。"""
+    from tools.quality import make_anomaly_flag
+
+    if not isinstance(records, list) or len(records) < max(5, window):
+        return []
+    try:
+        frame = pd.DataFrame(records)
+        returns = frame["close"].astype(float).pct_change(fill_method=None).dropna()
+        if len(returns) < 3:
+            return []
+        history = returns.tail(window)
+        std = float(history.std())
+        if std == 0 or pd.isna(std):
+            return []
+        zscore = float((history.iloc[-1] - history.mean()) / std)
+        threshold = float(config.ANOMALY_THRESHOLDS["return_zscore_abs"])
+        if abs(zscore) < threshold:
+            return []
+        direction = "up" if zscore > 0 else "down"
+        return [make_anomaly_flag(
+            signal_id="A5",
+            name="單日漲跌幅極端",
+            severity="significant",
+            direction=direction,
+            value=round(zscore, 4),
+            unit="z-score",
+            percentile=None,
+            threshold=f"abs(z-score) >= {threshold:g}",
+            window=f"{window}d",
+            as_of=as_of,
+            message=f"最新日報酬 z-score={zscore:.2f}，超過 ±{threshold:g} 門檻",
+        )]
+    except (KeyError, TypeError, ValueError, IndexError):
+        return []
+
+
+def get_price_ohlcv(symbol, start_date, end_date, related_claim):
+    """C1 v1.0 包裝：正規化幣種、品質、fallback、A5 旗標與 series 輸出。"""
+    from tools.quality import standardize_tool_result
+    from tools.series_utils import extract_price_series, build_series_envelope
+
+    symbol_upper = str(symbol).upper().strip()
+    result = _ORIGINAL_GET_PRICE_OHLCV(
+        symbol_upper, start_date, end_date, related_claim
+    )
+    reference = result.get("content_reference", {}) if isinstance(result, dict) else {}
+    source = str(result.get("source", "")) if isinstance(result, dict) else ""
+    if "coingecko" in source.lower():
+        provider = "CoinGecko"
+        fallback_used = True
+        notes = ["CoinGecko range 資料由日內點位聚合為 OHLC，與交易所原生日 K 可比性有限"]
+        comparability = "limited"
+    elif "binance" in source.lower():
+        provider = "Binance Spot"
+        fallback_used = False
+        notes = []
+        comparability = "comparable"
+    else:
+        provider = "Competition baseline CSV"
+        fallback_used = False
+        notes = []
+        comparability = "comparable"
+
+    normalized = standardize_tool_result(
+        result,
+        provider=provider,
+        endpoint=reference.get("query_endpoint") or source,
+        symbol=symbol_upper,
+        pair=f"{symbol_upper}USDT",
+        timeframe="1d",
+        window=reference.get("requested_range") or f"{start_date}~{end_date}",
+        unit={"open": "USD", "high": "USD", "low": "USD", "close": "USD", "volume": "base_asset"},
+        as_of=reference.get("as_of"),
+        reference_time=end_date,
+        max_age_seconds=config.FRESHNESS_THRESHOLDS_SECONDS["price_daily"],
+        fallback_used=fallback_used,
+        primary_provider="Binance Spot" if end_date > config.BASELINE_END_DATE else provider,
+        comparability_status=comparability,
+        comparability_notes=notes,
+    )
+    if normalized.get("status") != "error":
+        normalized["anomaly_flags"] = _price_return_anomalies(
+            normalized.get("raw"), reference.get("as_of")
+        )
+
+        # --- Series extraction (stored alongside raw, not restructuring it) ---
+        ohlcv_records = normalized.get("raw")
+        if isinstance(ohlcv_records, list) and ohlcv_records:
+            points = extract_price_series(ohlcv_records, max_days=90)
+            if points:
+                series_envelope = build_series_envelope(
+                    points,
+                    unit='USD',
+                    provider=provider,
+                    pair=f'{symbol_upper}USDT',
+                    timeframe='1d',
+                    as_of=reference.get('as_of'),
+                    comparability=comparability,
+                    comparability_notes=notes,
+                )
+                # Keep raw as the list (backward compat) and add series key at top level
+                normalized['series'] = {'price': series_envelope}
+
+                # Update summary: latest close, period change %, date range only
+                latest_close = ohlcv_records[-1].get('close')
+                first_close = ohlcv_records[0].get('close')
+                date_start = ohlcv_records[0].get('date', start_date)
+                date_end = ohlcv_records[-1].get('date', end_date)
+                if first_close and latest_close and float(first_close) != 0:
+                    change_pct = (float(latest_close) - float(first_close)) / float(first_close) * 100
+                    normalized['summary'] = (
+                        f"{symbol_upper}USDT 最新收盤 {float(latest_close):.4f} USD，"
+                        f"期間變化 {change_pct:+.2f}%，"
+                        f"區間 {date_start}~{date_end}"
+                    )
+                else:
+                    normalized['summary'] = (
+                        f"{symbol_upper}USDT 最新收盤 {latest_close} USD，"
+                        f"區間 {date_start}~{date_end}"
+                    )
+    return normalized
+
+
+def get_orderbook_depth(symbol, related_claim):
+    """C1 v1.0 包裝：標記盤口為短效 snapshot，禁止與 OHLCV 互相替代。"""
+    from tools.quality import standardize_tool_result
+
+    symbol_upper = str(symbol).upper().strip()
+    result = _ORIGINAL_GET_ORDERBOOK_DEPTH(symbol_upper, related_claim)
+    reference = result.get("content_reference", {}) if isinstance(result, dict) else {}
+    return standardize_tool_result(
+        result,
+        provider="Binance Spot",
+        endpoint=reference.get("endpoint") or result.get("source", ""),
+        symbol=symbol_upper,
+        pair=f"{symbol_upper}USDT",
+        timeframe="snapshot",
+        window="±2% orderbook snapshot",
+        unit={"price": "USD", "depth": symbol_upper},
+        as_of=reference.get("fetched_at"),
+        max_age_seconds=config.FRESHNESS_THRESHOLDS_SECONDS["orderbook_snapshot"],
+        comparability_status="limited",
+        comparability_notes=["盤口為單一交易所快照，不代表全市場流動性"],
+    )
+
+
+def get_market_dominance(related_claim):
+    """C1 v1.0 包裝：補上市場層級 freshness 與單位。"""
+    from tools.quality import standardize_tool_result
+
+    result = _ORIGINAL_GET_MARKET_DOMINANCE(related_claim)
+    reference = result.get("content_reference", {}) if isinstance(result, dict) else {}
+    return standardize_tool_result(
+        result,
+        provider="CoinGecko",
+        endpoint=reference.get("endpoint") or result.get("source", ""),
+        symbol="MARKET",
+        pair=None,
+        timeframe="snapshot",
+        window="global market snapshot",
+        unit={"dominance": "%", "total_market_cap": "USD"},
+        as_of=reference.get("fetched_at"),
+        max_age_seconds=config.FRESHNESS_THRESHOLDS_SECONDS["market_dominance"],
+        comparability_status="comparable",
+    )
+
+
+
+# 既有 collector 保留 requests 介面，實際 HTTP 套用共用重試政策。
+from tools.quality import RetryingRequestsFacade as _RetryingRequestsFacade
+requests = _RetryingRequestsFacade()

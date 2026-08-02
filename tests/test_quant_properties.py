@@ -18,6 +18,28 @@ import numpy as np
 import pandas as pd
 from unittest.mock import patch
 
+
+def _mock_price_data(df):
+    """直接注入 quant 所需的標準價格結果，讓 property tests 完全離線。"""
+    frame = df.copy()
+    if "date" in frame.columns:
+        frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    as_of = None if frame.empty else str(frame["date"].iloc[-1])
+    result = {
+        "schema_version": "1.0",
+        "status": "success",
+        "raw": frame.to_dict(orient="records"),
+        "source": "test_fixture",
+        "content_reference": {
+            "as_of": as_of,
+            "query_endpoint": "test://ohlcv",
+        },
+        "summary": "offline property test fixture",
+        "anomaly_flags": [],
+    }
+    return patch("tools.price._ORIGINAL_GET_PRICE_OHLCV", return_value=result)
+
+
 from hypothesis import given, settings, assume
 from hypothesis import strategies as st
 
@@ -132,7 +154,7 @@ class TestProperty14TechnicalIndicatorsContainPercentile:
     @settings(max_examples=100)
     def test_atr_pct_has_value_and_percentile(self, df):
         """ATR% indicator result includes 'value' (finite) and 'percentile' (0-100)."""
-        with patch("storage.read_baseline_csv", return_value=df):
+        with _mock_price_data(df):
             result = compute_quant("BTC", ["atr_pct"], 14, "test claim")
 
         assert isinstance(result, dict)
@@ -148,7 +170,7 @@ class TestProperty14TechnicalIndicatorsContainPercentile:
     @settings(max_examples=100)
     def test_bollinger_bandwidth_has_value_and_percentile(self, df):
         """Bollinger Bandwidth includes 'value' (finite) and 'percentile' (0-100)."""
-        with patch("storage.read_baseline_csv", return_value=df):
+        with _mock_price_data(df):
             result = compute_quant("BTC", ["bollinger_bandwidth"], 20, "test claim")
 
         assert isinstance(result, dict)
@@ -164,7 +186,7 @@ class TestProperty14TechnicalIndicatorsContainPercentile:
     @settings(max_examples=100)
     def test_adx_has_value_and_percentile(self, df):
         """ADX indicator result includes 'value' (finite) and 'percentile' (0-100)."""
-        with patch("storage.read_baseline_csv", return_value=df):
+        with _mock_price_data(df):
             result = compute_quant("BTC", ["adx"], 14, "test claim")
 
         assert isinstance(result, dict)
@@ -180,7 +202,7 @@ class TestProperty14TechnicalIndicatorsContainPercentile:
     @settings(max_examples=100)
     def test_volume_zscore_has_value_and_percentile(self, df):
         """Volume Z-score includes 'value' (finite) and 'percentile' (0-100)."""
-        with patch("storage.read_baseline_csv", return_value=df):
+        with _mock_price_data(df):
             result = compute_quant("BTC", ["volume_zscore"], 14, "test claim")
 
         assert isinstance(result, dict)
@@ -196,7 +218,7 @@ class TestProperty14TechnicalIndicatorsContainPercentile:
     @settings(max_examples=100)
     def test_realized_vol_has_value_and_percentile(self, df):
         """Realized volatility includes 'value' (finite) and 'percentile' (0-100)."""
-        with patch("storage.read_baseline_csv", return_value=df):
+        with _mock_price_data(df):
             result = compute_quant("BTC", ["realized_vol"], 14, "test claim")
 
         assert isinstance(result, dict)
@@ -216,7 +238,7 @@ class TestProperty14TechnicalIndicatorsContainPercentile:
     @settings(max_examples=100)
     def test_any_feature_percentile_bounded_0_100(self, df, feature, window):
         """For any feature and valid window, percentile is always in [0, 100]."""
-        with patch("storage.read_baseline_csv", return_value=df):
+        with _mock_price_data(df):
             result = compute_quant("BTC", [feature], window, "testing percentile bounds")
 
         assert isinstance(result, dict)
@@ -309,7 +331,7 @@ class TestProperty12ToolNeverRaises:
     def test_never_raises_on_valid_data(self, df):
         """With valid OHLCV data, compute_quant always returns a dict."""
         features = ["atr_pct", "bollinger_bandwidth", "adx", "volume_zscore", "realized_vol"]
-        with patch("storage.read_baseline_csv", return_value=df):
+        with _mock_price_data(df):
             result = compute_quant("BTC", features, 14, "test claim")
 
         assert isinstance(result, dict)
@@ -326,7 +348,7 @@ class TestProperty12ToolNeverRaises:
     def test_never_raises_on_empty_dataframe(self, features, window):
         """With an empty DataFrame, compute_quant returns dict (possibly with error)."""
         empty_df = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
-        with patch("storage.read_baseline_csv", return_value=empty_df):
+        with _mock_price_data(empty_df):
             result = compute_quant("BTC", features, window, "test claim")
 
         assert isinstance(result, dict)
@@ -350,7 +372,7 @@ class TestProperty12ToolNeverRaises:
             "close": [102.0],
             "volume": [1000.0],
         })
-        with patch("storage.read_baseline_csv", return_value=single_df):
+        with _mock_price_data(single_df):
             result = compute_quant("BTC", features, window, "test claim")
 
         assert isinstance(result, dict)
@@ -375,7 +397,7 @@ class TestProperty12ToolNeverRaises:
             "close": [np.nan] * n,
             "volume": [np.nan] * n,
         })
-        with patch("storage.read_baseline_csv", return_value=nan_df):
+        with _mock_price_data(nan_df):
             result = compute_quant("BTC", features, window, "test claim")
 
         assert isinstance(result, dict)
@@ -400,7 +422,7 @@ class TestProperty12ToolNeverRaises:
             "close": [0.0] * n,
             "volume": [0.0] * n,
         })
-        with patch("storage.read_baseline_csv", return_value=zero_df):
+        with _mock_price_data(zero_df):
             result = compute_quant("BTC", features, window, "test claim")
 
         assert isinstance(result, dict)

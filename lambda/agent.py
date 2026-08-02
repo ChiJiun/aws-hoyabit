@@ -5,9 +5,13 @@ agent.py — Agent 主迴圈與工具規格
 → 分派到對應工具 → 把結果餵回模型」的循環，直到模型認為證據足夠。
 """
 
+import re
 import time
 import json
+import concurrent.futures
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from typing import Optional, List
 
 import boto3
 from botocore.exceptions import ClientError
@@ -39,152 +43,729 @@ TOOL_DISPATCH = {
 }
 
 
-SYSTEM_PROMPT = """你是加密市場分析助理，為「HOYA BIT 加密市場分析 AI Agent」系統服務。
-使用者會給你一個幣種（BTC/ETH/SOL/BNB/XRP）和一個分析題目，
-你要自主蒐集多方資料，產出一份有證據支撐、可回溯、有洞察的分析報告。
 
-⚠️ 你絕不做投資建議（不說買進、賣出、加倉、目標價、建議持有、進場、出場）。
-你的定位是「資訊提煉工具」——讓使用者看清楚，決定是他的。
+SYSTEM_PROMPT = """你是加密市場分析助理。使用者會給你一個或兩個幣種以及一個分析題目，
+你要蒐集多方資料，產出一份有證據支撐的分析。你不做投資建議
+（不說買進、賣出、目標價），你只做資訊的整理與判斷。
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-零、時效性規則（最高優先）
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+如果收到兩個幣種，代表這是比較分析題型，你必須確保兩邊都有對等的分析深度，
+並且用 compute_quant 的 compare_symbol 參數計算兩者的相關係數。
 
-- 每次呼叫時系統會另行提供「目前 UTC 日期」；凡題目包含目前、近期、短期、當前，所有價格與新聞查詢都必須以該日期為結束日。
-- 近期價格原則上查最近 30 天；新聞原則上查最近 14 天。不得以模型訓練資料中的日期猜測今天，也不得把超過查詢回溯期的舊資料描述為近期資料。
-- 工具摘要若標示資料截止日早於查詢日期或即時資料取得失敗，必須列為資料缺口，不得據此宣稱當前市場狀態。
+你有兩層工具可用：
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-一、你擁有的工具（15 個）
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【核心資料】大多數題目都會用到，優先考慮：
+- get_price_ohlcv、compute_quant（價格與技術指標）
+- search_news（新聞與公告）
+- get_onchain（鏈上活躍度）
+- get_sentiment、get_macro（市場情緒與總經環境，視題目相關性決定是否查詢）
 
-【價格與技術面】
-- get_price_ohlcv：取得日線 OHLCV（基準 CSV + Binance 即時補齊）
-- compute_quant：計算技術指標（ATR%、布林帶寬、ADX、成交量 Z-score、已實現波動率、相關係數）+ 百分位排名
-- get_orderbook_depth：Binance 盤口深度快照（±2% 流動性）
-- get_market_dominance：各幣種市值佔比（資金輪動訊號）
+【進階資料】只在題目明確需要更深入的市場結構或機構視角時才查，
+不要為了展現豐富度而每次都查：
+- get_derivatives（衍生品/槓桿方向）：適合討論波動性、方向性壓力的題目
+- get_prediction_market（預測市場定價）：適合討論特定事件（如 ETF、監管）的題目
+- get_defi_data（DeFi 資金流向）：適合討論資金輪動、場外資金進場的題目
+- get_dev_activity（開發活躍度）：適合討論基本面健康度的題目
+- get_orderbook_depth（盤口深度）：適合討論短期流動性風險的題目
+- get_market_dominance（市值占比）：適合比較分析題型，判斷資金輪動方向
+- get_cftc_cot（機構持倉，僅 BTC）：適合討論機構情緒、smart money 方向的題目
+- get_sec_filings（監管文件）：適合討論監管動態、ETF 進度的題目
+- get_coin_metrics（機構級估值指標）：適合討論估值是否合理的題目
 
-【衍生品與槓桿】
-- get_derivatives：資金費率、OI、大戶多空比、吃單比（Hyperliquid / Binance Futures / Deribit）
-  ┗ Deribit 還有 DVOL 隱含波動率、期權 Put/Call 比率（僅 BTC/ETH）
+工作步驟：
 
-【鏈上與 DeFi】
-- get_onchain：各鏈活躍度（mempool.space / Etherscan / Blockscout / Helius / XRPL）
-- get_defi_data：DeFi TVL + 穩定幣供給量（DefiLlama）
-- get_coin_metrics：MVRV、NVT、活躍地址數等機構級指標（Coin Metrics）
-- get_dev_activity：GitHub commit 活躍度
+1. 問題驅動的多維度規劃：
+   先辨識與題目相關的子問題，選擇至少 2 個能回答不同子問題、彼此互補且與題目相關的分析維度。
+   若是比較兩個幣種，必須在相同的相關維度下比較；不要為了湊數量而查無關資料，
+   也不預設固定工具數量或固定呼叫順序。
 
-【情緒與預測市場】
-- get_sentiment：Fear & Greed 指數 + 歷史走勢
-- get_prediction_market：Polymarket 事件市場定價（機率 vs 現貨反應的錯位）
+2. 動態蒐集足夠證據：
+   依子問題呼叫足夠的相關工具。每次呼叫工具時，related_claim 欄位必填，說明「這筆資料要用來檢驗什麼」。
+   「至少 3 個不同證據來源類別」只是一項匯出驗證政策，不是報告分母、覆蓋率、維度分數或強制蒐集配額。
+   若相關工具失敗，保留原因並以其他相關證據繼續分析。
 
-【新聞、監管與總經】
-- search_news：Google News RSS + CoinDesk/The Block/Cointelegraph + 官方公告 + GitHub releases
-- get_macro：DXY、10Y 殖利率、聯邦基金利率 + FOMC/CPI 排程
-- get_sec_filings：SEC EDGAR 監管文件搜尋
-- get_cftc_cot：CFTC COT 機構持倉（僅 BTC）
+3. 交叉驗證與背離偵測：
+   對實際使用的維度，明確比較一致訊號、背離訊號或證據不足；來源矛盾時說明取捨依據。
+   可在題目與證據相關時檢查這些背離模式：
+   - 資金費率轉負 + 價格持平：空頭擁擠但價格未進一步下跌
+   - OI 新高 + 波動率壓縮：槓桿堆積但波動尚未釋放
+   - DVOL 抬升 + 已實現波動率低：期權市場正為潛在事件風險定價
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-二、工作流程（依題目動態規劃）
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. 結構化分析：
+   - 事實(fact)：資料直接顯示的數字或事件，必須引用存在的 evidence_id
+   - 推論(inference)：由事實推導的判斷與邏輯
+   - 結論(conclusion)：綜合多項推論得出的判斷
+   不得以沒有 evidence_id 的事實支撐結論。
 
-步驟 1：問題驅動的多維度規劃
-  先把題目拆成可驗證的子問題，從價格、技術指標、市場結構與流動性、衍生品、
-  鏈上、情緒、預測市場、新聞與公告、總體經濟、DeFi、開發活躍度、機構資料、
-  監管資料中，選擇至少 2 個能回答不同子問題、彼此互補且與題目相關的維度。
-  不為湊數選擇無關維度，也不預設固定工具數量或固定呼叫順序。
+5. 誠實說明信心與限制：
+   - 只列出與題目相關但省略，或實際嘗試後失敗／無法取得的維度及原因
+   - 說明這些缺口如何影響結論信心，不列舉無關且未嘗試的維度
+   - 有矛盾訊號時，說明矛盾內容、取捨與理由
+   - 說明什麼情況會推翻結論
+   資料不足時就說「無法給出高信心判斷」，不要硬湊結論。
 
-步驟 2：動態蒐集足夠證據
-  依子問題動態呼叫足夠工具；每次呼叫的 related_claim 必填，說明資料要檢驗的判斷。
-  「至少 3 個不同證據來源類別」只是一項匯出驗證政策，不是報告分母、覆蓋率、
-  維度分數或強制蒐集配額。若相關工具失敗，保留原因並用其他相關證據繼續分析。
-
-步驟 3：交叉驗證與背離偵測（最重要的環節）
-  對實際使用的維度，明確比較一致訊號、背離訊號或證據不足狀態。
-  單一來源的數據是資訊，兩個來源的矛盾才是訊號；來源矛盾時說明取捨依據。
-  可檢查以下有用的背離模式，但只在與題目和已取得證據相關時使用：
-  - 資金費率轉負 + 價格持平 → 空頭擁擠但砸不下去（軋空燃料）
-  - OI 新高 + 波動率壓縮 → 槓桿堆積 + 大幅變盤前兆
-  - 情緒極恐 + 鏈上活躍度未降 → 去槓桿完成、基本面完好（階段底特徵）
-  - 穩定幣供給增加 + 現貨量縮 → 彈藥進場但未開火
-  - DVOL 抬升 + 已實現波動率低 → 市場在為某事件買保險
-  - BTC dominance 上升 + 山寨幣跌 → 資金避險回流
-  找到背離時，用 ⚠️ 標記並解釋為什麼值得注意。
-
-步驟 4：結構化分析
-  最終分析先明確列出實際使用的分析維度，再拆成三個層次：
-  - 事實(fact)：資料直接顯示的數字或事件，必須引用存在的 evidence_id
-  - 推論(inference)：由事實推導的判斷與邏輯
-  - 結論(conclusion)：綜合多項推論得出的判斷
-  並交叉說明維度間的一致、背離或證據不足，不得用無 evidence_id 的事實支撐結論。
-
-步驟 5：誠實說明信心與限制
-  - 明確標示定性的信心程度與依據
-  - 只列出與題目相關但省略，或實際嘗試後失敗／無法取得的維度及原因
-  - 說明這些缺口如何影響結論信心，不列舉無關且未嘗試的維度
-  - 有矛盾訊號時，說明矛盾內容、取捨與理由
-  - 說明什麼情況會推翻結論
-  - 資料不足時就說「無法給出高信心判斷」，不要硬湊結論
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-三、數字呈現紀律
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-- 所有技術指標數字必須由 compute_quant 計算，絕不自己心算
-- 呈現格式：永遠「絕對值 + 歷史百分位 + 時間視窗」
-  範例：「資金費率 0.08%/8h（近 90 日第 96 百分位）」
-  範例：「14 日 ATR% = 3.2%（歷史第 89 百分位）」
-- 避免模糊用語如「量能放大」「波動加劇」，用具體數字代替
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-四、報告結構（最終摘要時使用）
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-你的最終分析會被要求以以下結構重新整理（summarize_final_analysis 會提示你）：
-
-## 市場判斷
-（核心結論，區分事實/推論/結論三層）
-
-## 關鍵依據
-（每條引用 evidence_id，說明該證據如何支撐判斷）
-
-## 信心說明
-（信心程度、已知限制、矛盾訊號取捨、推翻條件）
-
-報告品質要求：
-- 明確列出實際使用的分析維度
-- 每條關鍵依據必須引用存在的 evidence_id
-- 交叉比較實際維度的一致訊號、背離訊號或證據不足；來源矛盾時說明取捨依據
-- 如果發現背離訊號，必須以 ⚠️ 標記並專門段落說明
-- 只說明與題目相關的省略，或實際嘗試失敗的維度、原因及信心影響
-- 不把無關且未嘗試的維度列為缺失，不輸出固定分母、覆蓋率或維度分數
-- 繁體中文輸出，保持專業但易懂
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-五、題型應對指引
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-【多源整合題】（1 幣種）
-→ 重點：各來源之間的「一致程度」，找出共振與背離
-
-【假設驗證題】（1 幣種，正反證據）
-→ 重點：分別蒐集支持與反對的證據，標明每條證據的立場，最後說明你的取捨邏輯
-
-【比較分析題】（2 幣種）
-→ 重點：同一維度（流動性/風險/動能）下兩幣的對比，用 compute_quant 的 correlation 功能
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-六、絕對禁止
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-❌ 不說：買進、賣出、加倉、目標價、建議持有、進場、出場
-❌ 不自己心算數字（用 compute_quant）
-❌ 不以固定工具數量、固定類別配額或強制順序取代題目驅動規劃
-❌ 不給出沒有 evidence_id 支撐的事實或結論
-❌ 不忽略矛盾訊號（必須正面處理）
-❌ 不把與題目無關且未嘗試的維度列為缺失
+重要規則：
+- 所有數字運算（技術指標、百分位、相關係數）都要透過 compute_quant 工具計算，不要自己心算。
 """
 
+
+# ---- Request-scoped state (cleared per request) ----
+_run_context: dict = {}
+_series_registry: dict = {}
+
+
+# ===========================================================================
+# Phase A: Question Classification & Prefetch Orchestration
+# ===========================================================================
+
+@dataclass
+class QuestionTypeResult:
+    question_type: str  # single_integration | hypothesis | comparison
+    method: str  # rule | llm_fallback
+    matched_rules: list
+
+
+_HYPOTHESIS_PATTERN = re.compile(
+    r"認為|觀點|驗證|假設|是否正確|是否成立|有人說|市場認為|聲音認為|市場預期|是否會|能否"
+)
+
+
+def classify_question_type(symbols: list, question: str) -> QuestionTypeResult:
+    """Rule-based question type classification.
+
+    Rule 1: len(symbols) == 2 → comparison
+    Rule 2: hypothesis keywords regex → hypothesis
+    Rule 3: default → single_integration
+    """
+    matched_rules = []
+
+    # Rule 1: comparison
+    if len(symbols) == 2:
+        matched_rules.append("rule1_two_symbols")
+        result = QuestionTypeResult(
+            question_type="comparison",
+            method="rule",
+            matched_rules=matched_rules,
+        )
+        evidence.log_execution_step(
+            "classify_question_type", "success", 0,
+            note=f"type=comparison matched={matched_rules}"
+        )
+        return result
+
+    # Rule 2: hypothesis keywords
+    if _HYPOTHESIS_PATTERN.search(question):
+        matched_rules.append("rule2_hypothesis_keywords")
+        result = QuestionTypeResult(
+            question_type="hypothesis",
+            method="rule",
+            matched_rules=matched_rules,
+        )
+        evidence.log_execution_step(
+            "classify_question_type", "success", 0,
+            note=f"type=hypothesis matched={matched_rules}"
+        )
+        return result
+
+    # Rule 3: default
+    matched_rules.append("rule3_default")
+    result = QuestionTypeResult(
+        question_type="single_integration",
+        method="rule",
+        matched_rules=matched_rules,
+    )
+    evidence.log_execution_step(
+        "classify_question_type", "success", 0,
+        note=f"type=single_integration matched={matched_rules}"
+    )
+    return result
+
+
+@dataclass
+class PrefetchItem:
+    capability: str
+    tool_name: str
+    tool_kwargs: dict
+    symbols: list
+    reason: str
+    required: bool = True
+    timeout_seconds: float = 30.0
+
+
+def build_prefetch_plan(question_type: str, symbols: list, question: str) -> list:
+    """Build a list of PrefetchItem for Phase A parallel data gathering.
+
+    Common per-symbol: price, quant, derivatives_hl, derivatives_binance, news, onchain
+    Common once: sentiment, macro
+    Type additions:
+      single_integration → defi_stablecoin + prediction
+      hypothesis → defi_stablecoin + prediction + directed_news
+      comparison → correlation + dominance
+    """
+    current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    start_date = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    plan: list = []
+
+    # --- Common per-symbol items ---
+    for sym in symbols:
+        # price
+        plan.append(PrefetchItem(
+            capability="price",
+            tool_name="get_price_ohlcv",
+            tool_kwargs={
+                "symbol": sym,
+                "start_date": start_date,
+                "end_date": current_date,
+                "related_claim": f"取得 {sym} 近 30 天價格走勢以分析趨勢方向",
+            },
+            symbols=[sym],
+            reason="core price data",
+        ))
+        # quant
+        plan.append(PrefetchItem(
+            capability="quant",
+            tool_name="compute_quant",
+            tool_kwargs={
+                "symbol": sym,
+                "features": ["atr_pct", "bollinger_bandwidth", "adx", "volume_zscore", "realized_vol"],
+                "window": 14,
+                "related_claim": f"計算 {sym} 技術指標以評估波動與趨勢強度",
+            },
+            symbols=[sym],
+            reason="technical indicators",
+        ))
+        # derivatives - hyperliquid
+        plan.append(PrefetchItem(
+            capability="derivatives_hl",
+            tool_name="get_derivatives",
+            tool_kwargs={
+                "symbol": sym,
+                "source": "hyperliquid",
+                "metrics": ["funding_rate", "open_interest", "liquidations"],
+                "related_claim": f"取得 {sym} Hyperliquid 衍生品數據以評估槓桿方向",
+            },
+            symbols=[sym],
+            reason="derivatives hyperliquid",
+            required=False,
+        ))
+        # derivatives - binance
+        plan.append(PrefetchItem(
+            capability="derivatives_binance",
+            tool_name="get_derivatives",
+            tool_kwargs={
+                "symbol": sym,
+                "source": "binance_futures",
+                "metrics": ["funding_rate", "open_interest", "long_short_ratio"],
+                "related_claim": f"取得 {sym} Binance 衍生品數據以評估散戶情緒",
+            },
+            symbols=[sym],
+            reason="derivatives binance",
+            required=False,
+        ))
+        # news
+        plan.append(PrefetchItem(
+            capability="news",
+            tool_name="search_news",
+            tool_kwargs={
+                "symbol": sym,
+                "lookback_days": 14,
+                "related_claim": f"搜尋 {sym} 近期新聞以了解市場催化劑",
+            },
+            symbols=[sym],
+            reason="recent news",
+        ))
+        # onchain
+        plan.append(PrefetchItem(
+            capability="onchain",
+            tool_name="get_onchain",
+            tool_kwargs={
+                "symbol": sym,
+                "metrics": ["active_addresses", "tx_count", "exchange_netflow"],
+                "lookback_days": 14,
+                "related_claim": f"取得 {sym} 鏈上活躍度以評估網路使用狀況",
+            },
+            symbols=[sym],
+            reason="onchain activity",
+        ))
+
+    # --- Common once items ---
+    plan.append(PrefetchItem(
+        capability="sentiment",
+        tool_name="get_sentiment",
+        tool_kwargs={
+            "related_claim": "取得市場恐懼貪婪指數以評估整體情緒",
+        },
+        symbols=symbols,
+        reason="market sentiment",
+    ))
+    plan.append(PrefetchItem(
+        capability="macro",
+        tool_name="get_macro",
+        tool_kwargs={
+            "indicators": ["DXY", "US10Y", "FEDFUNDS"],
+            "related_claim": "取得總經指標以評估宏觀環境對加密市場影響",
+        },
+        symbols=symbols,
+        reason="macro environment",
+    ))
+
+    # --- Type-specific additions ---
+    if question_type == "single_integration":
+        plan.append(PrefetchItem(
+            capability="defi_stablecoin",
+            tool_name="get_defi_data",
+            tool_kwargs={
+                "metrics": ["tvl", "stablecoin_supply"],
+                "chain": "all",
+                "related_claim": "取得 DeFi TVL 與穩定幣供給量以評估資金流入",
+            },
+            symbols=symbols,
+            reason="defi stablecoin supply",
+            required=False,
+        ))
+        plan.append(PrefetchItem(
+            capability="prediction",
+            tool_name="get_prediction_market",
+            tool_kwargs={
+                "keywords": " ".join(symbols) + " crypto",
+                "related_claim": "查詢預測市場以了解市場對重大事件的定價",
+            },
+            symbols=symbols,
+            reason="prediction market",
+            required=False,
+        ))
+    elif question_type == "hypothesis":
+        plan.append(PrefetchItem(
+            capability="defi_stablecoin",
+            tool_name="get_defi_data",
+            tool_kwargs={
+                "metrics": ["tvl", "stablecoin_supply"],
+                "chain": "all",
+                "related_claim": "取得 DeFi TVL 與穩定幣供給量以驗證假設",
+            },
+            symbols=symbols,
+            reason="defi stablecoin supply",
+            required=False,
+        ))
+        plan.append(PrefetchItem(
+            capability="prediction",
+            tool_name="get_prediction_market",
+            tool_kwargs={
+                "keywords": " ".join(symbols) + " crypto",
+                "related_claim": "查詢預測市場以驗證假設的市場共識",
+            },
+            symbols=symbols,
+            reason="prediction market",
+            required=False,
+        ))
+        # directed news with question keywords
+        plan.append(PrefetchItem(
+            capability="directed_news",
+            tool_name="search_news",
+            tool_kwargs={
+                "symbol": symbols[0],
+                "lookback_days": 14,
+                "related_claim": "搜尋與假設直接相關的新聞以驗證觀點",
+                "keywords": question[:50],
+            },
+            symbols=symbols,
+            reason="hypothesis-directed news",
+            required=False,
+        ))
+    elif question_type == "comparison":
+        # correlation
+        plan.append(PrefetchItem(
+            capability="correlation",
+            tool_name="compute_quant",
+            tool_kwargs={
+                "symbol": symbols[0],
+                "features": ["correlation"],
+                "window": 30,
+                "related_claim": f"計算 {symbols[0]} 與 {symbols[1]} 的相關係數以比較聯動性",
+                "compare_symbol": symbols[1],
+            },
+            symbols=symbols,
+            reason="cross-correlation",
+        ))
+        # dominance
+        plan.append(PrefetchItem(
+            capability="dominance",
+            tool_name="get_market_dominance",
+            tool_kwargs={
+                "related_claim": "取得市值佔比以比較兩幣種資金輪動方向",
+            },
+            symbols=symbols,
+            reason="market dominance",
+            required=False,
+        ))
+
+    # Deduplicate sentiment and macro (already only added once above)
+    return plan
+
+
+
+@dataclass
+class PrefetchOutcome:
+    question_type: str
+    started_at: str
+    completed_at: str
+    results: list = field(default_factory=list)
+    missing: list = field(default_factory=list)
+
+
+def _execute_prefetch_item(item: PrefetchItem, run_id: str) -> dict:
+    """Execute a single prefetch item and return result dict.
+
+    Isolates failures so one tool crash doesn't affect others.
+    """
+    start_time = time.time()
+    tool_name = item.tool_name
+
+    if tool_name not in TOOL_DISPATCH:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        evidence.log_execution_step(
+            tool_name, "error", elapsed_ms, note="unknown tool in prefetch"
+        )
+        return {
+            "capability": item.capability,
+            "tool_name": tool_name,
+            "status": "error",
+            "error": f"Unknown tool: {tool_name}",
+            "symbols": item.symbols,
+        }
+
+    func = TOOL_DISPATCH[tool_name]
+
+    try:
+        result = func(**item.tool_kwargs)
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        if isinstance(result, dict) and "error" in result:
+            evidence.log_execution_step(
+                tool_name, "error", elapsed_ms, note=result["error"]
+            )
+            return {
+                "capability": item.capability,
+                "tool_name": tool_name,
+                "status": "error",
+                "error": result["error"],
+                "symbols": item.symbols,
+            }
+
+        # Record evidence
+        related_claim = item.tool_kwargs.get("related_claim", "prefetch data")
+        evidence_id = evidence.log_evidence(run_id, tool_name, related_claim, result)
+
+        if isinstance(evidence_id, dict) and "error" in evidence_id:
+            evidence.log_execution_step(
+                tool_name, "warning", elapsed_ms, note=evidence_id["error"]
+            )
+            evidence_id = None
+
+        evidence.log_execution_step(
+            tool_name, "success", elapsed_ms, evidence_id=evidence_id
+        )
+
+        return {
+            "capability": item.capability,
+            "tool_name": tool_name,
+            "status": "success",
+            "evidence_id": evidence_id,
+            "summary": result.get("summary", ""),
+            "anomaly_flags": result.get("anomaly_flags", []),
+            "symbols": item.symbols,
+            "raw_result": result,
+        }
+
+    except Exception as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        error_msg = f"[{tool_name}] {type(e).__name__}: {str(e)}"
+        evidence.log_execution_step(tool_name, "error", elapsed_ms, note=error_msg)
+        return {
+            "capability": item.capability,
+            "tool_name": tool_name,
+            "status": "error",
+            "error": error_msg,
+            "symbols": item.symbols,
+        }
+
+
+def run_phase_a_prefetch(run_id: str, plan: list, soft_deadline_seconds: float = 90.0) -> PrefetchOutcome:
+    """Execute all prefetch items in parallel with a soft deadline.
+
+    Uses ThreadPoolExecutor(max_workers=8). Individual tool failures are
+    isolated and recorded in the outcome's missing list.
+    """
+    started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    outcome = PrefetchOutcome(
+        question_type="",
+        started_at=started_at,
+        completed_at="",
+    )
+
+    if not plan:
+        outcome.completed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return outcome
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        future_to_item = {
+            executor.submit(_execute_prefetch_item, item, run_id): item
+            for item in plan
+        }
+
+        try:
+            done_iter = concurrent.futures.as_completed(
+                future_to_item, timeout=soft_deadline_seconds
+            )
+            for future in done_iter:
+                item = future_to_item[future]
+                try:
+                    result = future.result(timeout=0)
+                    if result.get("status") == "success":
+                        outcome.results.append(result)
+                    else:
+                        outcome.missing.append({
+                            "capability": item.capability,
+                            "tool_name": item.tool_name,
+                            "reason": result.get("error", "unknown error"),
+                            "required": item.required,
+                        })
+                except Exception as exc:
+                    outcome.missing.append({
+                        "capability": item.capability,
+                        "tool_name": item.tool_name,
+                        "reason": f"{type(exc).__name__}: {str(exc)}",
+                        "required": item.required,
+                    })
+
+        except concurrent.futures.TimeoutError:
+            # Cancel pending futures after deadline
+            for future, item in future_to_item.items():
+                if not future.done():
+                    future.cancel()
+                    outcome.missing.append({
+                        "capability": item.capability,
+                        "tool_name": item.tool_name,
+                        "reason": "soft_deadline_exceeded",
+                        "required": item.required,
+                    })
+
+            evidence.log_execution_step(
+                "phase_a_prefetch", "timeout",
+                int(soft_deadline_seconds * 1000),
+                note=f"Soft deadline {soft_deadline_seconds}s exceeded, some items cancelled"
+            )
+
+    outcome.completed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    evidence.log_execution_step(
+        "phase_a_prefetch", "success",
+        0,
+        note=f"completed={len(outcome.results)} missing={len(outcome.missing)}"
+    )
+    return outcome
+
+
+
+def build_phase_b_context(outcome: PrefetchOutcome) -> str:
+    """Build structured text context from Phase A results for injection into Phase B.
+
+    Contains summaries, evidence_ids, anomaly_flags, missing items - NO raw data.
+    """
+    sections = []
+    sections.append("【Phase A 預取結果摘要】")
+    sections.append(f"開始：{outcome.started_at} / 完成：{outcome.completed_at}")
+    sections.append(f"成功取得 {len(outcome.results)} 項資料，{len(outcome.missing)} 項缺失\n")
+
+    # Group results by capability
+    if outcome.results:
+        sections.append("── 已取得資料 ──")
+        for r in outcome.results:
+            evidence_id = r.get("evidence_id", "N/A")
+            summary = r.get("summary", "")[:200]
+            anomalies = r.get("anomaly_flags", [])
+            symbols_str = ",".join(r.get("symbols", []))
+            line = f"• [{r['capability']}] {r['tool_name']} ({symbols_str}) → evidence_id={evidence_id}"
+            sections.append(line)
+            if summary:
+                sections.append(f"  摘要：{summary}")
+            if anomalies:
+                sections.append(f"  ⚠ 異常標記：{anomalies}")
+        sections.append("")
+
+    # Missing items
+    if outcome.missing:
+        sections.append("── 缺失資料 ──")
+        for m in outcome.missing:
+            req_label = "必要" if m.get("required") else "選用"
+            sections.append(
+                f"• [{m['capability']}] {m['tool_name']} ({req_label}) - 原因：{m['reason']}"
+            )
+        sections.append("")
+
+    return "\n".join(sections)
+
+
+def should_force_convergence(started_at_timestamp: float, budget_seconds: float) -> bool:
+    """Check if remaining time is less than 20% of budget → force convergence."""
+    elapsed = time.time() - started_at_timestamp
+    remaining = budget_seconds - elapsed
+    threshold = budget_seconds * 0.2
+    return remaining < threshold
+
+
+def build_question_type_prompt(question_type: str, symbols: list) -> str:
+    """Generate per-type prompt additions for system prompt."""
+    if question_type == "comparison":
+        return (
+            f"\n\n【題型提示：比較分析】本次比較 {symbols[0]} vs {symbols[1]}。"
+            "Phase A 已預取兩幣種的核心資料和相關係數。"
+            "請在相同維度下進行對等深度的比較分析，突出差異與關聯。"
+            "不需要重複呼叫 Phase A 已成功取得的工具，除非需要更細粒度的資料。"
+        )
+    elif question_type == "hypothesis":
+        return (
+            f"\n\n【題型提示：假設驗證】本次需要驗證使用者提出或引用的觀點/假設。"
+            "Phase A 已預取核心資料與相關新聞。"
+            "請明確列出假設、尋找支持與反對的證據，最終給出假設成立的信心程度。"
+            "不需要重複呼叫 Phase A 已成功取得的工具，除非需要更細粒度的資料。"
+        )
+    else:  # single_integration
+        return (
+            f"\n\n【題型提示：單幣整合分析】本次分析 {symbols[0]}。"
+            "Phase A 已預取核心多維度資料。"
+            "請整合已有資料，只在需要補充更細粒度或 Phase A 缺失的維度時才呼叫額外工具。"
+            "不需要重複呼叫 Phase A 已成功取得的工具。"
+        )
+
+
+
+# ===========================================================================
+# Series Registry — for visualization data extraction
+# ===========================================================================
+
+SERIES_CAPABLE_CAPABILITIES = {
+    "price": "price_series",
+    "quant": "indicator_series",
+    "derivatives_hl": "derivatives_series",
+    "derivatives_binance": "derivatives_series",
+    "sentiment": "sentiment_series",
+    "macro": "macro_series",
+    "onchain": "onchain_series",
+}
+
+
+def register_visualization_series(series_id: str, series_type: str, data: dict):
+    """Register a time-series data set for visualization."""
+    _series_registry[series_id] = {
+        "series_type": series_type,
+        "data": data,
+        "registered_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+
+def collect_series() -> dict:
+    """Return all registered series for the current request."""
+    return dict(_series_registry)
+
+
+def reset_series_registry():
+    """Clear the series registry for a new request."""
+    _series_registry.clear()
+
+
+def _extract_price_series(result: dict, symbols: list):
+    """Extract OHLCV price series from a price tool result."""
+    raw = result.get("raw_result", {})
+    raw_data = raw.get("raw", {})
+
+    if not raw_data:
+        return
+
+    # raw_data can be a list (OHLCV rows) or a dict with a nested list
+    ohlcv = None
+    if isinstance(raw_data, list):
+        ohlcv = raw_data
+    elif isinstance(raw_data, dict):
+        ohlcv = raw_data.get("ohlcv", raw_data.get("daily", []))
+
+    if ohlcv and isinstance(ohlcv, list):
+        sym = symbols[0] if symbols else "UNKNOWN"
+        series_id = f"price_{sym.lower()}_daily"
+        register_visualization_series(series_id, "price_series", {
+            "symbol": sym,
+            "data_points": len(ohlcv),
+            "series": ohlcv[-30:],  # last 30 data points max
+        })
+
+
+def _extract_and_register_series(result: dict):
+    """Extract and register visualization series from a prefetch/tool result.
+
+    Checks if the capability is series-capable and extracts relevant data.
+    """
+    capability = result.get("capability", "")
+    symbols = result.get("symbols", [])
+    series_type = SERIES_CAPABLE_CAPABILITIES.get(capability)
+
+    if not series_type:
+        return
+
+    if capability == "price":
+        _extract_price_series(result, symbols)
+    elif capability == "quant":
+        raw = result.get("raw_result", {})
+        indicators = raw.get("raw", {}).get("indicators", {})
+        if indicators:
+            sym = symbols[0] if symbols else "UNKNOWN"
+            series_id = f"quant_{sym.lower()}_indicators"
+            register_visualization_series(series_id, "indicator_series", {
+                "symbol": sym,
+                "indicators": indicators,
+            })
+    elif capability in ("derivatives_hl", "derivatives_binance"):
+        raw = result.get("raw_result", {})
+        raw_data = raw.get("raw", {})
+        if raw_data:
+            sym = symbols[0] if symbols else "UNKNOWN"
+            source = "hl" if capability == "derivatives_hl" else "binance"
+            series_id = f"derivatives_{sym.lower()}_{source}"
+            register_visualization_series(series_id, "derivatives_series", {
+                "symbol": sym,
+                "source": source,
+                "data": raw_data,
+            })
+    elif capability == "sentiment":
+        raw = result.get("raw_result", {})
+        raw_data = raw.get("raw", {})
+        if raw_data:
+            series_id = "sentiment_fgi"
+            register_visualization_series(series_id, "sentiment_series", {
+                "data": raw_data,
+            })
+    elif capability == "macro":
+        raw = result.get("raw_result", {})
+        raw_data = raw.get("raw", {})
+        if raw_data:
+            series_id = "macro_indicators"
+            register_visualization_series(series_id, "macro_series", {
+                "data": raw_data,
+            })
+    elif capability == "onchain":
+        raw = result.get("raw_result", {})
+        raw_data = raw.get("raw", {})
+        if raw_data:
+            sym = symbols[0] if symbols else "UNKNOWN"
+            series_id = f"onchain_{sym.lower()}"
+            register_visualization_series(series_id, "onchain_series", {
+                "symbol": sym,
+                "data": raw_data,
+            })
+
+
+
+# ===========================================================================
+# Tool Configuration & Bedrock API
+# ===========================================================================
 
 def build_tool_config():
     """組出 Bedrock Converse API 的 toolConfig JSON。
@@ -542,7 +1123,8 @@ def build_tool_config():
     return {"tools": tools}
 
 
-def call_bedrock(messages, tool_config=None):
+
+def call_bedrock(messages, tool_config=None, extra_system_text=""):
     """呼叫 Bedrock Converse API 一次。
 
     處理 ThrottlingException（等待 2 秒重試一次）。
@@ -555,6 +1137,7 @@ def call_bedrock(messages, tool_config=None):
         SYSTEM_PROMPT
         + f"\n\n【不可忽略的時間基準】目前 UTC 日期是 {current_date}。"
         + "所有『目前／近期／短期／當前』判斷都只能使用工具回傳且資料截止日接近此日期的資料。"
+        + extra_system_text
     )
     kwargs = {
         "modelId": config.BEDROCK_MODEL_ID,
@@ -582,10 +1165,12 @@ def call_bedrock(messages, tool_config=None):
     return None
 
 
+
 def dispatch_tool_call(run_id, tool_use_block):
     """根據模型指定的工具名稱，找到對應函式並執行，然後記錄證據。
 
     回傳 toolResult 區塊（僅含 summary + evidence_id，不含 raw）。
+    Also registers series for Phase B tool calls.
     """
     tool_name = tool_use_block["name"]
     tool_input = tool_use_block["input"]
@@ -637,6 +1222,9 @@ def dispatch_tool_call(run_id, tool_use_block):
             tool_name, "success", elapsed_ms, evidence_id=evidence_id
         )
 
+        # Register series for Phase B tool calls (visualization)
+        _try_register_series_from_tool_call(tool_name, tool_input, result)
+
         # 組裝精簡的 toolResult（不含 raw，避免 context 膨脹）
         tool_result_content = {
             "summary": result.get("summary", "No summary available"),
@@ -660,12 +1248,92 @@ def dispatch_tool_call(run_id, tool_use_block):
         }
 
 
+def _try_register_series_from_tool_call(tool_name: str, tool_input: dict, result: dict):
+    """Attempt to register visualization series from a Phase B tool call result."""
+    # Map tool_name to capability for series registration
+    tool_to_capability = {
+        "get_price_ohlcv": "price",
+        "compute_quant": "quant",
+        "get_derivatives": "derivatives_hl",
+        "get_sentiment": "sentiment",
+        "get_macro": "macro",
+        "get_onchain": "onchain",
+    }
+    capability = tool_to_capability.get(tool_name)
+    if not capability:
+        return
+
+    # For derivatives, distinguish source
+    if tool_name == "get_derivatives":
+        source = tool_input.get("source", "")
+        if "binance" in source:
+            capability = "derivatives_binance"
+
+    symbols = []
+    if "symbol" in tool_input:
+        symbols = [tool_input["symbol"]]
+
+    fake_result = {
+        "capability": capability,
+        "symbols": symbols,
+        "raw_result": result,
+    }
+    _extract_and_register_series(fake_result)
+
+
+
 def run_agent_loop(run_id, symbols, question):
     """系統核心。維持 Agent 的對話迴圈直到模型完成分析。
+
+    Phase A: Parallel prefetch of core data based on question type classification.
+    Phase B: LLM agent loop with prefetched context, may call additional tools.
 
     受 MAX_AGENT_TURNS 與 TIME_BUDGET_SECONDS 雙重限制。
     回傳：messages 陣列（完整對話歷史）。
     """
+    global _run_context
+
+    # Reset request-scoped state
+    _run_context = {}
+    reset_series_registry()
+
+    loop_start = time.time()
+
+    # ===== Phase A: Classification & Prefetch =====
+    # Classify question type
+    qt_result = classify_question_type(symbols, question)
+    _run_context["question_type"] = qt_result.question_type
+    _run_context["classification"] = {
+        "question_type": qt_result.question_type,
+        "method": qt_result.method,
+        "matched_rules": qt_result.matched_rules,
+    }
+
+    # Build prefetch plan
+    prefetch_plan = build_prefetch_plan(qt_result.question_type, symbols, question)
+    _run_context["prefetch_plan_size"] = len(prefetch_plan)
+
+    # Execute Phase A prefetch
+    phase_a_outcome = run_phase_a_prefetch(run_id, prefetch_plan, soft_deadline_seconds=90.0)
+    phase_a_outcome.question_type = qt_result.question_type
+    _run_context["phase_a_outcome"] = {
+        "started_at": phase_a_outcome.started_at,
+        "completed_at": phase_a_outcome.completed_at,
+        "results_count": len(phase_a_outcome.results),
+        "missing_count": len(phase_a_outcome.missing),
+    }
+
+    # Extract and register series from Phase A results
+    for result in phase_a_outcome.results:
+        _extract_and_register_series(result)
+
+    # Build Phase B context from Phase A outcome
+    phase_b_context = build_phase_b_context(phase_a_outcome)
+
+    # Build question type prompt addition for system prompt
+    question_type_prompt = build_question_type_prompt(qt_result.question_type, symbols)
+
+    # ===== Phase B: LLM Agent Loop =====
     # 注入時間基準，確保 LLM 使用正確日期
     current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     freshness_rules = (
@@ -673,30 +1341,34 @@ def run_agent_loop(run_id, symbols, question):
         f"價格查詢 end_date 必須使用此日期，新聞使用 lookback_days=14。不得使用模型記憶中的舊日期代替。\n\n"
     )
 
-    # 組裝題目驅動的初始 user 訊息，不預設固定工具配額或順序。
+    # 組裝題目驅動的初始 user 訊息，注入 Phase A 預取結果
     if len(symbols) == 1:
         user_text = (
             freshness_rules
+            + phase_b_context + "\n\n"
             + f"幣種：{symbols[0]}\n問題：{question}\n\n"
             "請先辨識與問題相關的子問題，選擇至少 2 個能回答不同子問題且彼此互補的相關分析維度。"
+            "Phase A 已預取核心資料（見上方摘要），請優先利用已有證據。"
+            "只在需要更細粒度資料或 Phase A 缺失的維度時才呼叫額外工具。"
             "依分析需要動態使用足夠的工具與證據，交叉比較各維度的一致訊號、背離訊號或證據不足，"
             "並為使用的事實引用存在的 evidence_id；適用的數字計算請交由 compute_quant 決定性完成。"
         )
     else:
         user_text = (
             freshness_rules
+            + phase_b_context + "\n\n"
             + f"幣種：{symbols[0]} vs {symbols[1]}\n問題：{question}\n\n"
             "請先辨識與問題相關的子問題，選擇至少 2 個能回答不同子問題且彼此互補的相關分析維度。"
+            "Phase A 已預取兩幣種的核心資料（見上方摘要），請優先利用已有證據。"
+            "只在需要更細粒度資料或 Phase A 缺失的維度時才呼叫額外工具。"
             "請在相同的相關維度下比較兩個幣種，依分析需要動態使用足夠的工具與證據，"
             "交叉比較一致訊號、背離訊號或證據不足，並為使用的事實引用存在的 evidence_id；"
             "凡適用的技術指標、百分位、報酬或相關係數等數字，均使用 compute_quant 決定性計算。"
-        )
         )
 
     messages = [{"role": "user", "content": [{"text": user_text}]}]
     tool_config = build_tool_config()
 
-    loop_start = time.time()
     forced_exit = False
 
     for turn in range(config.MAX_AGENT_TURNS):
@@ -710,9 +1382,22 @@ def run_agent_loop(run_id, symbols, question):
             )
             break
 
-        # 呼叫 Bedrock
+        # Check if should force convergence (remaining < 20% of budget)
+        if should_force_convergence(loop_start, config.TIME_BUDGET_SECONDS):
+            # Inject convergence hint into messages
+            convergence_msg = (
+                "【時間預算即將耗盡】請立即整合已有證據，輸出最終分析結論。"
+                "不要再呼叫新工具，直接根據已蒐集的資料完成分析。"
+            )
+            messages.append({"role": "user", "content": [{"text": convergence_msg}]})
+            evidence.log_execution_step(
+                "agent_loop", "force_convergence", int(elapsed * 1000),
+                note=f"Remaining budget < 20% at turn {turn + 1}"
+            )
+
+        # 呼叫 Bedrock (with question type prompt in system)
         try:
-            response = call_bedrock(messages, tool_config)
+            response = call_bedrock(messages, tool_config, extra_system_text=question_type_prompt)
         except Exception as e:
             evidence.log_execution_step(
                 "agent_loop", "error", int((time.time() - loop_start) * 1000),
@@ -759,7 +1444,13 @@ def run_agent_loop(run_id, symbols, question):
             note=f"Reached MAX_AGENT_TURNS ({config.MAX_AGENT_TURNS})"
         )
 
+    # Store final state in run context
+    _run_context["total_elapsed_seconds"] = time.time() - loop_start
+    _run_context["total_turns"] = turn + 1
+    _run_context["series_count"] = len(_series_registry)
+
     return messages
+
 
 
 EVIDENCE_INDEX_SOURCE_MAX_CHARS = 240

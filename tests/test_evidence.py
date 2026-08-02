@@ -126,9 +126,13 @@ def test_property_7_evidence_record_fields(mock_save, run_id, tool_name, related
     assert len(evidence.evidence_list) == 1
     record = evidence.evidence_list[0]
 
-    # 驗證五個必要欄位存在
+    # 驗證命題五個必要欄位與 C1 追溯欄位存在
     expected_fields = {"evidence_id", "source", "fetched_at", "content_reference", "related_claim"}
-    assert set(record.keys()) == expected_fields
+    assert expected_fields <= set(record.keys())
+    assert {
+        "schema_version", "tool_name", "data_quality", "anomaly_flags",
+        "raw_payload_path", "raw_payload_sha256", "archive_status",
+    } <= set(record.keys())
 
     # 驗證 evidence_id 與回傳值一致
     assert record["evidence_id"] == result

@@ -25,6 +25,7 @@ import handler  # noqa: E402
 import evidence  # noqa: E402
 import export  # noqa: E402
 import report  # noqa: E402
+import agent  # noqa: E402
 
 
 # 命題的三種範例題型，對應到不同的輸入形狀
@@ -532,3 +533,138 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Orchestrator Integration Tests (Phase A/B pipeline)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def test_orchestrator_classifies_all_test_cases():
+    """All TEST_CASES get correct question_type classification."""
+    from unittest.mock import patch, MagicMock
+
+    evidence.reset_stores()
+
+    for case in TEST_CASES:
+        result = agent.classify_question_type(case["symbols"], case["question"])
+        if len(case["symbols"]) == 2:
+            assert result.question_type == "comparison", f"Failed for: {case['name']}"
+        elif any(kw in case["question"] for kw in ["認為", "觀點", "驗證", "假設", "是否", "有人說"]):
+            assert result.question_type == "hypothesis", f"Failed for: {case['name']}"
+        else:
+            assert result.question_type == "single_integration", f"Failed for: {case['name']}"
+
+    evidence.reset_stores()
+
+
+def test_orchestrator_builds_plans_for_all_test_cases():
+    """All TEST_CASES produce valid prefetch plans."""
+    for case in TEST_CASES:
+        qt = agent.classify_question_type(case["symbols"], case["question"])
+        plan = agent.build_prefetch_plan(qt.question_type, case["symbols"], case["question"])
+        assert len(plan) >= 8, f"Plan too small for: {case['name']} ({len(plan)} items)"
+        # All tools must exist
+        for item in plan:
+            assert item.tool_name in agent.TOOL_DISPATCH, (
+                f"Unknown tool {item.tool_name} in plan for {case['name']}"
+            )
+    evidence.reset_stores()
+
+
+def test_orchestrator_series_registry_cleared_per_request():
+    """Series registry is properly cleared between requests."""
+    from unittest.mock import patch, MagicMock
+
+    evidence.reset_stores()
+    agent.reset_series_registry()
+
+    # Register something
+    agent.register_visualization_series("leak_test", "price", {"d": [1]})
+    assert len(agent.collect_series()) == 1
+
+    # Simulate new request start (handler does this)
+    agent.reset_series_registry()
+    assert len(agent.collect_series()) == 0
+
+    evidence.reset_stores()
+
+
+def test_orchestrator_phase_a_all_fail_still_allows_phase_b():
+    """When all Phase A tools fail, Phase B can still proceed."""
+    from unittest.mock import patch, MagicMock
+
+    evidence.reset_stores()
+
+    def always_fail(**kwargs):
+        return {"error": "simulated total failure"}
+
+    plan = agent.build_prefetch_plan("single_integration", ["BTC"], "測試全失敗")
+
+    with patch.dict(agent.TOOL_DISPATCH, {k: always_fail for k in agent.TOOL_DISPATCH}):
+        outcome = agent.run_phase_a_prefetch("run_all_fail", plan, soft_deadline_seconds=10)
+
+    # All should be in missing
+    assert len(outcome.results) == 0
+    assert len(outcome.missing) == len(plan)
+
+    # Phase B context should still be buildable
+    context = agent.build_phase_b_context(outcome)
+    assert "缺失" in context or "missing" in context.lower()
+
+    evidence.reset_stores()
+
+
+def test_orchestrator_handler_main_respects_series_lifecycle(monkeypatch, tmp_path, capsys):
+    """Handler main() properly resets and collects series."""
+    from unittest.mock import patch, MagicMock
+
+    records, execution_log, analysis, _ = _sample_multidimensional_run()
+
+    def fake_loop(run_id, symbols, question):
+        evidence.evidence_list[:] = records
+        evidence.execution_log[:] = execution_log
+        agent._run_context["question_type"] = "single_integration"
+        agent.register_visualization_series("test_series", "price", {"btc": [1, 2]})
+        return [{"role": "assistant", "content": [{"text": analysis}]}]
+
+    monkeypatch.setattr(handler, "__file__", str(tmp_path / "lambda" / "handler.py"))
+    monkeypatch.setattr(handler.config, "load_local_env", lambda: None)
+    monkeypatch.setattr(handler.agent, "run_agent_loop", fake_loop)
+    monkeypatch.setattr(handler.agent, "summarize_final_analysis", lambda messages: analysis)
+
+    try:
+        handler.main()
+        console = capsys.readouterr().out
+    finally:
+        evidence.reset_stores()
+        agent.reset_series_registry()
+
+    # Series should be collected during the run
+    assert "題型：single_integration" in console
+
+
+def test_orchestrator_raw_never_in_phase_b_context():
+    """Verify that raw data never leaks into Phase B context text."""
+    secret_raw = "SUPER_SECRET_RAW_DATA_" + "x" * 1000
+
+    outcome = agent.PrefetchOutcome(
+        question_type="single_integration",
+        started_at="2026-08-01T00:00:00Z",
+        completed_at="2026-08-01T00:01:00Z",
+        results=[{
+            "capability": "price",
+            "tool_name": "get_price_ohlcv",
+            "status": "success",
+            "evidence_id": "ev_raw_test",
+            "summary": "BTC price data",
+            "anomaly_flags": [],
+            "symbols": ["BTC"],
+            "raw_result": {"raw": secret_raw},
+        }],
+        missing=[],
+    )
+
+    context = agent.build_phase_b_context(outcome)
+    assert secret_raw not in context
+    assert "SUPER_SECRET" not in context

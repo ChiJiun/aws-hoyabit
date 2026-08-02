@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0",
+  "question_type": "single_integration",
+  "symbols": ["BTC"],
+  "verdict": {
+    "text": "BTC 處於高波動蓄勢階段，短期傾向向上突破，但需注意槓桿過熱與情緒偏高的回調風險。",
+    "stance": "bullish",
+    "confidence": 0.72,
+    "confidence_label": "中高",
+    "invalidation": "若跌破 $98,000 並伴隨交易所餘額急升與資金費率轉負，則蓄勢突破假設失效。"
+  },
+  "dimensions": [
+    {
+      "name": "價格動能",
+      "state": "strong",
+      "headline": "近兩週 +8.2%，布林帶收窄至 3.2% 後擴張，RSI 55 中性偏多",
+      "evidence_ids": ["ev_price_01", "ev_price_02"],
+      "per_symbol": {
+        "BTC": {
+          "price_current": 104250,
+          "change_14d_pct": 8.2,
+          "rsi_14": 55,
+          "bollinger_bandwidth_pct": 3.2,
+          "atr_pct": 4.1,
+          "realized_vol_30d": 68
+        }
+      }
+    },
+    {
+      "name": "槓桿結構",
+      "state": "weak",
+      "headline": "資金費率 0.035% 偏高，OI 創近 30 日新高(P92)，多空比 1.28 偏多擁擠",
+      "evidence_ids": ["ev_leverage_01"],
+      "per_symbol": {
+        "BTC": {
+          "funding_rate": 0.00035,
+          "open_interest_usd": 18200000000,
+          "oi_percentile": 92,
+          "long_short_ratio": 1.28
+        }
+      }
+    },
+    {
+      "name": "鏈上行為",
+      "state": "strong",
+      "headline": "巨鯨 7 日淨流入 12,340 BTC，交易所餘額持續下降，活躍地址穩定",
+      "evidence_ids": ["ev_chain_01", "ev_chain_02"],
+      "per_symbol": {
+        "BTC": {
+          "whale_net_inflow_7d": 12340,
+          "exchange_balance_change_7d": -8200,
+          "active_addresses_7d_avg": 925000
+        }
+      }
+    },
+    {
+      "name": "情緒面",
+      "state": "neutral",
+      "headline": "Fear & Greed 72(貪婪)較上週 +7，新聞正面率 62%，尚未極端",
+      "evidence_ids": ["ev_sentiment_01", "ev_sentiment_02"],
+      "per_symbol": {
+        "BTC": {
+          "fear_greed_index": 72,
+          "fear_greed_change_7d": 7,
+          "news_positive_pct": 62,
+          "news_sample_size": 47
+        }
+      }
+    },
+    {
+      "name": "總經環境",
+      "state": "na",
+      "headline": "FRED DGS10 4.12% 回落、DXY 101.3 走弱有利風險資產，但缺乏 CPI 最新數據",
+      "evidence_ids": ["ev_macro_01"],
+      "per_symbol": {
+        "BTC": {
+          "dgs10": 4.12,
+          "dxy": 101.3,
+          "note": "CPI 數據尚未公布，無法完整評估"
+        }
+      }
+    }
+  ],
+  "signals": [
+    {
+      "level": "yellow",
+      "title": "槓桿擁擠",
+      "detail": "OI 處歷史第 92 百分位，資金費率偏高，短期回調可能觸發連環清算",
+      "metrics": [
+        {"label": "OI 百分位", "value": 92, "percentile": 92},
+        {"label": "資金費率", "value": 0.035, "percentile": 78}
+      ],
+      "evidence_ids": ["ev_leverage_01"],
+      "caveat": "高 OI 不代表必然回調，需觀察是否伴隨現貨量能枯竭"
+    },
+    {
+      "level": "yellow",
+      "title": "情緒偏高但未極端",
+      "detail": "Fear & Greed 72 進入貪婪區間，歷史上超過 75 後回調機率增加",
+      "metrics": [
+        {"label": "恐懼貪婪指數", "value": 72, "percentile": 68}
+      ],
+      "evidence_ids": ["ev_sentiment_01"],
+      "caveat": "牛市中貪婪區間可維持數週，單一情緒指標不構成反轉信號"
+    }
+  ],
+  "checked_normal": [
+    "布林帶寬 P54 — 尚未過度壓縮",
+    "鏈上活躍地址 ±6% 正常波動",
+    "BTC-ETH 相關性 0.81 處正常區間"
+  ],
+  "hypothesis": null,
+  "comparison": null,
+  "series": {
+    "price": {
+      "BTC": [
+        ["2026-05-04", 89200], ["2026-05-11", 91500], ["2026-05-18", 90800],
+        ["2026-05-25", 93400], ["2026-06-01", 94100], ["2026-06-08", 95800],
+        ["2026-06-15", 94200], ["2026-06-22", 96500], ["2026-06-29", 97800],
+        ["2026-07-06", 98200], ["2026-07-13", 99500], ["2026-07-20", 101200],
+        ["2026-07-27", 103800], ["2026-08-01", 104250]
+      ]
+    },
+    "funding_rate": {
+      "BTC": [
+        ["2026-07-20", 0.0001], ["2026-07-21", 0.00015], ["2026-07-22", 0.0002],
+        ["2026-07-23", 0.00018], ["2026-07-24", 0.00025], ["2026-07-25", 0.0003],
+        ["2026-07-26", 0.00028], ["2026-07-27", 0.00032], ["2026-07-28", 0.0003],
+        ["2026-07-29", 0.00033], ["2026-07-30", 0.00035], ["2026-07-31", 0.00034],
+        ["2026-08-01", 0.00035]
+      ]
+    }
+  },
+  "coverage": {
+    "pct": 86,
+    "got": ["price_ohlcv", "quant_indicators", "derivatives_funding", "derivatives_oi", "chain_whale", "chain_exchange", "news_rss", "fear_greed"],
+    "missing": [
+      {"capability": "fred_cpi", "reason": "CPI 尚未於本月公布"},
+      {"capability": "polymarket_btc", "reason": "無相關活躍事件"}
+    ]
+  },
+  "watchlist": [
+    {"event": "FOMC 利率決議", "date": "2026-08-18", "why": "若升息暗示增加將壓制風險資產"},
+    {"event": "BTC 選擇權到期", "date": "2026-08-29", "why": "Max Pain $100,000 附近，到期前可能有 pin 動作"},
+    {"event": "美國 CPI 公布", "date": "2026-08-14", "why": "高於預期將強化升息預期，不利 BTC"}
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "question_type": "comparison",
+  "symbols": ["BTC", "ETH"],
+  "verdict": {
+    "text": "短期內 BTC 動能優於 ETH，但 ETH 在 DeFi 生態與開發活動上具結構性優勢，中期視資金輪動而定。",
+    "stance": "mixed",
+    "confidence": 0.65,
+    "confidence_label": "中高",
+    "invalidation": "若 ETH/BTC 匯率突破 0.04 並伴隨 DeFi TVL 新高，則相對判斷需反轉。"
+  },
+  "dimensions": [
+    {
+      "name": "價格動能",
+      "state": "strong",
+      "headline": "BTC 14 日 +8.2% vs ETH +3.1%，BTC 動能明顯領先",
+      "evidence_ids": ["ev_cmp_price_01"],
+      "per_symbol": {
+        "BTC": { "price_current": 104250, "change_14d_pct": 8.2, "rsi_14": 55 },
+        "ETH": { "price_current": 3280, "change_14d_pct": 3.1, "rsi_14": 52 }
+      }
+    },
+    {
+      "name": "槓桿結構",
+      "state": "neutral",
+      "headline": "BTC OI P92 偏高，ETH OI P61 中性；兩者資金費率均正",
+      "evidence_ids": ["ev_cmp_leverage_01"],
+      "per_symbol": {
+        "BTC": { "funding_rate": 0.00035, "oi_percentile": 92, "long_short_ratio": 1.28 },
+        "ETH": { "funding_rate": 0.00018, "oi_percentile": 61, "long_short_ratio": 1.12 }
+      }
+    },
+    {
+      "name": "鏈上行為",
+      "state": "strong",
+      "headline": "BTC 巨鯨淨流入強勁，ETH 活躍地址下降但 TVL 回升",
+      "evidence_ids": ["ev_cmp_chain_01"],
+      "per_symbol": {
+        "BTC": { "whale_net_inflow_7d": 12340, "exchange_balance_change_7d": -8200 },
+        "ETH": { "active_addresses_change_7d_pct": -12, "total_tvl_usd": 52800000000 }
+      }
+    },
+    {
+      "name": "情緒面",
+      "state": "neutral",
+      "headline": "BTC 新聞正面率 62% 略高於 ETH 48%，兩者均未達極端",
+      "evidence_ids": ["ev_cmp_sentiment_01"],
+      "per_symbol": {
+        "BTC": { "news_positive_pct": 62, "fear_greed_index": 72 },
+        "ETH": { "news_positive_pct": 48, "fear_greed_index": 72 }
+      }
+    },
+    {
+      "name": "總經環境",
+      "state": "neutral",
+      "headline": "總經環境對兩者影響一致，無差異化因子",
+      "evidence_ids": ["ev_cmp_macro_01"],
+      "per_symbol": {
+        "BTC": { "dxy": 101.3, "dgs10": 4.12 },
+        "ETH": { "dxy": 101.3, "dgs10": 4.12 }
+      }
+    }
+  ],
+  "signals": [
+    {
+      "level": "yellow",
+      "title": "BTC 槓桿過熱而 ETH 相對溫和",
+      "detail": "BTC OI P92 vs ETH P61，BTC 短期回調風險高於 ETH",
+      "metrics": [
+        {"label": "BTC OI 百分位", "value": 92, "percentile": 92},
+        {"label": "ETH OI 百分位", "value": 61, "percentile": 61}
+      ],
+      "evidence_ids": ["ev_cmp_leverage_01"],
+      "caveat": "OI 差異可能反映機構參與度而非投機過熱"
+    }
+  ],
+  "checked_normal": [
+    "兩者 Fear & Greed 同步（全市場指標）",
+    "ETH/BTC 匯率 0.0314 處 30 日均值附近",
+    "兩者 DVOL 差異在正常範圍"
+  ],
+  "hypothesis": null,
+  "comparison": {
+    "rows": [
+      {
+        "dimension": "價格動能",
+        "a": { "value": "+8.2%", "detail": "RSI 55, 布林帶擴張中" },
+        "b": { "value": "+3.1%", "detail": "RSI 52, 量能平淡" },
+        "edge": "A"
+      },
+      {
+        "dimension": "槓桿風險",
+        "a": { "value": "OI P92", "detail": "資金費率 0.035%, 多空比 1.28" },
+        "b": { "value": "OI P61", "detail": "資金費率 0.018%, 多空比 1.12" },
+        "edge": "B"
+      },
+      {
+        "dimension": "鏈上強度",
+        "a": { "value": "巨鯨 +12,340 BTC", "detail": "交易所餘額下降" },
+        "b": { "value": "活躍地址 -12%", "detail": "TVL 回升 +18%" },
+        "edge": "A"
+      },
+      {
+        "dimension": "生態發展",
+        "a": { "value": "ETF 持續流入", "detail": "機構配置驅動" },
+        "b": { "value": "DeFi TVL $52.8B", "detail": "穩定幣供給增長" },
+        "edge": "B"
+      },
+      {
+        "dimension": "情緒強度",
+        "a": { "value": "正面率 62%", "detail": "ETF 與機構新聞主導" },
+        "b": { "value": "正面率 48%", "detail": "中性偏多" },
+        "edge": "A"
+      }
+    ],
+    "when_prefer_a": "市場處於風險偏好上升期、機構資金主導行情、ETF 資金流持續為正時，BTC 的動能優勢更明顯。",
+    "when_prefer_b": "DeFi 復甦確認（活躍地址同步回升）、L2 生態爆發、以太坊升級催化、或市場進入板塊輪動從大盤股轉向生態幣時，ETH 可能反超。"
+  },
+  "series": {
+    "price": {
+      "BTC": [
+        ["2026-05-04", 89200], ["2026-05-11", 91500], ["2026-05-18", 90800],
+        ["2026-05-25", 93400], ["2026-06-01", 94100], ["2026-06-08", 95800],
+        ["2026-06-15", 94200], ["2026-06-22", 96500], ["2026-06-29", 97800],
+        ["2026-07-06", 98200], ["2026-07-13", 99500], ["2026-07-20", 101200],
+        ["2026-07-27", 103800], ["2026-08-01", 104250]
+      ],
+      "ETH": [
+        ["2026-05-04", 2850], ["2026-05-11", 2920], ["2026-05-18", 2880],
+        ["2026-05-25", 2950], ["2026-06-01", 3010], ["2026-06-08", 3050],
+        ["2026-06-15", 2980], ["2026-06-22", 3080], ["2026-06-29", 3120],
+        ["2026-07-06", 3150], ["2026-07-13", 3180], ["2026-07-20", 3220],
+        ["2026-07-27", 3260], ["2026-08-01", 3280]
+      ]
+    },
+    "relative_strength": {
+      "ETH_BTC": [
+        ["2026-05-04", 0.03195], ["2026-05-11", 0.03191], ["2026-05-18", 0.03172],
+        ["2026-05-25", 0.03158], ["2026-06-01", 0.03199], ["2026-06-08", 0.03183],
+        ["2026-06-15", 0.03163], ["2026-06-22", 0.03192], ["2026-06-29", 0.03190],
+        ["2026-07-06", 0.03208], ["2026-07-13", 0.03196], ["2026-07-20", 0.03182],
+        ["2026-07-27", 0.03141], ["2026-08-01", 0.03147]
+      ]
+    },
+    "correlation_30d": {
+      "BTC_ETH": [
+        ["2026-06-01", 0.88], ["2026-06-08", 0.86], ["2026-06-15", 0.84],
+        ["2026-06-22", 0.82], ["2026-06-29", 0.83], ["2026-07-06", 0.81],
+        ["2026-07-13", 0.79], ["2026-07-20", 0.80], ["2026-07-27", 0.81],
+        ["2026-08-01", 0.81]
+      ]
+    }
+  },
+  "coverage": {
+    "pct": 78,
+    "got": ["price_ohlcv_btc", "price_ohlcv_eth", "quant_btc", "quant_eth", "derivatives_btc", "derivatives_eth", "chain_btc", "defi_eth", "news_both", "fear_greed"],
+    "missing": [
+      {"capability": "eth_institutional_flow", "reason": "ETH ETF 資料來源尚未建立"},
+      {"capability": "l2_comparison", "reason": "L2 API timeout"}
+    ]
+  },
+  "watchlist": [
+    {"event": "FOMC 利率決議", "date": "2026-08-18", "why": "影響整體風險偏好，間接決定資金流向"},
+    {"event": "Ethereum Pectra 升級", "date": "2026-09-15", "why": "成功則可能觸發 ETH 相對 BTC 的追趕行情"}
+  ]
+}

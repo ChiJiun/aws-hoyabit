@@ -589,3 +589,343 @@ def _fetch_deribit(symbol, metrics):
             "source": _DERIBIT_BASE,
             "content_reference": {},
         }
+
+
+# ---- C1 v1.0 品質契約與自動 fallback ----
+_ORIGINAL_GET_DERIVATIVES = get_derivatives
+
+
+def get_derivatives(symbol, source, metrics, related_claim):
+    """C1 v1.0 包裝：Hyperliquid 失敗時自動降級 Binance Futures。"""
+    import config
+    from tools.quality import standardize_tool_result
+
+    symbol_upper = str(symbol).upper().strip()
+    source_lower = str(source or "").lower().strip()
+    requested_metrics = list(metrics or [])
+    primary_result = _ORIGINAL_GET_DERIVATIVES(
+        symbol_upper, source_lower, requested_metrics, related_claim
+    )
+    result = primary_result
+    fallback_used = False
+    errors = []
+    attempts = 1
+
+    if isinstance(primary_result, dict) and primary_result.get("error"):
+        errors.append(primary_result["error"])
+        if source_lower == "hyperliquid":
+            fallback_metrics = [
+                metric for metric in requested_metrics
+                if metric in {
+                    "funding_rate", "open_interest", "long_short_ratio",
+                    "taker_buy_sell_ratio"
+                }
+            ]
+            # Hyperliquid 固定提供 funding/OI；若呼叫端未列出則仍保留原清單。
+            if not fallback_metrics:
+                fallback_metrics = ["funding_rate", "open_interest"]
+            result = _fetch_binance_futures(symbol_upper, fallback_metrics)
+            attempts += 1
+            if isinstance(result, dict) and not result.get("error"):
+                fallback_used = True
+                result_reference = dict(result.get("content_reference") or {})
+                result_reference["primary_source_error"] = primary_result["error"]
+                result_reference["fallback_from"] = "Hyperliquid"
+                result_reference["fallback_to"] = "Binance Futures"
+                result["content_reference"] = result_reference
+            elif isinstance(result, dict):
+                errors.append(result.get("error", "Binance Futures fallback failed"))
+
+    reference = result.get("content_reference", {}) if isinstance(result, dict) else {}
+    actual_source = str(result.get("source", "")) if isinstance(result, dict) else ""
+    if "binance" in actual_source.lower():
+        provider = "Binance Futures"
+    elif "deribit" in actual_source.lower():
+        provider = "Deribit"
+    else:
+        provider = "Hyperliquid" if source_lower == "hyperliquid" else (source or "Unknown")
+
+    partial_errors = []
+    if isinstance(reference, dict):
+        for key in ("errors", "partial_errors"):
+            value = reference.get(key)
+            if isinstance(value, list):
+                partial_errors.extend(str(item) for item in value)
+    partial = bool(partial_errors)
+    errors.extend(partial_errors)
+
+    units = {
+        "funding_rate": "rate/8h",
+        "open_interest": "USD or contracts",
+        "mark_price": "USD",
+        "long_short_ratio": "ratio",
+        "taker_buy_sell_ratio": "ratio",
+        "dvol": "%",
+        "options_oi": "contracts",
+        "put_call_ratio": "ratio",
+    }
+    normalized = standardize_tool_result(
+        result,
+        provider=provider,
+        endpoint=reference.get("endpoints_called") or actual_source,
+        symbol=symbol_upper,
+        pair=f"{symbol_upper}USDT" if provider != "Deribit" else f"{symbol_upper}-OPTIONS",
+        timeframe="snapshot",
+        window="latest funding/OI snapshot",
+        unit={metric: units.get(metric, "unknown") for metric in requested_metrics},
+        as_of=reference.get("fetched_at"),
+        max_age_seconds=config.FRESHNESS_THRESHOLDS_SECONDS["derivatives_snapshot"],
+        attempts=attempts,
+        fallback_used=fallback_used,
+        primary_provider={
+            "hyperliquid": "Hyperliquid",
+            "binance_futures": "Binance Futures",
+            "deribit": "Deribit",
+        }.get(source_lower, source or "Unknown"),
+        partial=partial,
+        errors=errors,
+        comparability_status="limited",
+        comparability_notes=[
+            "OI 與多空比僅代表所選交易所，跨交易所比較前需統一口徑"
+        ],
+    )
+
+    # ---- Series enrichment: funding rate & OI history ----
+    if normalized.get("status") != "error":
+        from tools.series_utils import normalize_series, build_series_envelope
+
+        series_dict = {}
+        series_partial_failures = []
+        effective_provider = provider  # provider resolved above
+
+        # -- Funding rate history --
+        try:
+            funding_points = _fetch_funding_history(symbol_upper, effective_provider)
+            if funding_points is not None:
+                norm_funding = normalize_series(funding_points, max_days=90)
+                if norm_funding:
+                    pair_label = (
+                        f"{symbol_upper}USDT"
+                        if effective_provider != "Deribit"
+                        else f"{symbol_upper}-OPTIONS"
+                    )
+                    series_dict["funding"] = build_series_envelope(
+                        norm_funding,
+                        unit="rate/8h",
+                        provider=effective_provider,
+                        pair=pair_label,
+                        scope="exchange",
+                        timeframe="1d",
+                        as_of=reference.get("fetched_at"),
+                        comparability="limited",
+                        comparability_notes=[
+                            "Daily aggregated from 8h intervals; only covers this exchange"
+                        ],
+                    )
+                else:
+                    series_dict["funding"] = {
+                        "series_unavailable": True,
+                        "reason": "History returned but no valid data points after normalization",
+                    }
+            else:
+                series_dict["funding"] = {
+                    "series_unavailable": True,
+                    "reason": f"Provider {effective_provider} does not support funding rate history",
+                }
+        except Exception as e:
+            series_dict["funding"] = {
+                "series_unavailable": True,
+                "reason": f"History fetch failed: {type(e).__name__}: {str(e)}",
+            }
+            series_partial_failures.append(
+                f"funding_history: {type(e).__name__}: {str(e)}"
+            )
+
+        # -- Open Interest history --
+        try:
+            oi_points = _fetch_oi_history(symbol_upper, effective_provider)
+            if oi_points is not None:
+                norm_oi = normalize_series(oi_points, max_days=90)
+                if norm_oi:
+                    pair_label = (
+                        f"{symbol_upper}USDT"
+                        if effective_provider != "Deribit"
+                        else f"{symbol_upper}-OPTIONS"
+                    )
+                    series_dict["open_interest"] = build_series_envelope(
+                        norm_oi,
+                        unit="USD",
+                        provider=effective_provider,
+                        pair=pair_label,
+                        scope="exchange",
+                        timeframe="1d",
+                        as_of=reference.get("fetched_at"),
+                        comparability="limited",
+                        comparability_notes=[
+                            "OI USD value from single exchange; cross-exchange comparison requires aggregation"
+                        ],
+                    )
+                else:
+                    series_dict["open_interest"] = {
+                        "series_unavailable": True,
+                        "reason": "History returned but no valid data points after normalization",
+                    }
+            else:
+                series_dict["open_interest"] = {
+                    "series_unavailable": True,
+                    "reason": f"Provider {effective_provider} does not support OI history",
+                }
+        except Exception as e:
+            series_dict["open_interest"] = {
+                "series_unavailable": True,
+                "reason": f"History fetch failed: {type(e).__name__}: {str(e)}",
+            }
+            series_partial_failures.append(
+                f"oi_history: {type(e).__name__}: {str(e)}"
+            )
+
+        # Attach series at top level (consistent adapter key for Report/C7)
+        normalized["series"] = series_dict
+
+        # If series failed but snapshot was ok, note partial failure
+        if series_partial_failures:
+            # Keep status as success or partial (don't downgrade to error)
+            if normalized.get("status") == "success":
+                pass  # stay success — snapshot is complete
+            quality = normalized.get("quality", {})
+            reliability = quality.get("reliability", {})
+            existing_failures = reliability.get("partial_failures", [])
+            existing_failures.extend(series_partial_failures)
+            reliability["partial_failures"] = existing_failures
+            quality["reliability"] = reliability
+            normalized["quality"] = quality
+
+    return normalized
+
+
+
+# ---- Series history helpers (use module-level `requests` at call-time) ----
+
+
+def _fetch_funding_history(symbol, provider, max_days=90):
+    """Fetch historical funding rate series aggregated to daily averages.
+
+    Args:
+        symbol: Uppercase symbol (e.g., 'BTC').
+        provider: Resolved provider string (e.g., 'Binance Futures', 'Hyperliquid').
+        max_days: Maximum number of days to retrieve (capped by API limits).
+
+    Returns:
+        List of [date_str, daily_avg_rate] pairs, or None if provider
+        does not support funding history.
+    """
+    from datetime import datetime, timezone
+    from collections import defaultdict
+
+    provider_lower = provider.lower() if provider else ""
+
+    # Hyperliquid / Deribit do not expose historical funding rate endpoints
+    if "binance" not in provider_lower:
+        return None
+
+    # Binance Futures: GET /fapi/v1/fundingRate
+    # Returns up to 1000 records; at 3 records/day (~8h intervals) 500 gives ~166 days
+    pair = f"{symbol}USDT"
+    url = f"{_BINANCE_FUTURES_BASE}/fapi/v1/fundingRate"
+    params = {"symbol": pair, "limit": 500}
+
+    resp = requests.get(url, params=params, headers=_HEADERS, timeout=_TIMEOUT)
+    resp.raise_for_status()
+    data = resp.json()
+
+    if not data:
+        return None
+
+    # Aggregate to daily average: group by date, then average funding rates
+    daily_rates = defaultdict(list)
+    for entry in data:
+        # entry: {"symbol": "...", "fundingRate": "0.0001", "fundingTime": 1622505600000, ...}
+        funding_time_ms = entry.get("fundingTime", 0)
+        rate = entry.get("fundingRate")
+        if rate is None:
+            continue
+        try:
+            rate_f = float(rate)
+        except (TypeError, ValueError):
+            continue
+
+        # Convert ms timestamp to date string
+        dt = datetime.fromtimestamp(funding_time_ms / 1000, tz=timezone.utc)
+        date_str = dt.strftime("%Y-%m-%d")
+        daily_rates[date_str].append(rate_f)
+
+    if not daily_rates:
+        return None
+
+    # Build points as [date, avg_daily_rate] (sum of all 8h rates in that day)
+    # Convention: daily funding = sum of intra-day 8h rates (typically 3 per day)
+    points = []
+    for date_str, rates in daily_rates.items():
+        daily_sum = sum(rates)
+        points.append([date_str, daily_sum])
+
+    return points
+
+
+def _fetch_oi_history(symbol, provider, max_days=90):
+    """Fetch historical open interest series (daily, USD notional).
+
+    Args:
+        symbol: Uppercase symbol (e.g., 'BTC').
+        provider: Resolved provider string.
+        max_days: Maximum days of history (max 90 for Binance endpoint).
+
+    Returns:
+        List of [date_str, oi_usd_value] pairs, or None if provider
+        does not support OI history.
+    """
+    from datetime import datetime, timezone
+
+    provider_lower = provider.lower() if provider else ""
+
+    # Only Binance Futures supports historical OI
+    if "binance" not in provider_lower:
+        return None
+
+    # Binance Futures: GET /futures/data/openInterestHist
+    # Returns daily OI in USD (sumOpenInterestValue)
+    pair = f"{symbol}USDT"
+    limit = min(max_days, 90)  # API max is typically 500 but 90 is our ceiling
+    url = f"{_BINANCE_FUTURES_BASE}/futures/data/openInterestHist"
+    params = {"symbol": pair, "period": "1d", "limit": limit}
+
+    resp = requests.get(url, params=params, headers=_HEADERS, timeout=_TIMEOUT)
+    resp.raise_for_status()
+    data = resp.json()
+
+    if not data:
+        return None
+
+    # Each entry: {"symbol": "...", "sumOpenInterest": "...",
+    #              "sumOpenInterestValue": "123456.78", "timestamp": 1622505600000}
+    points = []
+    for entry in data:
+        ts_ms = entry.get("timestamp", 0)
+        oi_value = entry.get("sumOpenInterestValue")
+        if oi_value is None:
+            continue
+        try:
+            oi_f = float(oi_value)
+        except (TypeError, ValueError):
+            continue
+
+        dt = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+        date_str = dt.strftime("%Y-%m-%d")
+        points.append([date_str, oi_f])
+
+    return points if points else None
+
+
+# 既有 collector 保留 requests 介面，實際 HTTP 套用共用重試政策。
+from tools.quality import RetryingRequestsFacade as _RetryingRequestsFacade
+requests = _RetryingRequestsFacade()

@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0",
+  "question_type": "hypothesis",
+  "symbols": ["ETH"],
+  "verdict": {
+    "text": "ETH 的 DeFi 復甦假說獲得中等程度支持，TVL 回升與穩定幣流入為正面訊號，但費率仍低且活躍地址未同步增長。",
+    "stance": "neutral",
+    "confidence": 0.55,
+    "confidence_label": "中等",
+    "invalidation": "若 30 日內 TVL 再度跌破 $45B 且活躍地址持續下降，則 DeFi 復甦假說需重新評估。"
+  },
+  "dimensions": [
+    {
+      "name": "價格動能",
+      "state": "neutral",
+      "headline": "ETH 近 14 日 +3.1%，RSI 52 中性，量能無明顯放大",
+      "evidence_ids": ["ev_eth_price_01"],
+      "per_symbol": {
+        "ETH": { "price_current": 3280, "change_14d_pct": 3.1, "rsi_14": 52, "volume_zscore": 0.3 }
+      }
+    },
+    {
+      "name": "DeFi 生態",
+      "state": "strong",
+      "headline": "TVL 回升至 $52.8B(30 日 +18%)，穩定幣供給 7 日 +2.4%",
+      "evidence_ids": ["ev_defi_01", "ev_defi_02"],
+      "per_symbol": {
+        "ETH": { "total_tvl_usd": 52800000000, "tvl_change_30d_pct": 18, "stablecoin_supply_change_7d_pct": 2.4 }
+      }
+    },
+    {
+      "name": "鏈上行為",
+      "state": "weak",
+      "headline": "活躍地址 7 日均值下降 12%，Gas 費維持低檔，顯示使用率未同步回升",
+      "evidence_ids": ["ev_chain_eth_01"],
+      "per_symbol": {
+        "ETH": { "active_addresses_7d_avg": 410000, "active_addresses_change_7d_pct": -12, "avg_gas_gwei": 8.5 }
+      }
+    },
+    {
+      "name": "情緒面",
+      "state": "neutral",
+      "headline": "ETH 相關新聞中性偏多(正面 48%)，社群討論量持平",
+      "evidence_ids": ["ev_sentiment_eth_01"],
+      "per_symbol": {
+        "ETH": { "news_positive_pct": 48, "news_neutral_pct": 38, "news_negative_pct": 14 }
+      }
+    },
+    {
+      "name": "總經環境",
+      "state": "neutral",
+      "headline": "流動性環境中性偏正面，DXY 回落但幅度有限",
+      "evidence_ids": ["ev_macro_eth_01"],
+      "per_symbol": {
+        "ETH": { "dxy": 101.3, "dgs10": 4.12 }
+      }
+    }
+  ],
+  "signals": [
+    {
+      "level": "yellow",
+      "title": "TVL 與使用率背離",
+      "detail": "TVL 快速回升但活躍地址下降，可能為存量資金重新部署而非新用戶湧入",
+      "metrics": [
+        {"label": "TVL 30 日變化", "value": 18, "percentile": 82},
+        {"label": "活躍地址變化", "value": -12, "percentile": 28}
+      ],
+      "evidence_ids": ["ev_defi_01", "ev_chain_eth_01"],
+      "caveat": "L2 活躍度可能分流主網地址統計，需對照 L2 數據"
+    }
+  ],
+  "checked_normal": [
+    "ETH/BTC 匯率 0.0314 處 30 日中位",
+    "衍生品資金費率 0.008% 正常",
+    "GitHub 提交量穩定"
+  ],
+  "hypothesis": {
+    "statement": "ETH 的 DeFi 生態正經歷有意義的復甦，將帶動 ETH 需求與價格上行",
+    "supporting": [
+      { "point": "TVL 30 日回升 18% 至 $52.8B，為近 90 日最高", "strength": "strong", "evidence_ids": ["ev_defi_01"] },
+      { "point": "穩定幣總供給 7 日增長 2.4%，顯示資金正流入 DeFi 生態", "strength": "moderate", "evidence_ids": ["ev_defi_02"] },
+      { "point": "主要 DEX 日均交易量較上月 +22%", "strength": "moderate", "evidence_ids": ["ev_defi_01"] }
+    ],
+    "opposing": [
+      { "point": "主網活躍地址 7 日均值下降 12%，使用率未同步回升", "strength": "strong", "evidence_ids": ["ev_chain_eth_01"] },
+      { "point": "Gas 費維持 8.5 Gwei 低檔，鏈上活動並未顯著增加", "strength": "moderate", "evidence_ids": ["ev_chain_eth_01"] }
+    ],
+    "neutral": [
+      { "point": "ETH 價格僅溫和上漲 3.1%，市場尚未對 DeFi 數據定價", "evidence_ids": ["ev_eth_price_01"] }
+    ],
+    "insufficient": [
+      { "point": "缺乏 L2 (Arbitrum/Optimism) 活躍度對照數據", "reason": "L2 explorer API 回傳 timeout" }
+    ],
+    "verdict_reason": "TVL 回升與穩定幣流入提供支持，但活躍地址下降與低 Gas 顯示需求面未確認，判定為「部分支持」而非全面確認。",
+    "indeterminate": false
+  },
+  "comparison": null,
+  "series": {
+    "price": {
+      "ETH": [
+        ["2026-05-04", 2850], ["2026-05-11", 2920], ["2026-05-18", 2880],
+        ["2026-05-25", 2950], ["2026-06-01", 3010], ["2026-06-08", 3050],
+        ["2026-06-15", 2980], ["2026-06-22", 3080], ["2026-06-29", 3120],
+        ["2026-07-06", 3150], ["2026-07-13", 3180], ["2026-07-20", 3220],
+        ["2026-07-27", 3260], ["2026-08-01", 3280]
+      ]
+    },
+    "tvl": {
+      "ETH": [
+        ["2026-06-01", 44800000000], ["2026-06-08", 45200000000],
+        ["2026-06-15", 46100000000], ["2026-06-22", 47500000000],
+        ["2026-06-29", 48200000000], ["2026-07-06", 49100000000],
+        ["2026-07-13", 50300000000], ["2026-07-20", 51500000000],
+        ["2026-07-27", 52200000000], ["2026-08-01", 52800000000]
+      ]
+    }
+  },
+  "coverage": {
+    "pct": 59,
+    "got": ["price_ohlcv", "quant_indicators", "defi_tvl", "stablecoin_supply", "news_rss", "fear_greed"],
+    "missing": [
+      {"capability": "l2_activity", "reason": "Arbitrum/Optimism explorer API timeout"},
+      {"capability": "dex_volume_breakdown", "reason": "DefiLlama DEX endpoint rate limited"},
+      {"capability": "eth_burn_rate", "reason": "Etherscan API key quota exhausted"},
+      {"capability": "institutional_flow", "reason": "ETH ETF 資料來源尚未建立"}
+    ]
+  },
+  "watchlist": [
+    {"event": "Ethereum Pectra 升級", "date": "2026-09-15", "why": "若順利完成可能提振信心與 L2 throughput"},
+    {"event": "穩定幣供給趨勢確認", "date": "2026-08-15", "why": "若連續 3 週正增長，支持復甦假說"}
+  ]
+}

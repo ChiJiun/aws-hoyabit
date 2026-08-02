@@ -31,7 +31,7 @@ class TestReadBaselineCsvLocal:
         # Arrange: 建立假的 baseline 目錄結構
         baseline_dir = tmp_path / "data" / "baseline"
         baseline_dir.mkdir(parents=True)
-        csv_file = baseline_dir / "BTCUSDT_daily_ohlcv.csv"
+        csv_file = baseline_dir / "BTC_daily_ohlcv.csv"
         csv_file.write_text(SAMPLE_CSV)
 
         with patch("storage.DATA_BUCKET", None), \
@@ -48,10 +48,10 @@ class TestReadBaselineCsvLocal:
             assert df.iloc[0]["close"] == 42500
 
     def test_constructs_correct_filename_from_symbol(self, tmp_path):
-        """確認檔名格式為 {symbol}USDT_daily_ohlcv.csv"""
+        """確認檔名格式為 {symbol}_daily_ohlcv.csv"""
         baseline_dir = tmp_path / "data" / "baseline"
         baseline_dir.mkdir(parents=True)
-        csv_file = baseline_dir / "ETHUSDT_daily_ohlcv.csv"
+        csv_file = baseline_dir / "ETH_daily_ohlcv.csv"
         csv_file.write_text(SAMPLE_CSV)
 
         with patch("storage.DATA_BUCKET", None), \
@@ -71,7 +71,7 @@ class TestReadBaselineCsvLocal:
              patch("storage._PROJECT_ROOT", tmp_path):
             from storage import read_baseline_csv
 
-            with pytest.raises(FileNotFoundError):
+            with pytest.raises(ValueError, match="不支援的 baseline symbol"):
                 read_baseline_csv("DOGE")
 
 
@@ -94,7 +94,7 @@ class TestReadBaselineCsvS3:
             # 驗證 S3 呼叫
             mock_s3_client.get_object.assert_called_once_with(
                 Bucket="my-test-bucket",
-                Key="baseline/BTCUSDT_daily_ohlcv.csv"
+                Key="baseline/BTC_daily_ohlcv.csv"
             )
             # 驗證結果
             assert isinstance(df, pd.DataFrame)
@@ -102,7 +102,7 @@ class TestReadBaselineCsvS3:
             assert len(df) == 2
 
     def test_s3_key_format(self):
-        """確認 S3 key 格式為 baseline/{symbol}USDT_daily_ohlcv.csv"""
+        """確認 S3 key 格式為 baseline/{symbol}_daily_ohlcv.csv"""
         mock_s3_client = MagicMock()
         mock_body = MagicMock()
         mock_body.read.return_value = SAMPLE_CSV.encode("utf-8")
@@ -116,5 +116,5 @@ class TestReadBaselineCsvS3:
 
             mock_s3_client.get_object.assert_called_once_with(
                 Bucket="bucket-name",
-                Key="baseline/SOLUSDT_daily_ohlcv.csv"
+                Key="baseline/SOL_daily_ohlcv.csv"
             )

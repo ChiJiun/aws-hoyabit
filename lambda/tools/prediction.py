@@ -148,11 +148,39 @@ def get_prediction_market(keywords, related_claim):
             note=f"keywords='{keywords}', found {len(parsed_events)} events",
         )
 
+        # --- Event series for C7 watchlist ---
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        event_series = []
+        for pe in parsed_events:
+            end_date_raw = pe.get("end_date", "")
+            if not end_date_raw:
+                continue
+            try:
+                # Normalize end_date to YYYY-MM-DD (may be ISO 8601 with time)
+                end_dt = datetime.fromisoformat(end_date_raw.replace("Z", "+00:00"))
+                end_date_norm = end_dt.strftime("%Y-%m-%d")
+            except (ValueError, TypeError):
+                # Try direct YYYY-MM-DD
+                if len(end_date_raw) >= 10:
+                    end_date_norm = end_date_raw[:10]
+                else:
+                    continue
+            if end_date_norm < today_str:
+                continue
+            slug = pe.get("slug", "")
+            event_series.append({
+                "date": end_date_norm,
+                "event": (pe.get("title") or "")[:80],
+                "source_url": f"https://polymarket.com/event/{slug}" if slug else "",
+            })
+        event_series.sort(key=lambda x: x["date"])
+
         return {
-            "raw": events_data,
+            "raw": {"events_data": events_data, "series": {"events": event_series}},
             "source": source_url,
             "content_reference": content_reference,
             "summary": summary,
+            "series": {"events": event_series},
         }
 
     except Exception as e:
