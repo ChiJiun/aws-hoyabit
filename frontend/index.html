@@ -24,7 +24,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;scroll-padding-top:96px}
-body{background:var(--ink);color:var(--text);font-family:'Noto Sans TC',system-ui,sans-serif;font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+body{background:var(--ink);color:var(--text);font-family:'Noto Sans TC',system-ui,sans-serif;font-size:15.5px;line-height:1.75;-webkit-font-smoothing:antialiased}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
@@ -55,8 +55,8 @@ a:hover{text-decoration:underline}
 .wrap{max-width:1280px;margin:0 auto;padding:1.5rem 1.25rem 5rem}
 section{margin-bottom:1.75rem;scroll-margin-top:100px}
 .sec-head{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.85rem;flex-wrap:wrap}
-.sec-head h2{font-size:17px;font-weight:700;color:#fff;letter-spacing:.01em}
-.sec-head .sec-why{font-size:12.5px;color:var(--muted);line-height:1.5}
+.sec-head h2{font-size:18px;font-weight:700;color:#fff;letter-spacing:.01em}
+.sec-head .sec-why{font-size:13px;color:var(--muted);line-height:1.5}
 .sec-head .count{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:.05rem .45rem}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r-sm);padding:1rem 1.15rem;font-size:13.5px;color:var(--muted)}
 
@@ -209,8 +209,8 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .sig-lvl{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.07em;padding:.15rem .42rem;border-radius:3px;text-transform:uppercase}
 .sig.red .sig-lvl{background:var(--red-soft);color:var(--red)}
 .sig.yellow .sig-lvl{background:var(--amber-soft);color:var(--amber)}
-.sig-title{font-size:14.5px;font-weight:600;color:#fff}
-.sig-detail{font-size:13.5px;color:var(--text-dim);line-height:1.65;margin-bottom:.6rem}
+.sig-title{font-size:15px;font-weight:600;color:#fff}
+.sig-detail{font-size:14px;color:var(--text-dim);line-height:1.7;margin-bottom:.6rem}
 .sig-metrics{display:flex;flex-direction:column;gap:.5rem;margin-bottom:.6rem}
 .mrow{font-size:12px}
 .mrow-top{display:flex;justify-content:space-between;gap:.5rem;margin-bottom:.25rem}
@@ -241,13 +241,13 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .dim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:1.05rem 1.2rem;transition:.18s}
 .dim.na{opacity:.62;border-style:dashed}
 .dim-top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.5rem}
-.dim-name{font-size:14.5px;font-weight:600;color:#fff}
+.dim-name{font-size:15px;font-weight:600;color:#fff}
 .pill{font-size:10.5px;font-weight:600;padding:.16rem .5rem;border-radius:99px;border:1px solid;white-space:nowrap}
 .pill.strong{color:var(--green);background:var(--green-soft);border-color:rgba(34,197,94,.35)}
 .pill.weak{color:var(--red);background:var(--red-soft);border-color:rgba(239,68,68,.35)}
 .pill.neutral{color:var(--text-dim);background:rgba(161,161,170,.1);border-color:var(--line)}
 .pill.na{color:var(--muted);background:transparent;border-color:var(--line)}
-.dim-head{font-size:13.5px;color:var(--text-dim);line-height:1.65;margin-bottom:.65rem}
+.dim-head{font-size:14px;color:var(--text-dim);line-height:1.7;margin-bottom:.65rem}
 .dim-sym{border-top:1px solid var(--line-soft);padding-top:.6rem;margin-top:.6rem}
 .dim-sym-name{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);margin-bottom:.45rem}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:.15rem .6rem;font-size:12px}
@@ -400,8 +400,8 @@ table.cmp .cd{font-size:11.5px;color:var(--muted);display:block;margin-top:.15re
 .ev-top{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;flex-wrap:wrap}
 .ev-id{font-family:var(--mono);font-size:10.5px;color:var(--accent);background:var(--accent-soft);padding:.15rem .42rem;border-radius:3px;border:1px solid var(--accent-line)}
 .ev-time{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-left:auto}
-.ev-claim{font-size:13.5px;color:var(--text);line-height:1.6;margin-bottom:.45rem}
-.ev-src{font-size:12px;color:var(--text-dim);margin-bottom:.35rem;line-height:1.6;word-break:break-word}
+.ev-claim{font-size:14px;color:var(--text);line-height:1.65;margin-bottom:.45rem}
+.ev-src{font-size:12.5px;color:var(--text-dim);margin-bottom:.35rem;line-height:1.6;word-break:break-word}
 .ev-src .lbl{color:var(--muted);margin-right:.3rem}
 .ev-links{display:flex;flex-wrap:wrap;gap:.3rem .7rem;margin-bottom:.35rem}
 .ev-links a{font-size:12px}
@@ -603,12 +603,12 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
     </div>
   </div>
 
-  <!-- 交付物 -->
+  <!-- 底列 -->
   <div class="deliver">
-    <span>分析報告 report.md</span>
-    <span>證據清單 evidence_list.json</span>
-    <span>執行紀錄 execution_log.jsonl</span>
-    <span>結構化資料 report_data.json</span>
+    <span>分析報告</span>
+    <span>證據清單</span>
+    <span>執行紀錄</span>
+    <span>結構化資料</span>
   </div>
 </section>
 
@@ -1065,7 +1065,7 @@ function render(data, req) {
   add('sec-evidence', '證據溯源', secEvidence());
   add('sec-coverage', '資料覆蓋', secCoverage(rd));
   add('sec-watchlist', '後續觀察', secWatchlist(rd));
-  add('sec-raw', '原始交付物', secRaw(reportText, rd));
+  add('sec-raw', '完整報告', secRaw(reportText, rd));
 
   if (!blocks.length) {
     blocks.push(`<section><div class="prose">${mdToHtml(reportText)}</div></section>`);
@@ -1227,12 +1227,12 @@ function secSignals(rd) {
     : summary + `<div class="empty">本次掃描未偵測到達門檻的異常訊號。這是有意義的結果：代表各項指標都落在常態範圍內，而非我們沒有檢查。</div>`;
 
   const normalBody = normal.length ? `<div class="normal-box">
-    <p class="nb-head"><span class="ic" aria-hidden="true">✓</span>已檢查並確認落在常態範圍（用來證明上方異常是全面掃描後的結果，不是挑選出來的）</p>
+    <p class="nb-head"><span class="ic" aria-hidden="true">✓</span>已檢查且正常的項目</p>
     <ul class="normal-list">${normal.map(n => `<li>${esc(n)}</li>`).join('')}</ul>
   </div>` : '';
 
   return `<section id="sec-signals">
-    ${head('異常訊號', '主動標出偏離常態之處：歷史極端百分位、跨來源背離、量價異常', signals.length || 0)}
+    ${head('異常訊號', '', signals.length || 0)}
     ${signalBody}${normalBody}
   </section>`;
 }
@@ -1359,7 +1359,7 @@ function secDimensions(rd, symbols) {
     : '跨價格、鏈上、衍生品、情緒、總經多個維度整合，無資料的維度會明確標示原因';
 
   return `<section id="sec-dimensions">
-    ${head('分析維度', why, `${dims.length} 項${naCount ? `・${naCount} 項無資料` : ''}`)}
+    ${head('分析維度', '', `${dims.length} 項${naCount ? `・${naCount} 項無資料` : ''}`)}
     ${dimensionOverview(dims)}
     <div class="dim-grid">${cards}</div>
   </section>`;
@@ -1549,7 +1549,7 @@ function secCharts(rd) {
   }).join('');
 
   return `<section id="sec-charts">
-    ${head('資料視覺化', '所有數值由後端工具決定性計算，前端僅負責呈現', `${plan.length} 張`)}
+    ${head('資料視覺化', '', `${plan.length} 張`)}
     <div class="charts">${cards}</div>
   </section>`;
 }
@@ -1714,7 +1714,7 @@ function secReasoning(text) {
   </article>` : '';
 
   return `<section id="sec-reasoning">
-    ${head('推理鏈', '事實 → 推論 → 結論三層分離，每項事實都可回溯到 evidence_id')}
+    ${head('推理鏈', '')}
     <div class="reason">
       ${step('fact', '事實層', '關鍵依據', '資料直接顯示的數字與事件', s['關鍵依據'])}
       ${step('infer', '推論與結論層', '市場判斷', '由事實推導的邏輯與綜合判斷', s['市場判斷'])}
@@ -1755,8 +1755,8 @@ function linkCitations(html) {
 function secEvidence() {
   if (!evidenceList.length) {
     return `<section id="sec-evidence">
-      ${head('證據溯源', '每筆證據含 source / fetched_at / content_reference / related_claim')}
-      <div class="empty">本次未取得證據清單。若在本機執行，請確認下載連結可正常存取。</div>
+      ${head('證據溯源', '')}
+      <div class="empty">本次未取得證據清單。</div>
     </section>`;
   }
 
@@ -1791,7 +1791,7 @@ function secEvidence() {
   }).join('');
 
   return `<section id="sec-evidence">
-    ${head('證據溯源', '每筆證據含來源、取得時間、查詢條件與對應判斷，可逐筆查證', `${evidenceList.length} 筆`)}
+    ${head('證據溯源', '', `${evidenceList.length} 筆`)}
     <div class="ev-tools">
       <input class="ev-search" id="ev-search" type="search" placeholder="搜尋 evidence_id、來源、對應判斷或查詢參數…" aria-label="搜尋證據">
       <span class="ev-count" id="ev-count">${evidenceList.length} / ${evidenceList.length}</span>
@@ -1814,7 +1814,7 @@ function secCoverage(rd) {
   const low = pct !== null && pct < 60;
 
   return `<section id="sec-coverage">
-    ${head('資料覆蓋與限制', '這是本題相關預抓能力中「品質可用」的比例，不是報告分數也不是投資信心')}
+    ${head('資料覆蓋', '')}
     <div class="cov">
       <div class="cov-meter">
         <span class="cov-n${low ? ' warn' : ''}">${pct === null ? '--' : Math.round(pct)}<small>${pct === null ? '' : '%'}</small></span>
@@ -1837,7 +1837,7 @@ function secCoverage(rd) {
           }).join('')}</ul>
         </div>` : ''}
         ${low ? `<div class="cov-warn"><span aria-hidden="true">!</span>
-          <span>資料可用率偏低（低於 60%），請留意上方判斷是在較少來源交叉驗證的情況下形成。此警示僅反映資料可得性，不會自動改寫模型結論。</span>
+          <span>資料可用率偏低（低於 60%），部分判斷缺乏充分的交叉驗證。</span>
         </div>` : ''}
       </div>
     </div>
@@ -1867,7 +1867,7 @@ function secRaw(reportText, rd) {
   if (!reportText && !rd) return '';
   const words = reportText ? reportText.length.toLocaleString('zh-TW') : '0';
   return `<section id="sec-raw">
-    ${head('原始交付物', '評審抽查用：完整報告、結構化資料與執行紀錄')}
+    ${head('完整報告與紀錄', '')}
     ${reportText ? `<details class="big">
       <summary>完整分析報告（report.md）<span class="sn">${words} 字元</span></summary>
       <div class="body"><div class="prose">${mdToHtml(reportText)}</div></div>

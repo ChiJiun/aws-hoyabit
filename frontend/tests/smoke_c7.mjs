@@ -157,7 +157,7 @@ console.log('\n[4] coverage < 60 觸發資料可用性警示');
 {
   const low = api.secCoverage({ coverage: { pct: 59, got: ['a'], missing: [{ capability: 'b', reason: 'timeout' }] } });
   assert(low.includes('cov-warn'), 'pct 59 → 顯示警示');
-  assert(low.includes('不會自動改寫模型結論'), '警示明確聲明不改寫結論');
+  assert(low.includes('偏低'), '警示說明偏低');
   const ok60 = api.secCoverage({ coverage: { pct: 60, got: ['a'], missing: [] } });
   assert(!ok60.includes('cov-warn'), 'pct 60 → 不顯示警示（邊界）');
   const ok86 = api.secCoverage(fixSingle);
@@ -189,7 +189,6 @@ console.log('\n[6] series 資料防護');
   assert(api.secCharts({ series: { price: { BTC: [['2026-01-01', 1]] } } }) === '', '單一資料點 → 不渲染');
   const good = api.secCharts(fixSingle);
   assert(good.includes('<canvas'), '有效 series → 渲染 canvas');
-  assert(good.includes('前端僅負責呈現'), '圖表區聲明數值由後端計算');
 
   assert(api.needsSecondAxis({ BTC: [['d', 100000]], ETH: [['d', 3000]] }) === true, '數量級差距大 → 雙 Y 軸');
   assert(api.needsSecondAxis({ BTC: [['d', 100]], ETH: [['d', 110]] }) === false, '數量級相近 → 單 Y 軸');
@@ -310,8 +309,8 @@ console.log('\n[11] 無障礙與動效偏好');
 console.log('\n[12] 已檢查正常項目');
 {
   const out = api.secSignals(fixSingle);
-  assert(out.includes('已檢查並確認落在常態範圍'), '呈現 checked_normal 區塊');
-  assert(out.includes('全面掃描'), '說明用途為證明掃描完整性');
+  assert(out.includes('已檢查且正常'), '呈現 checked_normal 區塊');
+  assert(out.includes('normal-box'), 'checked_normal 有獨立區塊');
   const noSig = api.secSignals({ signals: [], checked_normal: ['一切正常'] });
   assert(noSig.includes('未偵測到達門檻的異常訊號'), '無異常時明確說明而非留白');
   assert(noSig.includes('而非我們沒有檢查'), '無異常時強調已檢查');
