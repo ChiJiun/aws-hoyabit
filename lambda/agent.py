@@ -1395,6 +1395,31 @@ def run_agent_loop(run_id, symbols, question):
                 note=f"Remaining budget < 20% at turn {turn + 1}"
             )
 
+        # 最後一輪：強制收斂，仍帶 tool_config（API 要求），但明確指示不再呼叫工具
+        if turn == config.MAX_AGENT_TURNS - 1:
+            messages.append({
+                "role": "user",
+                "content": [{"text": (
+                    "【強制收斂指令】這是最後一輪，你不可以再呼叫任何工具。"
+                    "請立刻根據目前已蒐集的所有資料，輸出你的最終分析結論。"
+                    "用三段式結構：市場判斷、關鍵依據、信心說明。"
+                )}]
+            })
+            try:
+                response = call_bedrock(messages, tool_config, extra_system_text=question_type_prompt)
+            except Exception as e:
+                evidence.log_execution_step(
+                    "agent_loop", "error", int((time.time() - loop_start) * 1000),
+                    note=f"Forced convergence call failed: {type(e).__name__}: {str(e)}"
+                )
+                break
+
+            if response:
+                output_message = response.get("output", {}).get("message", {})
+                if output_message:
+                    messages.append(output_message)
+            break
+
         # 呼叫 Bedrock (with question type prompt in system)
         try:
             response = call_bedrock(messages, tool_config, extra_system_text=question_type_prompt)
