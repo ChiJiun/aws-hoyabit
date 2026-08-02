@@ -60,12 +60,53 @@ section{margin-bottom:1.75rem;scroll-margin-top:100px}
 .sec-head .count{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:.05rem .45rem}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r-sm);padding:1rem 1.15rem;font-size:13.5px;color:var(--muted)}
 
-/* ============ INPUT ============ */
-.intro{max-width:660px;margin:3.5rem auto 2rem;padding:0 1.25rem}
-.intro h1{font-size:28px;font-weight:700;letter-spacing:-.01em;margin-bottom:.45rem}
-.intro .lede{font-size:15px;color:var(--text-dim);margin-bottom:.6rem;line-height:1.65}
-.intro .role{display:inline-block;font-size:12px;color:var(--muted);border-left:2px solid var(--accent);padding-left:.6rem;margin-bottom:1.7rem;line-height:1.6}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:1.5rem}
+/* ============ LANDING ============ */
+.intro{min-height:100vh;display:flex;flex-direction:column;padding:0}
+/* 品牌列 */
+.brandbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.15rem 2.25rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:.7rem}
+.logo-mark{width:38px;height:38px;flex-shrink:0}
+.logo-text{display:flex;flex-direction:column;line-height:1.15}
+.logo-text .lt-main{font-size:19px;font-weight:700;letter-spacing:-.005em;color:#fff}
+.logo-text .lt-main b{color:var(--accent);font-weight:700}
+.logo-text .lt-sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.17em;color:var(--muted)}
+.brandbar .bb-right{display:flex;align-items:center;gap:1.15rem;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.brandbar .bb-right .kv{display:flex;align-items:center;gap:.35rem}
+.brandbar .bb-right .kv b{color:var(--text-dim);font-weight:500}
+.aws-tag{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--accent);border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:99px;padding:.2rem .55rem}
+
+/* 兩欄 hero */
+.hero{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(400px,520px);gap:3.5rem;align-items:center;max-width:1360px;width:100%;margin:0 auto;padding:2.75rem 2.25rem}
+.hero-left{position:relative}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:.45rem;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:99px;padding:.3rem .75rem;margin-bottom:1.2rem}
+.hero-left h1{font-size:clamp(30px,3.6vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.18;margin-bottom:1rem}
+.hero-left h1 em{font-style:normal;color:var(--accent)}
+.hero-left .lede{font-size:16px;color:var(--text-dim);line-height:1.75;margin-bottom:1.5rem;max-width:56ch}
+/* 兩點價值主張 */
+.props{display:flex;flex-direction:column;gap:.85rem;margin-bottom:1.6rem;max-width:58ch}
+.prop{display:flex;gap:.8rem;align-items:flex-start}
+.prop-n{flex-shrink:0;width:24px;height:24px;border-radius:7px;background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent);font-family:var(--mono);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:.15rem}
+.prop-b strong{display:block;font-size:14.5px;color:#fff;font-weight:600;margin-bottom:.15rem}
+.prop-b span{font-size:13px;color:var(--muted);line-height:1.65}
+/* 資料來源 */
+.srcs{margin-bottom:1.5rem}
+.srcs-t{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem}
+.srcs-list{display:flex;gap:.4rem;flex-wrap:wrap}
+.src{display:inline-flex;align-items:center;gap:.35rem;font-size:12px;color:var(--text-dim);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:.3rem .7rem}
+.src i{width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
+/* 定位聲明 */
+.role{display:flex;gap:.6rem;font-size:12.5px;color:var(--muted);border-left:2px solid var(--accent);padding-left:.85rem;line-height:1.7;max-width:56ch}
+.role b{color:var(--text-dim);font-weight:500}
+
+/* 表單 */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:1.6rem 1.75rem;position:relative;overflow:hidden}
+.panel::before{content:'';position:absolute;top:-30%;right:-18%;width:260px;height:260px;background:radial-gradient(circle,var(--accent-soft) 0%,transparent 68%);pointer-events:none}
+.panel-h{font-size:15px;font-weight:600;color:#fff;margin-bottom:.25rem;position:relative}
+.panel-sub{font-size:12.5px;color:var(--muted);margin-bottom:1.35rem;line-height:1.6;position:relative}
+/* 底部交付物列 */
+.deliver{border-top:1px solid var(--line);padding:1.05rem 2.25rem;display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;font-size:11.5px;color:var(--muted)}
+.deliver span{display:inline-flex;align-items:center;gap:.4rem}
+.deliver span::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--accent);flex-shrink:0}
 .flabel{display:block;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.55rem;font-weight:500}
 .flabel .hint{text-transform:none;letter-spacing:0;color:#5b5b63;font-size:11.5px}
 .coins{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:1.35rem}
@@ -424,6 +465,10 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
 @media(max-width:1000px){
   .verdict{grid-template-columns:1fr}
   .cov{grid-template-columns:1fr}
+  .hero{grid-template-columns:1fr;gap:2.25rem;padding:2rem 1.5rem;align-items:start}
+  .intro{min-height:auto}
+  .brandbar{padding:1rem 1.5rem}
+  .deliver{padding:1rem 1.5rem;gap:1.15rem}
 }
 @media(max-width:760px){
   .hyp-cols,.prefer,.cov-lists{grid-template-columns:1fr}
@@ -432,6 +477,11 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
   .wrap{padding:1.1rem .9rem 4rem}
   .logrow{grid-template-columns:auto auto 1fr}
   .logrow .lms{display:none}
+  .hero{padding:1.5rem 1.1rem}
+  .panel{padding:1.25rem 1.1rem}
+  .brandbar{padding:.85rem 1.1rem}
+  .brandbar .bb-right{display:none}
+  .deliver{padding:.9rem 1.1rem;gap:.75rem 1.1rem;font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important;transition-duration:.01ms !important}
@@ -460,26 +510,106 @@ details.big .body{padding:0 1.4rem 1.3rem;border-top:1px solid var(--line-soft);
   <nav class="topnav" id="topnav" aria-label="報告章節導覽"></nav>
 </header>
 
-<!-- ============ INPUT ============ -->
+<!-- ============ LANDING ============ -->
 <section class="intro" id="view-input">
-  <h1>加密市場分析 AI Agent</h1>
-  <p class="lede">輸入幣種與分析題目，Agent 自主蒐集價格、鏈上、衍生品、新聞、情緒與總經多源資料，產出每條判斷都能回溯到來源的結構化報告。</p>
-  <p class="role">這是資訊提煉工具，不提供投資建議。我們讓你看清楚訊號與雜訊的差別，決定權在你。</p>
-  <div class="panel">
-    <label class="flabel" for="coins-group">幣種選擇 <span class="hint">— 比較分析題可選 2 個</span></label>
-    <div class="coins" id="coins-group" role="group" aria-label="幣種選擇">
-      <button class="coin" type="button" aria-pressed="false">BTC</button>
-      <button class="coin" type="button" aria-pressed="false">ETH</button>
-      <button class="coin" type="button" aria-pressed="false">SOL</button>
-      <button class="coin" type="button" aria-pressed="false">BNB</button>
-      <button class="coin" type="button" aria-pressed="false">XRP</button>
+
+  <!-- 品牌列 -->
+  <div class="brandbar">
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 40 40" role="img" aria-label="HOYA BIT 標誌">
+        <defs>
+          <linearGradient id="lgG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#ff8c3d"/><stop offset="100%" stop-color="#e2611a"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="40" height="40" rx="10" fill="url(#lgG)"/>
+        <circle cx="12" cy="12.5" r="4.2" fill="#141418"/>
+        <circle cx="28" cy="12.5" r="4.2" fill="#141418"/>
+        <path d="M20 9 C27.5 9 32 14.5 32 21.5 C32 28.5 26.8 33 20 33 C13.2 33 8 28.5 8 21.5 C8 14.5 12.5 9 20 9 Z" fill="#141418"/>
+        <ellipse cx="15.4" cy="20" rx="2" ry="2.5" fill="#ff8c3d"/>
+        <ellipse cx="24.6" cy="20" rx="2" ry="2.5" fill="#ff8c3d"/>
+        <path d="M17.8 25.4 L22.2 25.4 L20 28.2 Z" fill="#ff8c3d"/>
+      </svg>
+      <span class="logo-text">
+        <span class="lt-main">HOYA<b>BIT</b></span>
+        <span class="lt-sub">MARKET INTELLIGENCE</span>
+      </span>
     </div>
-    <label class="flabel" for="question">分析題目</label>
-    <div class="presets" id="presets" role="group" aria-label="題型範例"></div>
-    <textarea id="question" rows="4" placeholder="例：整合價格走勢、鏈上活躍度、主要新聞事件與市場情緒，判斷目前的市場狀態，並說明各類資料之間的一致程度。"></textarea>
-    <button class="btn-go" id="btn-go" type="button">開始分析</button>
+    <div class="bb-right">
+      <span class="kv">支援幣種 <b>BTC · ETH · SOL · BNB · XRP</b></span>
+      <span class="kv">推理引擎 <b>Amazon Bedrock · Claude</b></span>
+      <span class="aws-tag">BUILT WITH AWS KIRO</span>
+    </div>
   </div>
-  <div id="error" role="alert" aria-live="assertive"></div>
+
+  <div class="hero">
+    <div class="hero-left">
+      <span class="hero-eyebrow"><span aria-hidden="true">◆</span>多源資訊的信任提煉</span>
+      <h1>把碎片化的加密市場資訊<br>提煉成<em>可查證</em>的判斷</h1>
+      <p class="lede">Agent 自主蒐集價格、技術指標、鏈上活躍度、衍生品結構、新聞公告、市場情緒與總體經濟資料，交叉比對後產出結構化報告。每一條依據都能回溯到來源網址與取得時間。</p>
+
+      <div class="props">
+        <div class="prop">
+          <span class="prop-n">01</span>
+          <span class="prop-b">
+            <strong>完整且可查證的資訊</strong>
+            <span>多源整合，每筆證據附來源、取得時間與查詢條件。你不需要相信我們，可以自己查。</span>
+          </span>
+        </div>
+        <div class="prop">
+          <span class="prop-n">02</span>
+          <span class="prop-b">
+            <strong>主動標出異常訊號</strong>
+            <span>不只描述現狀，還指出偏離常態之處：歷史極端百分位、跨來源背離、量價異常，並解釋為什麼值得注意。</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="srcs">
+        <p class="srcs-t">資料來源類別</p>
+        <div class="srcs-list">
+          <span class="src"><i></i>價格與技術指標</span>
+          <span class="src"><i></i>鏈上活躍度</span>
+          <span class="src"><i></i>衍生品與槓桿</span>
+          <span class="src"><i></i>新聞與官方公告</span>
+          <span class="src"><i></i>市場情緒</span>
+          <span class="src"><i></i>總體經濟</span>
+          <span class="src"><i></i>DeFi 資金流</span>
+          <span class="src"><i></i>機構與監管</span>
+        </div>
+      </div>
+
+      <p class="role"><span aria-hidden="true">◆</span><span>這是<b>資訊提煉工具，不提供投資建議</b>、進出場時機或目標價。我們讓你看清楚訊號與雜訊的差別，決定權在你。</span></p>
+    </div>
+
+    <div class="panel">
+      <p class="panel-h">開始一次分析</p>
+      <p class="panel-sub">選擇幣種並描述你想了解的問題，Agent 會自行判斷題型與所需資料。</p>
+
+      <label class="flabel" for="coins-group">幣種選擇 <span class="hint">— 比較分析題可選 2 個</span></label>
+      <div class="coins" id="coins-group" role="group" aria-label="幣種選擇">
+        <button class="coin" type="button" aria-pressed="false">BTC</button>
+        <button class="coin" type="button" aria-pressed="false">ETH</button>
+        <button class="coin" type="button" aria-pressed="false">SOL</button>
+        <button class="coin" type="button" aria-pressed="false">BNB</button>
+        <button class="coin" type="button" aria-pressed="false">XRP</button>
+      </div>
+
+      <label class="flabel" for="question">分析題目</label>
+      <div class="presets" id="presets" role="group" aria-label="題型範例"></div>
+      <textarea id="question" rows="4" placeholder="例：整合價格走勢、鏈上活躍度、主要新聞事件與市場情緒，判斷目前的市場狀態，並說明各類資料之間的一致程度。"></textarea>
+      <button class="btn-go" id="btn-go" type="button">開始分析</button>
+      <div id="error" role="alert" aria-live="assertive"></div>
+    </div>
+  </div>
+
+  <!-- 交付物 -->
+  <div class="deliver">
+    <span>分析報告 report.md</span>
+    <span>證據清單 evidence_list.json</span>
+    <span>執行紀錄 execution_log.jsonl</span>
+    <span>結構化資料 report_data.json</span>
+  </div>
 </section>
 
 <!-- ============ LOADING（金寶奔跑） ============ -->
@@ -955,9 +1085,18 @@ function render(data, req) {
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
+/* 題型判別（與 agent.classify_question_type 的規則保持一致）。
+   這只用於後端回應前的暫時顯示；C7 的 question_type 一律優先。 */
+const HYPO_STRONG = /認為|主張|觀點|看法|論點|論述|說法|質疑|傳言|謠傳|有人說|市場預期|驗證|檢驗|求證|評估這|站得住腳|同意嗎|真的嗎|是否正確|是否成立|是否合理|是否為真|正反|支持與反對/;
+const HYPO_INTERROGATIVE = /是否|會不會|能否|嗎[？?]?\s*$|嗎，|對嗎|可能嗎/;
+const HYPO_CLAIM = /見底|觸底|見頂|築頂|突破|跌破|反轉|回調|回檔|盤整|橫盤|蓄勢|牛市|熊市|上漲|下跌|走強|走弱|復甦|衰退|過熱|超買|超賣|推動|帶動|利多|利空|合理|健康|成長|放大|萎縮|脫鉤|背離|轉強|轉弱|進入|結束|持續|維持|加速|放緩/;
+
 function inferType(req) {
   if (req.symbols.length === 2) return 'comparison';
-  return /認為|觀點|驗證|假設|是否|有人說/.test(req.question) ? 'hypothesis' : 'single_integration';
+  const q = req.question || '';
+  if (HYPO_STRONG.test(q)) return 'hypothesis';
+  if (HYPO_INTERROGATIVE.test(q) && HYPO_CLAIM.test(q)) return 'hypothesis';
+  return 'single_integration';
 }
 
 function setDownload(id, url) {

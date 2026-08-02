@@ -26,6 +26,15 @@ function latestRun() {
     .filter(x => statSync(x.p).isDirectory())
     .filter(x => existsSync(join(x.p, 'report_data.json')))
     .sort((a, b) => statSync(b.p).mtimeMs - statSync(a.p).mtimeMs);
+
+  // 中止或失敗的執行會留下空的 report_data，挑到它會誤報失敗。
+  // 優先取最新一次「有實際分析內容」的執行。
+  for (const x of dirs) {
+    try {
+      const rd = JSON.parse(readFileSync(join(x.p, 'report_data.json'), 'utf8'));
+      if (Array.isArray(rd.dimensions) && rd.dimensions.length) return x.p;
+    } catch (e) { /* 檔案損壞則跳過 */ }
+  }
   return dirs.length ? dirs[0].p : null;
 }
 
@@ -51,10 +60,10 @@ function makeEl() {
   return {
     innerHTML: '', textContent: '', value: '', href: '', hidden: false,
     style: {}, dataset: {}, disabled: false, open: false,
-    classList: { add() {}, remove() {}, contains: () => false },
-    addEventListener() {}, appendChild() {}, scrollIntoView() {},
-    setAttribute() {}, getAttribute: () => null, removeAttribute() {},
-    querySelector: () => null, querySelectorAll: () => [], closest: () => null, focus() {}
+    classList: { add() { }, remove() { }, contains: () => false },
+    addEventListener() { }, appendChild() { }, scrollIntoView() { },
+    setAttribute() { }, getAttribute: () => null, removeAttribute() { },
+    querySelector: () => null, querySelectorAll: () => [], closest: () => null, focus() { }
   };
 }
 const cache = new Map();
@@ -64,13 +73,13 @@ const g = {
     querySelector: () => null, querySelectorAll: () => []
   },
   location: { hostname: 'localhost', origin: 'http://localhost:8080', protocol: 'http:', href: 'http://localhost:8080/' },
-  window: { scrollTo() {}, matchMedia: () => ({ matches: false }) },
+  window: { scrollTo() { }, matchMedia: () => ({ matches: false }) },
   fetch: async () => ({ ok: false, status: 500, json: async () => ({}), text: async () => '' }),
   marked: { parse: md => `<p>${md}</p>` },
   Chart: undefined,
   URL: Object.assign(globalThis.URL, { createObjectURL: () => 'blob:stub' }),
-  Blob: class { constructor() {} },
-  setInterval: () => 0, clearInterval: () => {},
+  Blob: class { constructor() { } },
+  setInterval: () => 0, clearInterval: () => { },
   setTimeout: fn => { if (typeof fn === 'function') fn(); return 0; },
   IntersectionObserver: undefined
 };

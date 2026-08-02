@@ -729,7 +729,7 @@ class TestClassifyQuestionType:
         assert "rule1_two_symbols" in result.matched_rules
 
     def test_hypothesis_keywords_detected(self):
-        """Rule 2: hypothesis keywords trigger hypothesis type."""
+        """Rule 2: 明確在檢驗某個說法的關鍵詞觸發 hypothesis。"""
         questions = [
             "市場認為 BTC 將上漲，這個觀點正確嗎？",
             "有人說 ETH 即將突破，是否成立？",
@@ -741,16 +741,66 @@ class TestClassifyQuestionType:
             result = agent.classify_question_type(["BTC"], q)
             assert result.question_type == "hypothesis", f"Failed for: {q}"
             assert result.method == "rule"
-            assert "rule2_hypothesis_keywords" in result.matched_rules
+            assert "rule2_strong_keyword" in result.matched_rules
+
+    def test_hypothesis_broader_phrasings_detected(self):
+        """常見的其他表述方式也要判為 hypothesis，避免題型誤判。"""
+        questions = [
+            "有分析師主張 BTC 已經見底，請評估這個說法",
+            "請檢驗「ETH 的 DeFi 生態正在復甦」這個論點",
+            "SOL 進入牛市的說法站得住腳嗎",
+            "市場傳言 XRP 即將迎來監管利多，這是真的嗎",
+            "質疑一下 BNB 生態成長的論述",
+        ]
+        for q in questions:
+            result = agent.classify_question_type(["BTC"], q)
+            assert result.question_type == "hypothesis", f"Failed for: {q}"
+            assert result.method == "rule"
+
+    def test_hypothesis_interrogative_with_claim(self):
+        """Rule 3: 是非問句搭配方向性主張 → hypothesis（不需 LLM 兜底）。"""
+        for q in ["BTC 這波上漲是機構買盤推動的嗎", "ETH 會不會進入熊市", "SOL 是否已經觸底"]:
+            result = agent.classify_question_type(["BTC"], q)
+            assert result.question_type == "hypothesis", f"Failed for: {q}"
+            assert result.method == "rule"
+            assert "rule3_interrogative_with_claim" in result.matched_rules
+
+    def test_ambiguous_interrogative_uses_llm_fallback(self):
+        """Rule 4: 有疑問語氣但無主張詞 → 交給 LLM，且失敗時安全退回。"""
+        question = "可以幫我看看 BTC 嗎"
+        with patch.object(agent, "_classify_via_llm", return_value="hypothesis") as mock_llm:
+            result = agent.classify_question_type(["BTC"], question)
+        assert mock_llm.called, "語意不明時應呼叫 LLM 兜底"
+        assert result.question_type == "hypothesis"
+        assert result.method == "llm_fallback"
+        assert "rule4_ambiguous_interrogative" in result.matched_rules
+
+    def test_llm_fallback_degrades_on_failure(self):
+        """LLM 兜底失敗不得讓分類拋出例外。"""
+        with patch.object(agent, "call_bedrock", side_effect=RuntimeError("boom")):
+            assert agent._classify_via_llm("隨便問問嗎") == "single_integration"
+        with patch.object(agent, "call_bedrock", return_value=None):
+            assert agent._classify_via_llm("隨便問問嗎") == "single_integration"
 
     def test_default_single_integration(self):
-        """Rule 3: no special keywords → single_integration."""
+        """Rule 5: 無特殊關鍵詞 → single_integration。"""
         result = agent.classify_question_type(
             ["BTC"], "綜合分析 BTC 目前的市場狀態"
         )
         assert result.question_type == "single_integration"
         assert result.method == "rule"
-        assert "rule3_default" in result.matched_rules
+        assert "rule5_default" in result.matched_rules
+
+    def test_descriptive_questions_stay_single_integration(self):
+        """描述現況的題目不應被誤判為假設驗證。"""
+        questions = [
+            "分析 BTC 過去兩週的市場表現，整合價格走勢與鏈上活躍度",
+            "請說明 ETH 目前的市場狀態",
+            "盤點 XRP 當前的風險因子",
+        ]
+        for q in questions:
+            result = agent.classify_question_type(["BTC"], q)
+            assert result.question_type == "single_integration", f"Failed for: {q}"
 
     def test_comparison_overrides_hypothesis_keywords(self):
         """Two symbols should be comparison even if question has hypothesis keywords."""

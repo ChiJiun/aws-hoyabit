@@ -124,9 +124,71 @@ class QuestionTypeResult:
     matched_rules: list
 
 
-_HYPOTHESIS_PATTERN = re.compile(
-    r"認為|觀點|驗證|假設|是否正確|是否成立|有人說|市場認為|聲音認為|市場預期|是否會|能否"
+# ---- 題型判別的三層規則 ----
+#
+# 假設驗證是三大題型之一，誤判成多源整合會導致報告缺少正反證據結構，
+# 因此分層處理：高精準關鍵詞 → 疑問詞配主張詞 → 語意不明才由 LLM 兜底。
+
+# 第一層：明確在檢驗某個說法（高精準度，單獨出現即可判定）
+_HYPOTHESIS_STRONG = re.compile(
+    r"認為|主張|觀點|看法|論點|論述|說法|質疑|傳言|謠傳|有人說|市場預期"
+    r"|驗證|檢驗|求證|評估這|站得住腳|同意嗎|真的嗎"
+    r"|是否正確|是否成立|是否合理|是否為真|正反|支持與反對"
 )
+
+# 第二層：是非問句標記。單獨出現不足以判定（「可以幫我分析嗎」不是假設題），
+# 需搭配下方的方向性主張詞。
+_INTERROGATIVE = re.compile(r"是否|會不會|能否|嗎[？?]?\s*$|嗎，|對嗎|可能嗎")
+
+# 方向性或狀態性主張，代表題目在檢驗一個具體命題
+_CLAIM_WORDS = re.compile(
+    r"見底|觸底|見頂|築頂|突破|跌破|反轉|回調|回檔|盤整|橫盤|蓄勢"
+    r"|牛市|熊市|上漲|下跌|走強|走弱|復甦|衰退|過熱|超買|超賣"
+    r"|推動|帶動|利多|利空|合理|健康|成長|放大|萎縮|脫鉤|背離"
+    r"|轉強|轉弱|進入|結束|持續|維持|加速|放緩"
+)
+
+
+def _classify_result(question_type, method, matched_rules, note_extra=""):
+    """建立分類結果並寫入 execution log（pipeline 規則要求記錄判別結果）。"""
+    result = QuestionTypeResult(
+        question_type=question_type,
+        method=method,
+        matched_rules=matched_rules,
+    )
+    note = f"type={question_type} method={method} matched={matched_rules}"
+    if note_extra:
+        note += f" {note_extra}"
+    evidence.log_execution_step("classify_question_type", "success", 0, note=note)
+    return result
+
+
+def _classify_via_llm(question):
+    """語意不明時的 LLM 兜底判別。
+
+    只在規則無法決定時呼叫，且失敗一律回退為 single_integration，
+    不讓分類步驟成為整次執行的失敗點。
+    回傳：'hypothesis' 或 'single_integration'
+    """
+    prompt = (
+        "判斷以下加密貨幣分析題目屬於哪一種題型，只回答一個英文單詞：\n"
+        "- hypothesis：題目在檢驗某個特定說法、主張或預期是否成立，需要蒐集正反證據\n"
+        "- single_integration：題目要求整合多方資料描述現況，沒有特定待驗證的說法\n\n"
+        f"題目：{question}\n\n"
+        "只輸出 hypothesis 或 single_integration，不要其他文字。"
+    )
+    try:
+        response = call_bedrock(
+            [{"role": "user", "content": [{"text": prompt}]}],
+            tool_config=None,
+        )
+        if not response:
+            return "single_integration"
+        blocks = response.get("output", {}).get("message", {}).get("content", [])
+        text = " ".join(b.get("text", "") for b in blocks).lower()
+        return "hypothesis" if "hypothesis" in text else "single_integration"
+    except Exception:
+        return "single_integration"
 
 
 def classify_question_type(symbols: list, question: str) -> QuestionTypeResult:
@@ -136,48 +198,37 @@ def classify_question_type(symbols: list, question: str) -> QuestionTypeResult:
     Rule 2: hypothesis keywords regex → hypothesis
     Rule 3: default → single_integration
     """
-    matched_rules = []
+    text = str(question or "")
 
-    # Rule 1: comparison
+    # Rule 1：兩個幣種一律為比較分析，優先於任何關鍵詞
     if len(symbols) == 2:
-        matched_rules.append("rule1_two_symbols")
-        result = QuestionTypeResult(
-            question_type="comparison",
-            method="rule",
-            matched_rules=matched_rules,
-        )
-        evidence.log_execution_step(
-            "classify_question_type", "success", 0,
-            note=f"type=comparison matched={matched_rules}"
-        )
-        return result
+        return _classify_result("comparison", "rule", ["rule1_two_symbols"])
 
-    # Rule 2: hypothesis keywords
-    if _HYPOTHESIS_PATTERN.search(question):
-        matched_rules.append("rule2_hypothesis_keywords")
-        result = QuestionTypeResult(
-            question_type="hypothesis",
-            method="rule",
-            matched_rules=matched_rules,
+    # Rule 2：明確在檢驗某個說法
+    strong = _HYPOTHESIS_STRONG.search(text)
+    if strong:
+        return _classify_result(
+            "hypothesis", "rule", ["rule2_strong_keyword"],
+            note_extra=f"hit={strong.group(0)}"
         )
-        evidence.log_execution_step(
-            "classify_question_type", "success", 0,
-            note=f"type=hypothesis matched={matched_rules}"
-        )
-        return result
 
-    # Rule 3: default
-    matched_rules.append("rule3_default")
-    result = QuestionTypeResult(
-        question_type="single_integration",
-        method="rule",
-        matched_rules=matched_rules,
-    )
-    evidence.log_execution_step(
-        "classify_question_type", "success", 0,
-        note=f"type=single_integration matched={matched_rules}"
-    )
-    return result
+    # Rule 3：是非問句 + 方向性主張 → 仍屬檢驗某個命題
+    interrogative = _INTERROGATIVE.search(text)
+    if interrogative:
+        claim = _CLAIM_WORDS.search(text)
+        if claim:
+            return _classify_result(
+                "hypothesis", "rule", ["rule3_interrogative_with_claim"],
+                note_extra=f"hit={interrogative.group(0)}+{claim.group(0)}"
+            )
+        # Rule 4：有疑問語氣但看不出待驗證的主張 → 語意不明，交給 LLM 兜底
+        llm_type = _classify_via_llm(text)
+        return _classify_result(
+            llm_type, "llm_fallback", ["rule4_ambiguous_interrogative"]
+        )
+
+    # Rule 5：預設為多源整合
+    return _classify_result("single_integration", "rule", ["rule5_default"])
 
 
 @dataclass
@@ -399,8 +450,98 @@ def build_prefetch_plan(question_type: str, symbols: list, question: str) -> lis
             required=False,
         ))
 
-    # Deduplicate sentiment and macro (already only added once above)
+    # --- 題目導向的追加項 ---
+    # Phase A 原本只看題型與幣種，遇到特定情境題（監管、ETF、鏈升級、流動性）
+    # 會少抓關鍵來源，只能靠 Phase B 的 LLM 補，並不保證。
+    plan.extend(_topic_driven_items(symbols, question, {p.capability for p in plan}))
+
     return plan
+
+
+# 情境關鍵詞 → 追加能力。命中才抓，避免每次都拉滿而擠壓時間預算。
+_TOPIC_TRIGGERS = (
+    (
+        re.compile(r"監管|法規|合規|SEC|訴訟|裁決|政策|ETF|核准|批准|申報|審查"),
+        "sec_filings", "get_sec_filings",
+        {"related_claim": "取得監管文件以檢驗監管與 ETF 相關判斷"},
+        False,
+    ),
+    (
+        re.compile(r"升級|開發|技術路線|生態建設|開發者|GitHub|主網|硬分叉|Pectra|版本"),
+        "dev_activity", "get_dev_activity",
+        {"related_claim": "取得開發活躍度以檢驗技術面與生態建設判斷"},
+        True,
+    ),
+    (
+        re.compile(r"流動性|深度|滑價|掛單|盤口|買賣價差|成交深度"),
+        "orderbook", "get_orderbook_depth",
+        {"related_claim": "取得盤口深度以檢驗短期流動性判斷"},
+        True,
+    ),
+    (
+        re.compile(r"機構|法人|smart money|大戶|巨鯨|持倉|部位"),
+        "cftc_cot", "get_cftc_cot",
+        {"related_claim": "取得機構持倉資料以檢驗機構動向判斷"},
+        False,
+    ),
+    (
+        re.compile(r"估值|貴|便宜|泡沫|合理價|MVRV|NVT|價值"),
+        "coin_metrics", "get_coin_metrics",
+        {"related_claim": "取得機構級估值指標以檢驗估值判斷"},
+        True,
+    ),
+    (
+        re.compile(r"資金輪動|市佔|市值占比|市值佔比|龍頭|山寨季"),
+        "dominance", "get_market_dominance",
+        {"related_claim": "取得市值佔比以檢驗資金輪動判斷"},
+        False,
+    ),
+)
+
+# 僅支援 BTC 的資料來源
+_BTC_ONLY_CAPABILITIES = {"cftc_cot"}
+
+
+def _topic_driven_items(symbols, question, existing_capabilities):
+    """依題目關鍵詞追加預抓項目。
+
+    全部標為 required=False：這些是加值來源，取不到只形成缺口，
+    不得讓 Phase A 視為失敗。
+    回傳：PrefetchItem 列表。
+    """
+    text = str(question or "")
+    items = []
+
+    for pattern, capability, tool_name, base_kwargs, per_symbol in _TOPIC_TRIGGERS:
+        if capability in existing_capabilities:
+            continue
+        hit = pattern.search(text)
+        if not hit:
+            continue
+
+        if capability in _BTC_ONLY_CAPABILITIES:
+            if "BTC" not in symbols:
+                continue
+            targets = ["BTC"]
+        elif per_symbol:
+            targets = list(symbols)
+        else:
+            targets = [None]
+
+        for sym in targets:
+            kwargs = dict(base_kwargs)
+            if sym:
+                kwargs["symbol"] = sym
+            items.append(PrefetchItem(
+                capability=capability if len(targets) == 1 else f"{capability}_{str(sym).lower()}",
+                tool_name=tool_name,
+                tool_kwargs=kwargs,
+                symbols=[sym] if sym else list(symbols),
+                reason=f"topic trigger: {hit.group(0)}",
+                required=False,
+            ))
+
+    return items
 
 
 
