@@ -7,6 +7,7 @@ lambda_handler 是部署到 AWS 後的進入點；main 是本機測試用的進�
 """
 
 import json
+import re
 import sys
 import os
 from datetime import datetime, timezone
@@ -16,6 +17,7 @@ import config
 import agent
 import evidence
 import report
+import report_schema
 import export
 import storage
 
@@ -186,39 +188,166 @@ def build_report_quality_warnings(summary):
     return warnings
 
 
-def _build_report_data_stub(question_type, symbols, series_data):
-    """Build a minimal report_data structure conforming to C7 schema.
+_C7_MARKER_BLOCKS = (
+    "VERDICT", "DIM", "DIMENSION", "SIGNAL", "CHECKED_NORMAL",
+    "COVERAGE", "WATCHLIST", "HYPOTHESIS", "COMPARISON", "ROW",
+)
 
-    This is a mock/interface stub. The full implementation lives in the
-    Report task axis (report.build_report_data). Here we provide the
-    orchestrator-known fields so the pipeline stays unblocked.
 
-    Returns None if assembly fails (C7 mandates graceful degradation).
+def strip_c7_markers(text):
+    """移除模型輸出中的機器可讀標記區塊，產生給人閱讀的分析文字。
+
+    C7 標記（[VERDICT]、[DIM]…）只供 report_schema 解析視覺化資料，
+    不應出現在 report.md 這份交付物裡。
+    回傳：清除標記後的文字；輸入非字串時回傳空字串。
+    """
+    if not isinstance(text, str):
+        return ""
+
+    cleaned = text
+    for name in _C7_MARKER_BLOCKS:
+        # 成對標記：[X] ... [/X]
+        cleaned = re.sub(
+            rf"\[{name}\].*?\[/{name}\]", "", cleaned,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+    # 殘留的單獨開合標記
+    cleaned = re.sub(
+        rf"\[/?(?:{'|'.join(_C7_MARKER_BLOCKS)})\]", "", cleaned,
+        flags=re.IGNORECASE,
+    )
+    # 移除引導這些區塊的標題與說明行
+    cleaned = re.sub(
+        r"(?:^|\n)\s*#*\s*機器可讀區塊[^\n]*\n?", "\n", cleaned
+    )
+    # 收斂連續空行
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    # 移除因剝除而落單的分隔線
+    cleaned = re.sub(r"\n\s*---\s*\n\s*(?=\n*\Z)", "\n", cleaned)
+    return cleaned.strip()
+
+
+def _iso_date(value):
+    # 功能：把 unix timestamp（秒，可能是字串）或日期字串正規化為 YYYY-MM-DD。
+    # 回傳：日期字串，無法解析時回傳 None。
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    # 已是日期字串（可能帶時間部分）
+    if "-" in text:
+        return text[:10]
+    # unix timestamp（秒）
+    try:
+        ts = float(text)
+    except ValueError:
+        return None
+    try:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def _finite_float(value):
+    # 功能：轉為有限浮點數，供 C7 series 使用；不合法回傳 None。
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number != number or number in (float("inf"), float("-inf")):
+        return None
+    return number
+
+
+def build_c7_series(series_registry):
+    """把 agent 的 series registry 轉換為 C7 series 契約形狀。
+
+    agent 註冊的形狀是 {series_id: {series_type, data, registered_at}}，
+    C7 需要的是 {metric_key: {symbol: [[date, value], ...]}}。
+    這個轉接層只做形狀轉換，不做任何數值運算或推論。
+
+    回傳：C7 形狀的 dict；任何來源解析失敗只會略過該來源，不拋例外。
+    """
+    result = {}
+    if not isinstance(series_registry, dict):
+        return result
+
+    def put(metric_key, symbol, points):
+        if not points:
+            return
+        result.setdefault(metric_key, {})[symbol] = points
+
+    for entry in series_registry.values():
+        if not isinstance(entry, dict):
+            continue
+        series_type = entry.get("series_type")
+        data = entry.get("data")
+        if not isinstance(data, dict):
+            continue
+
+        try:
+            if series_type == "price_series":
+                symbol = str(data.get("symbol") or "UNKNOWN")
+                rows = data.get("series")
+                if not isinstance(rows, list):
+                    continue
+                closes, volumes = [], []
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    date = _iso_date(row.get("date"))
+                    if not date:
+                        continue
+                    close = _finite_float(row.get("close"))
+                    if close is not None:
+                        closes.append([date, close])
+                    volume = _finite_float(row.get("volume"))
+                    if volume is not None:
+                        volumes.append([date, volume])
+                put("price", symbol, closes)
+                put("volume", symbol, volumes)
+
+            elif series_type == "sentiment_series":
+                raw = data.get("data")
+                readings = raw.get("data") if isinstance(raw, dict) else None
+                if not isinstance(readings, list):
+                    continue
+                points = []
+                for item in readings:
+                    if not isinstance(item, dict):
+                        continue
+                    date = _iso_date(item.get("timestamp"))
+                    value = _finite_float(item.get("value"))
+                    if date and value is not None:
+                        points.append([date, value])
+                # 恐懼貪婪指數是全市場指標，不歸屬單一幣種
+                put("fear_greed", "MARKET", points)
+        except Exception:
+            # 單一來源轉換失敗不得影響其他來源
+            continue
+
+    return result
+
+
+def build_report_data(question_type, symbols, analysis_text, evidence_list,
+                      execution_log, series_data):
+    """組裝 C7 結構化報告資料，供前端視覺化使用。
+
+    委派給 report_schema.build_report_data（純解析、無網路副作用）。
+    依 C7 規則，組裝或驗證失敗一律回傳 None，不得阻斷 report.md 等交付物。
     """
     try:
-        report_data = {
-            "schema_version": "1.0",
-            "question_type": question_type,
-            "symbols": symbols,
-            "series": series_data if series_data else {},
-            "coverage": {
-                "pct": None,
-                "got": [],
-                "missing": [],
-            },
-        }
-        # Add type-specific fields
-        if question_type == "hypothesis":
-            report_data["hypothesis"] = None  # filled by report axis
-        else:
-            report_data["hypothesis"] = None
-        if question_type == "comparison":
-            report_data["comparison"] = None  # filled by report axis
-        else:
-            report_data["comparison"] = None
-
-        return report_data
+        return report_schema.build_report_data(
+            question_type=question_type,
+            symbols=symbols,
+            analysis_text=analysis_text,
+            evidence_list=evidence_list,
+            execution_log=execution_log,
+            series=build_c7_series(series_data),
+        )
     except Exception:
+        # 最後一道防線：C7 失敗必須降級為純 Markdown，不可讓例外逸出
         return None
 
 
@@ -264,7 +393,9 @@ def lambda_handler(event, context):
         series_data = agent.collect_series()
 
         # 5. 收尾整理成三段式結構
-        analysis_text = agent.summarize_final_analysis(messages)
+        #    raw 版含 C7 機器標記（供視覺化解析），analysis_text 為人類可讀版本
+        analysis_text_raw = agent.summarize_final_analysis(messages)
+        analysis_text = strip_c7_markers(analysis_text_raw)
 
         # 5b. Finally clear series registry
         agent.reset_series_registry()
@@ -313,10 +444,10 @@ def lambda_handler(event, context):
             "run_id": run_id,
         }
 
-        # C5/C7: report_data (structured visualization data)
-        # Build report_data stub — full implementation by Report task axis
-        report_data = _build_report_data_stub(
-            question_type, symbols, series_data
+        # C5/C7: report_data（結構化視覺化資料，失敗則降級為純 Markdown）
+        report_data = build_report_data(
+            question_type, symbols, analysis_text_raw,
+            evidence.evidence_list, evidence.execution_log, series_data
         )
         if report_data is not None:
             response_body["report_data"] = report_data
@@ -400,9 +531,10 @@ def main():
     print(f"[INFO] 題型：{question_type}")
     print(f"[INFO] Phase A 結果：{agent._run_context.get('phase_a_outcome', {})}")
 
-    # 5. 摘要
+    # 5. 摘要（raw 版含 C7 標記，analysis_text 為剝除標記後的人類可讀版本）
     print("[INFO] 產生最終分析摘要...")
-    analysis_text = agent.summarize_final_analysis(messages)
+    analysis_text_raw = agent.summarize_final_analysis(messages)
+    analysis_text = strip_c7_markers(analysis_text_raw)
     agent.reset_series_registry()
 
     # 6. 自我檢查
@@ -440,6 +572,20 @@ def main():
     log_path = output_dir / "execution_log.jsonl"
     log_path.write_text(log_jsonl, encoding="utf-8")
     print(f"[INFO] 執行紀錄已寫入：{log_path}")
+
+    # 8b. C7 結構化報告資料（失敗不阻斷其他交付物）
+    report_data = build_report_data(
+        question_type, symbols, analysis_text_raw,
+        evidence.evidence_list, evidence.execution_log, series_data
+    )
+    if report_data is not None:
+        report_data_path = output_dir / "report_data.json"
+        report_data_path.write_text(
+            json.dumps(report_data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(f"[INFO] 結構化報告資料已寫入：{report_data_path}")
+    else:
+        print("[WARN] C7 report_data 組裝失敗，前端將降級為純 Markdown 渲染")
 
     # 9. 印出摘要
     print("\n" + "=" * 60)

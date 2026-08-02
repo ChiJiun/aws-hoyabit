@@ -38,9 +38,13 @@ def log_evidence(run_id, tool_name, related_claim, fetch_result):
     evidence_id = f"ev_{uuid.uuid4()}"
     fetched_at = _utc_now()
     source = fetch_result.get("source", "unknown")
-    content_reference = dict(fetch_result.get("content_reference") or {})
-    anomaly_flags = list(fetch_result.get("anomaly_flags") or [])
-    data_quality = dict(content_reference.get("quality") or {})
+    # 防禦性轉型：工具若回傳非預期型別，不得讓 dict()/list() 拋出例外中斷整次執行
+    raw_reference = fetch_result.get("content_reference")
+    content_reference = dict(raw_reference) if isinstance(raw_reference, dict) else {}
+    raw_flags = fetch_result.get("anomaly_flags")
+    anomaly_flags = list(raw_flags) if isinstance(raw_flags, (list, tuple)) else []
+    raw_quality = content_reference.get("quality")
+    data_quality = dict(raw_quality) if isinstance(raw_quality, dict) else {}
 
     envelope = {
         "schema_version": fetch_result.get("schema_version", "1.0"),

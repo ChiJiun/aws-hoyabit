@@ -523,6 +523,13 @@ def run_phase_a_prefetch(run_id: str, plan: list, soft_deadline_seconds: float =
                     result = future.result(timeout=0)
                     if result.get("status") == "success":
                         outcome.results.append(result)
+                        # 由 Phase A 結果註冊視覺化序列。
+                        # 不可只依賴 Phase B：LLM 是否重複呼叫價格工具並不確定，
+                        # 少了這步圖表就會變成非決定性的。
+                        try:
+                            _extract_and_register_series(result)
+                        except Exception:
+                            pass  # 視覺化為加值功能，失敗不得影響資料蒐集
                     else:
                         outcome.missing.append({
                             "capability": item.capability,
@@ -1531,6 +1538,33 @@ def summarize_final_analysis(messages):
     回傳：結構化的分析文字（Markdown 格式字串）。
     """
     evidence_index = _build_evidence_index()
+
+    # 依題型附加專屬標記區塊，讓 report_schema 能解析 hypothesis/comparison 物件
+    question_type = _run_context.get("question_type", "single_integration")
+    if question_type == "hypothesis":
+        type_specific_block = """
+[HYPOTHESIS]
+statement: （被檢驗的假設原句）
+supporting: [（支持假設的證據要點，逗號分隔，每點含具體數字）]
+opposing: [（反對假設的證據要點，逗號分隔，每點含具體數字）]
+verdict_reason: （為什麼你做出這個判定，說明支持與反對兩方的權衡）
+[/HYPOTHESIS]
+"""
+    elif question_type == "comparison":
+        type_specific_block = """
+[COMPARISON]
+每個比較維度輸出一個 ROW 區塊：
+[ROW]
+dimension: （比較的維度名稱）
+edge: （A 代表第一個幣種較強｜B 代表第二個幣種較強｜TIE 代表相當）
+[/ROW]
+when_prefer_a: （在什麼條件下第一個幣種更值得優先關注）
+when_prefer_b: （在什麼條件下第二個幣種更值得優先關注）
+[/COMPARISON]
+"""
+    else:
+        type_specific_block = ""
+
     summarize_prompt = f"""根據以上所有蒐集到的資料與分析，請用以下三段式結構重新整理你的最終分析：
 
 先在內容中明確列出實際使用的分析維度，並交叉比較這些維度的一致訊號、背離訊號或證據不足狀態。推理須遵循事實→推論→結論；來源矛盾時說明取捨依據。
@@ -1554,6 +1588,52 @@ def summarize_final_analysis(messages):
 ## 信心說明
 （定性信心程度、已知限制、矛盾訊號取捨、推翻條件；只列與題目相關的省略或實際嘗試失敗的維度、原因及信心影響，不列無關且未嘗試的維度）
 
+---
+
+## 機器可讀區塊（必填，供前端視覺化使用）
+
+在上述三段式內容之後，附加以下標記區塊。這些區塊的內容必須與上方三段式敘述一致，不得出現矛盾的結論或信心。
+只描述你實際分析過的維度與實際偵測到的訊號，沒有就留空區塊，不要為了填滿而編造。
+
+[VERDICT]
+text: （一句話核心判斷，與「市場判斷」章節一致）
+stance: （bullish｜bearish｜neutral｜mixed 四者之一）
+confidence: （0 到 1 的小數，需與「信心說明」的定性描述一致，例如中等約 0.5、中高約 0.7）
+invalidation: （什麼情況會推翻這個判斷，一句話）
+[/VERDICT]
+
+每個實際分析過的維度輸出一個區塊，欄位順序不可調換：
+[DIM]
+name: （維度名稱，例如 價格動能／槓桿結構／鏈上行為／情緒面／總經環境／DeFi生態）
+state: （strong｜weak｜neutral｜na 四者之一；na 代表嘗試過但無可用資料）
+headline: （這個維度的一句話結論，含具體數字）
+evidence_ids: [ev_xxx, ev_yyy]
+[/DIM]
+
+每個偵測到的異常或背離訊號輸出一個區塊（沒有偵測到就完全不輸出 SIGNAL 區塊）：
+[SIGNAL]
+level: （red 代表強烈異常｜yellow 代表值得注意）
+title: （訊號短標題）
+detail: （為什麼值得注意，含具體數值與百分位）
+evidence_ids: [ev_xxx]
+[/SIGNAL]
+
+[CHECKED_NORMAL]
+- （已檢查但處於正常範圍的項目，一行一項，含數值。這是為了證明異常訊號是全面掃描後的結果）
+[/CHECKED_NORMAL]
+
+[COVERAGE]
+pct: （題目相關資料的可用比例 0-100，或 null）
+got: [（成功取得且品質可用的能力名稱）]
+missing: [（嘗試過但失敗或無法取得的能力名稱）]
+[/COVERAGE]
+
+[WATCHLIST]
+event: （後續值得觀察的事件名稱）
+date: （YYYY-MM-DD，不確定就寫預估月份的第一天）
+why: （為什麼這個事件會影響上述判斷）
+[/WATCHLIST]
+{type_specific_block}
 請用繁體中文輸出，保持專業但易懂。不要輸出固定分母、覆蓋率或維度分數，也不要給出任何投資建議（不說買進、賣出、目標價、建議持有）。"""
 
     # 在對話歷史尾部加上摘要要求

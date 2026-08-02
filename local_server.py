@@ -11,7 +11,7 @@ import sys
 import os
 import re
 import threading
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -154,7 +154,8 @@ def main():
     print("按 Ctrl+C 停止")
     print("=" * 60)
 
-    server = HTTPServer(("0.0.0.0", PORT), DemoHandler)
+    # 用多執行緒：分析可能耗時數十秒，期間瀏覽器仍需能載入其他資源
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), DemoHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
