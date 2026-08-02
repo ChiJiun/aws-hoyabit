@@ -1,202 +1,380 @@
 # 加密市場分析 AI Agent
 
-2026 雲湧智生：臺灣生成式 AI 應用黑客松競賽｜命題單位：HOYA BIT（禾亞數位科技）
+**2026 雲湧智生：臺灣生成式 AI 應用黑客松競賽**｜命題單位：HOYA BIT（禾亞數位科技）
+命題主題：加密市場分析 AI Agent — 多源資訊的信任提煉
 
-一套針對指定加密貨幣與指定題目，自動蒐集多源資料、產出具備證據支撐與可回溯來源的市場分析報告的 AI Agent 系統。
+輸入一個或兩個幣種與一道分析題目，Agent 自主蒐集多源資料、交叉比對訊號，產出每條判斷都能回溯到來源的結構化市場分析報告。
+
+> 本系統為**資訊提煉工具，不提供投資建議**、進出場時機或目標價。
 
 ---
 
-## 系統做什麼
+## 目錄
 
-使用者輸入一個幣種（BTC / ETH / SOL / BNB / XRP）與一道分析題目，系統會：
+- [核心設計](#核心設計)
+- [系統架構](#系統架構)
+- [快速開始（本機）](#快速開始本機)
+- [AWS 部署](#aws-部署)
+- [交付物](#交付物)
+- [資料來源](#資料來源)
+- [測試](#測試)
+- [專案結構](#專案結構)
+- [環境變數](#環境變數)
+- [設計取捨](#設計取捨)
 
-1. 由 LLM 理解題目意圖，自行判斷需要哪些類別的資料
-2. 呼叫多個資料工具（價格、新聞、鏈上、情緒），逐一取得證據
-3. 每筆證據自動記錄四項可回溯欄位（來源、取得時間、引用內容、對應判斷）
-4. 將分析拆為「事實 → 推論 → 結論」三個層次
-5. 對資料不足或訊號矛盾之處明確說明限制，不強行給出結論
-6. 產出四項交付物：分析報告、證據清單、執行紀錄、原始碼
+---
 
-系統定位為資訊提煉工具，不提供投資建議。
+## 核心設計
+
+### 兩階段蒐集：決定性預抓 + Agent 補洞
+
+單純讓 LLM 自由呼叫工具，會遇到兩個問題：慢，以及每次抓的資料不一樣（Demo 不可重現）。所以蒐集拆成兩段：
+
+**Phase A — 決定性預抓**（約 90 秒，bounded concurrency）
+依題型與幣種建立固定計畫，8 個 worker 並行抓取。單一來源 timeout 或 rate limit 不會取消其他工作。若題目提到監管／升級／流動性／機構持倉／估值等特定情境，會額外追加對應來源。
+
+**Phase B — Agent 迴圈**
+把 Phase A 的摘要（不含原始資料，避免 context 膨脹）餵給模型，由它決定還要補什麼。每輪檢查剩餘時間預算，低於 20% 時停止新增蒐集並強制收斂。
+
+### 題型判別
+
+三種題型走不同的分析與呈現路徑：
+
+| 題型 | 觸發條件 | 產出重點 |
+|---|---|---|
+| 多源整合 | 預設 | 跨維度整合，標示各來源一致程度 |
+| 假設驗證 | 檢驗某個說法的關鍵詞，或是非問句配方向性主張 | 支持／反對／中性／資料不足四類證據 + 判定理由 |
+| 比較分析 | 兩個幣種 | 相同口徑逐維度比較，程式計算相關係數 |
+
+判別採三層：高精準關鍵詞 → 疑問詞配主張詞 → 語意不明才由 LLM 兜底。實測 19 種常見問法全數正確，且都由規則命中，不增加延遲。LLM 兜底失敗一律安全退回多源整合，不會讓分類成為整次執行的失敗點。
+
+### 異常訊號是主要價值
+
+不只描述現狀，主動標出偏離常態之處：
+
+- 指標處於歷史極端百分位（如成交量 Z-score 落在第 0.3 百分位）
+- 跨來源訊號背離（價格下跌但鏈上活躍度上升）
+- 量價異常、情緒與價格脫鉤
+
+同時列出「已檢查且正常」的項目，證明異常是全面掃描後的結果，而非挑選出來的。
+
+所有數值運算都由工具以 pandas 決定性計算，LLM 不做任何心算。
+
+### 可回溯的證據
+
+每筆證據固定四欄位，對應命題的抽查要求：
+
+| 欄位 | 內容 |
+|---|---|
+| `source` | 來源名稱或 API URL |
+| `fetched_at` | 取得時間（UTC ISO 8601） |
+| `content_reference` | 查詢參數、資料區間、指標數值、引用片段 |
+| `related_claim` | 這筆資料用來檢驗什麼判斷（工具呼叫時強制填寫） |
+
+原始 API 回應完整封存在 `runs/{run_id}/raw/{evidence_id}.json`，前端證據區可逐筆展開查驗，也提供人類可讀的查證連結。
+
+### 三層推理
+
+報告明確區分 **事實**（有 evidence_id 支撐的數字或事件）→ **推論**（由事實推導的邏輯）→ **結論**（綜合判斷，標示信心程度）。資料不足或訊號矛盾時明說限制，並列出什麼情況會推翻結論。
 
 ---
 
 ## 系統架構
 
 ```
-┌───────────────────────────────┐
-│         使用者瀏覽器             │
-└───────────────┬───────────────┘
-                │ ① 開啟網址，載入頁面
-                ▼
-┌───────────────────────────────┐
-│   S3 靜態網站（前端 bucket）      │
-│   frontend/index.html           │
-└───────────────┬───────────────┘
-                │ ② 送出幣種與題目（fetch POST）
-                ▼
-┌───────────────────────────────┐
-│   Lambda Function URL           │
-│   單一 Lambda ＝ Agent 主迴圈    │
-└─────┬───────────────────┬───────┘
-      │ ③ 推理             │ ④ 讀寫檔案
-      ▼                     ▼
-┌───────────────┐   ┌───────────────────────┐
-│ Amazon Bedrock │   │ Amazon S3（資料 bucket）│
-│ Claude 推理     │   │ ・賽方基準 OHLCV CSV    │
-└───────────────┘   │ ・原始 API 回應封存      │
-      │              │ ・報告／證據清單／日誌    │
-      │              └───────────────────────┘
-      │ ⑤ 依 Agent 判斷呼叫外部資料 API
-      ▼
-┌───────────────────────────────┐
-│  外部資料來源（見下方清單）       │
-└───────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│                 使用者瀏覽器                    │
+└──────────────────────┬──────────────────────┘
+                       │ ① 載入頁面
+                       ▼
+┌─────────────────────────────────────────────┐
+│      S3 靜態網站（前端 bucket）                  │
+│      frontend/index.html（單檔，無建置步驟）      │
+└──────────────────────┬──────────────────────┘
+                       │ ② POST {symbols, question}
+                       ▼
+┌─────────────────────────────────────────────┐
+│      Lambda Function URL                     │
+│      單一 Lambda = 完整 Agent 流程             │
+│                                              │
+│   Phase A 並行預抓 ──▶ Phase B Agent 迴圈       │
+│         │                     │               │
+│         └──── 證據記錄 ────────┘               │
+│                     │                        │
+│              報告渲染 + C7 結構化資料           │
+└────┬─────────────────────────┬───────────────┘
+     │ ③ 推理與工具呼叫           │ ④ 讀寫
+     ▼                          ▼
+┌──────────────┐   ┌──────────────────────────┐
+│Amazon Bedrock│   │  Amazon S3（資料 bucket）  │
+│  Claude      │   │  ・基準 OHLCV CSV          │
+└──────────────┘   │  ・原始 API 回應封存        │
+     │             │  ・四項交付物               │
+     │             └──────────────────────────┘
+     │ ⑤ 15 個資料工具
+     ▼
+┌─────────────────────────────────────────────┐
+│  外部資料來源（價格／鏈上／衍生品／新聞／情緒／   │
+│  總經／DeFi／機構／監管／預測市場）              │
+└─────────────────────────────────────────────┘
 
-⑥ 執行完畢 → 回傳報告內文與下載連結給前端顯示
+⑥ 回傳報告內文、結構化資料與 presigned 下載連結
 ```
 
-刻意採單一 Lambda 設計，不使用 API Gateway（避免 29 秒逾時限制）與 Step Functions（流程為單一線性路徑，無需狀態機）。
+單一 Lambda + Function URL，不使用 API Gateway（避開 29 秒逾時限制）、不使用 Step Functions（流程為線性路徑）、不使用資料庫（每次執行以 `run_id` 隔離）。
+
+---
+
+## 快速開始（本機）
+
+### 需求
+
+- Python 3.12
+- Node.js（僅前端測試需要，非必要）
+- AWS 帳號，且已在 Bedrock **Model access** 開通 Claude
+- AWS 憑證（`aws configure` 或環境變數）
+
+### 步驟
+
+```bash
+# 1. 虛擬環境與套件
+python -m venv .venv
+.venv\Scripts\activate          # macOS / Linux: source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. 環境變數
+copy .env.example .env          # macOS / Linux: cp .env.example .env
+# 編輯 .env，至少填入 BEDROCK_MODEL_ID 與 AWS 憑證
+
+# 3. 基準資料
+# 把賽方提供的 CSV 放進 data/baseline/
+# 檔名格式：{SYMBOL}_daily_ohlcv.csv，例如 BTC_daily_ohlcv.csv
+
+# 4a. 執行單次分析（結果寫入 outputs/）
+python lambda/handler.py
+
+# 4b. 或啟動含前端的本機 Demo
+python local_server.py
+# 瀏覽器開啟 http://localhost:8080
+```
+
+`local_server.py` 同時提供前端靜態檔案與 `/api` 端點，模擬 Lambda Function URL 的行為，並把本機檔案路徑改寫成可下載的 HTTP URL。
+
+> **AWS 臨時憑證會過期。** 若 `.env` 內含 `AWS_SESSION_TOKEN`，該組憑證通常 1–12 小時後失效，症狀是報告的「市場判斷」為空且出現 `ExpiredTokenException`。Demo 前重新取得一組即可。
+
+---
+
+## AWS 部署
+
+### 一、建立資源（一次性）
+
+```bash
+# 資料 bucket（不公開）
+aws s3 mb s3://你的資料bucket
+
+# 前端 bucket（靜態網站）
+aws s3 mb s3://你的前端bucket
+aws s3 website s3://你的前端bucket --index-document index.html
+```
+
+Lambda 執行角色需要的權限：
+
+- `bedrock:InvokeModel`
+- `s3:GetObject`、`s3:PutObject`（限定資料 bucket）
+- `AWSLambdaBasicExecutionRole`（CloudWatch Logs）
+
+建立 Lambda function：
+
+- Runtime：Python 3.12
+- Handler：`handler.lambda_handler`
+- Timeout：**900 秒**（15 分鐘，命題時限）
+- Memory：建議 1024 MB 以上（pandas 運算）
+- 開啟 **Function URL**，Auth type 選 `NONE`，並設定 CORS
+- 環境變數：依 `.env.example` 逐項填入
+
+> **pandas 與 numpy 不在 Lambda 內建環境。** 兩者體積較大，zip 部署可能超過 250 MB 解壓限制。超過時改用 Lambda Layer 或容器映像。
+
+### 二、上傳基準資料
+
+```bash
+./scripts/upload_baseline.sh 你的資料bucket
+```
+
+### 三、部署程式碼
+
+```bash
+./scripts/package_lambda.sh
+
+aws lambda update-function-code \
+  --function-name crypto-market-agent \
+  --zip-file fileb://function.zip
+```
+
+### 四、部署前端
+
+```bash
+# 把前端的 API_URL 換成實際的 Function URL
+./scripts/set_api_url.sh https://你的id.lambda-url.us-west-2.on.aws/
+
+aws s3 cp frontend/index.html s3://你的前端bucket/index.html
+```
+
+前端在 `localhost` 執行時會自動指向 `/api`，部署後才需要替換為 Function URL。
+
+---
+
+## 交付物
+
+每次執行在 S3 `runs/{run_id}/` 下產生：
+
+| 交付物 | 檔案 | 內容 |
+|---|---|---|
+| 分析報告 | `report.md` | 市場判斷、關鍵依據（附 evidence_id）、信心說明（含已知限制、矛盾訊號取捨、推翻條件） |
+| 證據清單 | `evidence_list.json` | 每筆含 source、fetched_at、content_reference、related_claim |
+| 執行紀錄 | `execution_log.jsonl` | 每行一筆 JSON：時間戳、工具名稱、狀態、耗時、失敗原因 |
+| 結構化資料 | `report_data.json` | 供前端視覺化的結構化版本（判斷／維度／訊號／覆蓋率／時間序列） |
+| 原始回應封存 | `raw/{evidence_id}.json` | 完整 API 回應，供抽查比對 |
+| 原始碼與配置 | 本 repo | 程式碼、設定檔與本文件 |
+
+報告與結構化資料來自同一份分析，結論、信心、訊號與引用保持一致。結構化資料組裝失敗時，前端自動降級為純 Markdown 渲染，不影響其他交付物。
+
+---
+
+## 資料來源
+
+15 個工具，覆蓋 10 個資料類別。命題要求證據來源類別 ≥ 3，實測單次執行通常涵蓋 7–9 類。
+
+| 類別 | 工具 | 來源 | 金鑰 |
+|---|---|---|---|
+| 基準價格 | `get_price_ohlcv` | 賽方 OHLCV CSV | — |
+| 即時價格 | `get_price_ohlcv` | Binance 公開 API、CoinGecko（備援） | CoinGecko 選用 |
+| 技術指標 | `compute_quant` | 本地 pandas 計算，無外部呼叫 | — |
+| 新聞與公告 | `search_news` | Google News RSS、CoinDesk、Cointelegraph、The Block、各鏈官方部落格、GitHub releases | 免鑰 |
+| 鏈上 BTC | `get_onchain` | mempool.space | 免鑰 |
+| 鏈上 ETH | `get_onchain` | Etherscan API V2 | 需要 |
+| 鏈上 BNB | `get_onchain` | BscScan（Blockscout 相容） | 免鑰 |
+| 鏈上 SOL | `get_onchain` | Helius | 需要 |
+| 鏈上 XRP | `get_onchain` | XRPL 公開節點（xrplcluster、s1.ripple） | 免鑰 |
+| 衍生品 | `get_derivatives` | Hyperliquid、Binance Futures、Deribit | 免鑰 |
+| 盤口深度 | `get_orderbook_depth` | Binance Spot | 免鑰 |
+| 市場情緒 | `get_sentiment` | alternative.me Fear & Greed | 免鑰 |
+| 總體經濟 | `get_macro` | FRED（DXY、DGS10、DFF）+ 排程事件 | 需要 |
+| DeFi 資金流 | `get_defi_data` | DefiLlama、stablecoins.llama.fi | 免鑰 |
+| 開發活躍度 | `get_dev_activity` | GitHub API | 免鑰 |
+| 市值佔比 | `get_market_dominance` | CoinGecko | 選用 |
+| 機構持倉 | `get_cftc_cot` | CFTC Public Reporting（僅 BTC） | 免鑰 |
+| 監管文件 | `get_sec_filings` | SEC EDGAR full-text search | 免鑰 |
+| 機構級指標 | `get_coin_metrics` | Coin Metrics Community API | 免鑰 |
+| 預測市場 | `get_prediction_market` | Polymarket Gamma API | 免鑰 |
+
+所有外部呼叫都設定 timeout、失敗回傳 error dict，不讓未處理例外中斷執行。付費來源若有使用會在報告與證據清單揭露，且不作為唯一關鍵依據。
+
+---
+
+## 測試
+
+```bash
+# 後端（39 個測試檔案）
+python -m pytest tests/ -q
+
+# 端到端整合測試（三種題型，需要 AWS 憑證）
+python -m tests.test_local_run
+
+# 前端
+node frontend/tests/structure_check.mjs   # HTML 結構與元素唯一性
+node frontend/tests/smoke_c7.mjs          # 渲染邏輯，含注入防護與無障礙
+node frontend/tests/render_live.mjs       # 以 outputs/ 的真實執行結果驗證渲染
+```
+
+前端測試在 Node 的最小 DOM sandbox 中實際執行 `index.html` 的渲染函式，涵蓋 HTML 逸出、題型路由、資料缺失降級、百分位邊界、無障礙屬性與響應式斷點。
+
+離線檢視前端：直接用瀏覽器開啟 `frontend/index.html`（`file://` 協定），會載入 `frontend/fixtures/` 的範例資料，無需啟動後端。
 
 ---
 
 ## 專案結構
 
 ```
-crypto-market-agent/
-├── README.md                  本檔案
-├── requirements.txt           Python 套件清單
-├── .gitignore                 排除機密與建置產物
-├── .env.example               環境變數範例（不含真實金鑰）
+aws-hoyabit/
+├── README.md
+├── requirements.txt
+├── .env.example                 環境變數範例（不含真實金鑰）
+├── local_server.py              本機 Demo 伺服器（前端 + /api）
 │
-├── lambda/                    部署到 AWS Lambda 的程式碼
-│   ├── config.py              環境變數與常數集中管理
-│   ├── handler.py             Lambda 進入點
-│   ├── agent.py               Agent 主迴圈與工具規格
-│   ├── evidence.py            四欄位證據記錄
-│   ├── report.py              報告渲染
-│   ├── export.py              交付物匯出
-│   ├── storage.py             S3 讀寫與下載連結
-│   └── tools/                 Agent 可呼叫的資料工具
-│       ├── price.py           價格與 OHLCV
-│       ├── news.py            新聞與官方公告
-│       ├── onchain.py         鏈上資料（依幣種分派）
-│       ├── quant.py           技術指標計算
-│       ├── sentiment.py       市場情緒指數
-│       └── macro.py           總體經濟指標
+├── lambda/                      部署到 Lambda 的程式碼
+│   ├── handler.py               進入點（lambda_handler + 本機 main）
+│   ├── config.py                環境變數與常數集中管理
+│   ├── agent.py                 題型判別、Phase A/B、工具分派
+│   ├── evidence.py              四欄位證據記錄與執行紀錄
+│   ├── report.py                Markdown 報告渲染
+│   ├── report_schema.py         結構化報告資料組裝與驗證
+│   ├── export.py                交付物匯出與品質檢查
+│   ├── storage.py               S3 讀寫與 presigned URL
+│   └── tools/                   15 個資料工具
+│       ├── price.py             OHLCV 取得與拼接
+│       ├── quant.py             技術指標（純本地計算）
+│       ├── news.py              新聞、官方公告、GitHub releases
+│       ├── onchain.py           鏈上資料（五條鏈分派）
+│       ├── derivatives.py       資金費率、OI、多空比、DVOL
+│       ├── sentiment.py         恐懼貪婪指數
+│       ├── macro.py             FRED 總經指標
+│       ├── defi.py              TVL、穩定幣供給、開發活躍度
+│       ├── institutional.py     CFTC、SEC、Coin Metrics
+│       ├── prediction.py        Polymarket 預測市場
+│       ├── quality.py           資料新鮮度與可比性判定
+│       └── series_utils.py      時間序列處理
 │
 ├── frontend/
-│   └── index.html             輸入介面與報告顯示（上傳到前端 bucket）
+│   ├── index.html               單檔前端（無建置步驟）
+│   ├── fixtures/                離線示範用的範例資料
+│   └── tests/                   前端測試
 │
-├── data/baseline/             賽方基準 CSV（本機測試用）
-└── outputs/sample_run/        範例輸出，供評審快速檢視格式
+├── scripts/
+│   ├── package_lambda.sh        打包 function.zip
+│   ├── upload_baseline.sh       上傳基準 CSV 至 S3
+│   └── set_api_url.sh           替換前端的 Function URL
+│
+├── tests/                       後端測試
+├── data/baseline/               賽方基準 CSV
+└── outputs/                     本機執行輸出
 ```
 
 ---
 
-## 環境需求
+## 環境變數
 
-- Python 3.12
-- AWS 帳號，且已於 Bedrock「Model access」頁面開通所需模型
-- AWS CLI 已完成 `aws configure`
+完整清單見 `.env.example`。必填只有兩項：
 
----
+| 變數 | 說明 |
+|---|---|
+| `BEDROCK_MODEL_ID` | 例如 `us.anthropic.claude-sonnet-4-20250514-v1:0` |
+| `DATA_BUCKET` | 資料 bucket 名稱。本機測試留空即改寫入 `outputs/` |
 
-## 本機執行
+執行參數：
 
-```bash
-# 1. 建立虛擬環境並安裝套件
-python -m venv .venv
-source .venv/bin/activate        # Windows 使用 .venv\Scripts\activate
-pip install -r requirements.txt
-
-# 2. 設定環境變數
-cp .env.example .env
-# 編輯 .env，填入真實的 API 金鑰與 bucket 名稱
-
-# 3. 將賽方提供的 CSV 放進 data/baseline/
-
-# 4. 執行
-python lambda/handler.py
-```
-
-本機執行會直接把報告、證據清單、執行紀錄輸出到 `outputs/` 資料夾。
-
----
-
-## AWS 部署
-
-### 一次性資源建立
-
-1. 建立資料 bucket，上傳基準 CSV 至 `baseline/` 路徑
-2. 建立前端 bucket，開啟 Static website hosting，設定公開讀取
-3. 建立 Lambda 專用 IAM Role，附加以下權限：
-   - `bedrock:InvokeModel`
-   - `s3:GetObject`、`s3:PutObject`（限定於資料 bucket）
-   - Lambda 基本執行權限（CloudWatch Logs）
-4. 建立 Lambda function，套用上述 Role，開啟 Function URL 並設定 CORS
-5. 於 Lambda 環境變數填入 `.env.example` 所列的各項變數
-
-pandas 與 numpy 不在 Lambda 內建環境中，需以 Lambda Layer 或容器映像方式提供。
-
-### 部署程式碼
-
-```bash
-# 打包 lambda 資料夾
-cd lambda
-pip install -r ../requirements.txt -t .
-zip -r ../function.zip .
-cd ..
-
-# 更新 Lambda
-aws lambda update-function-code \
-  --function-name crypto-market-agent \
-  --zip-file fileb://function.zip
-```
-
-### 部署前端與資料
-
-```bash
-aws s3 cp frontend/index.html s3://你的前端bucket/index.html
-aws s3 sync data/baseline/ s3://你的資料bucket/baseline/
-```
-
----
-
-## 交付物
-
-系統每次執行會於 S3 產生以下四項，對應命題要求：
-
-| 交付物 | 檔案 | 內容 |
+| 變數 | 預設 | 說明 |
 |---|---|---|
-| 分析報告 | `report.md` | 市場判斷、關鍵依據、信心說明（含已知限制） |
-| 證據清單 | `evidence_list.json` | 每筆證據含 source、fetched_at、content_reference、related_claim |
-| 執行紀錄 | `execution_log.jsonl` | 時間戳記、工具呼叫、資料取得紀錄、流程摘要 |
-| 原始碼與配置 | 本 repo | 完整程式碼、設定檔與執行說明 |
+| `MAX_AGENT_TURNS` | 15 | Agent 迴圈最大輪數 |
+| `TIME_BUDGET_SECONDS` | 600 | 時間預算，與輪數雙重約束 |
+| `TOOL_HTTP_TIMEOUT_SECONDS` | 15 | 單次外部呼叫 timeout |
+
+資料源金鑰全部選用，缺少時對應工具會 graceful fail 並記入資料缺口：
+`COINGECKO_API_KEY`、`ETHERSCAN_API_KEY`、`HELIUS_API_KEY`、`FRED_API_KEY` 等。
+
+所有 `os.environ` 讀取集中在 `config.py`，其他模組一律 `from config import X`。金鑰不寫入程式碼，`.env` 已由 `.gitignore` 排除。
 
 ---
 
-## 資料來源
+## 設計取捨
 
-| 類別 | 來源 | 需要金鑰 |
-|---|---|---|
-| 基準價格 | 賽方提供 OHLCV CSV | — |
-| 即時價格 | CoinGecko、Binance 公開 API | CoinGecko 需要 |
-| 新聞與公告 | CryptoPanic、各專案官方部落格與 GitHub releases | CryptoPanic 需要 |
-| 鏈上 BTC | mempool.space | 不需要 |
-| 鏈上 ETH | Etherscan API V2 | 需要 |
-| 鏈上 BNB | Blockscout | 不需要 |
-| 鏈上 SOL | Helius | 需要 |
-| 鏈上 XRP | XRPL 公開節點 | 不需要 |
-| 市場情緒 | alternative.me Fear & Greed Index | 不需要 |
-| 總體經濟 | FRED | 需要 |
+**為什麼不用 API Gateway** — Function URL 沒有 29 秒逾時限制，而完整分析需要數十秒到數分鐘。
 
-付費或商業資料來源若有使用，會於報告與證據清單中揭露，且不作為唯一關鍵依據。
+**為什麼不用 Step Functions** — 流程是單一線性路徑，狀態機只增加部署複雜度與失敗面。
 
----
+**為什麼 Agent 迴圈必定終止** — 受 `MAX_AGENT_TURNS` 與 `TIME_BUDGET_SECONDS` 雙重約束，超出任一條件即停止工具呼叫，以現有證據強制收斂並在信心說明標註缺口。命題只給一次正式執行機會，穩定完成優先於功能豐富。
 
-## 安全性
+**為什麼給模型的 toolResult 只有摘要** — 原始資料封存到 S3，只把 summary + evidence_id 回傳給模型，避免 context 膨脹拖慢推理或觸及上限。
 
-- API 金鑰一律透過環境變數讀取，未寫入程式碼
-- `.env` 已由 `.gitignore` 排除
-- 資料 bucket 不對外公開，交付物透過 S3 presigned URL 提供下載
+**為什麼數值一律由工具計算** — LLM 心算技術指標是 Demo 時最容易被驗證出錯的環節。`compute_quant` 以 pandas 計算並附歷史百分位，模型只負責解讀。
+
+**為什麼前端只讀結構化資料** — 前端不從 Markdown 抽數字、不重算指標，確保畫面與報告不會出現不一致的數值。
